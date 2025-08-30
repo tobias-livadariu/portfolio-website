@@ -1,0 +1,23 @@
+@font-face {
+    font-family: 'Press Start 2P';
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+    src: url("/fonts/press-start-2p/press-start-2p-roman-400.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: 'PixAntiqua';
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+    src: url("/fonts/pixantiqua/pixantiqua.woff2") format("woff2");
+}
+
+@font-face {
+    font-family: 'Pixel Emulator';
+    font-weight: 400;
+    font-display: swap;
+    font-style: normal;
+    src: url("/fonts/pixel-emulator/pixel-emulator.woff2") format("woff2");
+}
