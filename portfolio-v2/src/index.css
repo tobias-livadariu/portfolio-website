@@ -4,6 +4,7 @@
 @theme {
   /* 🎨 Colors */
   --color-base: #070B14;
+  --color-gray: #808080;
   --color-muted-white: #A8A8B3;
   --color-soft-gray: #7D7D87;
   --color-dim-blue-gray: #6C6F7A;
@@ -22,6 +23,14 @@
 
 @layer base {
   html {
-    @apply font-pixelemu text-campfire bg-base;
+    @apply font-pixantiqua text-campfire bg-base;
+  }
+
+  h1, h2 {
+    @apply font-pressstart
+  }
+
+  h3 {
+    @apply font-pixelemu
   }
 }

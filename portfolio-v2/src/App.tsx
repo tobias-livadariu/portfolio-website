@@ -1,7 +1,13 @@
+import MainTitle from "./components/MainTitle"
+
 function App() {
   return (
     <div>
-      Placeholder
+      <MainTitle
+        intro="Hey, I'm"
+        firstName="Tobias"
+        lastName="Livadariu"
+      />
     </div>
   )
 }
