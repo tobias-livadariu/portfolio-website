@@ -1,2 +1,27 @@
 @import "tailwindcss";
 @import "./fonts.css";
+
+@theme {
+  /* 🎨 Colors */
+  --color-base: #070B14;
+  --color-muted-white: #A8A8B3;
+  --color-soft-gray: #7D7D87;
+  --color-dim-blue-gray: #6C6F7A;
+  --color-faded-blue: #5A6A85;
+  --color-faded-red: #7A4B4B;
+  --color-faded-orange: #9A6A4A;
+  --color-dusty-yellow: #8C815A;
+  --color-campfire: #e97531;
+  --color-campfire-ash: #f7d8c0;
+
+  /* 🔤 Fonts */
+  --font-pressstart: "Press Start 2P", monospace;
+  --font-pixantiqua: "PixAntiqua", monospace;
+  --font-pixelemu: "Pixel Emulator", monospace;
+}
+
+@layer base {
+  html {
+    @apply font-pixelemu text-campfire bg-base;
+  }
+}
