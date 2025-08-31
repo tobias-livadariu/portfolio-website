@@ -3,7 +3,7 @@
 
 @theme {
   /* 🎨 Colors */
-  --color-base: #070B14;
+  --color-black: #070B14;
   --color-gray: #808080;
   --color-muted-white: #A8A8B3;
   --color-soft-gray: #7D7D87;
@@ -23,7 +23,7 @@
 
 @layer base {
   html {
-    @apply font-pixantiqua text-campfire bg-base;
+    @apply font-pixantiqua text-campfire bg-black;
   }
 
   h1, h2 {

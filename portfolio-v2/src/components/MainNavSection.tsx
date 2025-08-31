@@ -7,7 +7,7 @@ function MainNavSection() {
   }
 
   return (
-    <div className="inline-flex flex-col items-center space-y-1">
+    <div className="inline-flex flex-col items-center space-y-0.5">
       <HorizontalDottedLine color="gray" dotRadius={1} dotSpacing={6} />
 
       {["About", "Resume", "Portfolio", "Contact me"].map((label) => (
@@ -15,7 +15,7 @@ function MainNavSection() {
           <button
             onClick={() => handleClick(label)}
             className="
-              font-pixelemu cursor-pointer peer order-2
+              font-pixelemu cursor-pointer peer order-2 text-[22px]
               hover:text-campfire-ash
               focus:outline-none focus-visible:text-campfire-ash
             "
@@ -23,12 +23,12 @@ function MainNavSection() {
             {label}
           </button>
           <Reply
-            className={`text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash rotate-180 order-1 ${label === "About" ? "mr-[3px]" : "mr-[2px]"}`}
-            size={24}
+            className={`text-black peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash rotate-180 order-1 ${label === "About" ? "mr-[3px]" : "mr-[2px]"}`}
+            size={32}
           />
           <Reply
-            className="text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash order-3 ml-[1px]"
-            size={24}
+            className="text-black peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash order-3 ml-[1px]"
+            size={32}
           />
         </div>
       ))}
