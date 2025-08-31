@@ -1,4 +1,4 @@
-import { Reply, Play, ChevronLeft, ChevronRight } from "@nsmr/pixelart-react"
+import { Reply } from "@nsmr/pixelart-react"
 import HorizontalDottedLine from "./HorizontalDottedLine"
 
 function MainNavSection() {
@@ -11,25 +11,23 @@ function MainNavSection() {
       <HorizontalDottedLine color="gray" dotRadius={1} dotSpacing={6} />
 
       {["About", "Resume", "Portfolio", "Contact me"].map((label) => (
-        <div key={label} className="group flex items-center">
-          <Reply
-            className="text-campfire-ash visible group-hover:visible group-focus-within:visible rotate-180 mr-[2px]"
-            size={24}
-          />
-
+        <div key={label} className="flex items-center">
           <button
             onClick={() => handleClick(label)}
             className="
-              text-inherit font-pixelemu bg-none border-none cursor-pointer
+              font-pixelemu cursor-pointer peer order-2
               hover:text-campfire-ash
               focus:outline-none focus-visible:text-campfire-ash
             "
           >
             {label}
           </button>
-
           <Reply
-            className="text-campfire-ash visible group-hover:visible group-focus-within:visible"
+            className="text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash rotate-180 order-1"
+            size={24}
+          />
+          <Reply
+            className="text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash order-3"
             size={24}
           />
         </div>
