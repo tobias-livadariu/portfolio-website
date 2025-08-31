@@ -8,7 +8,7 @@ interface MainTitleProps {
 
 function MainTitle({ intro, firstName, lastName }: MainTitleProps) {
   return (
-    <div className="inline-flex flex-col items-center">
+    <div className="inline-flex flex-col items-center mt-4 ml-3">
       <h2 className="text-[17px]">{intro}</h2>
       <h1 className="text-[21px]">{firstName}</h1>
       <h1 className="text-[21px]">{lastName}</h1>
