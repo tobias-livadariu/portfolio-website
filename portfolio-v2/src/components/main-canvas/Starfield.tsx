@@ -1,6 +1,14 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Application, Container, Graphics } from "pixi.js";
 
+interface Star {
+  graphics: Graphics;
+  x: number;
+  y: number;
+  size: number;
+  color: number;
+}
+
 const Starfield = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const appRef = useRef<Application | null>(null);
@@ -11,7 +19,7 @@ const Starfield = () => {
     
     if (appRef.current) {
       try {
-        appRef.current.destroy(true, { children: true, texture: true, baseTexture: true });
+        appRef.current.destroy(true, { children: true, texture: true });
       } catch (error) {
         console.warn('Pixi cleanup error:', error);
       }
@@ -35,7 +43,7 @@ const Starfield = () => {
         await app.init({
           width: window.innerWidth,
           height: window.innerHeight,
-          backgroundColor: 0x000000,
+          backgroundColor: 0x070B14,
           antialias: true,
           resolution: window.devicePixelRatio || 1,
           autoDensity: true,
@@ -62,31 +70,94 @@ const Starfield = () => {
         // Append to body instead of container to avoid React interference
         document.body.appendChild(canvas);
 
-        // Create stars
+        // Create star recycling system
         const starContainer = new Container();
         app.stage.addChild(starContainer);
 
-        const numStars = 200;
+        const numStars = 5000;
+        const borderSize = 1000;
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
+        const stars: Star[] = [];
 
-        for (let i = 0; i < numStars; i++) {
+        // Helper function to create a star in the extended region
+        const createStar = (inBorderOnly = false): Star => {
           const size = Math.random() * 2 + 1;
           const color = colors[Math.floor(Math.random() * colors.length)];
+          
+          const graphics = new Graphics();
+          graphics.rect(0, 0, size, size);
+          graphics.fill(color);
 
-          const star = new Graphics();
-          star.rect(0, 0, size, size);
-          star.fill(color);
+          let x, y;
+          
+          if (inBorderOnly) {
+            // Spawn in the outer border (not on main screen)
+            const side = Math.floor(Math.random() * 4);
+            switch (side) {
+              case 0: // Top border
+                x = Math.random() * (app.screen.width + 2 * borderSize) - borderSize;
+                y = Math.random() * borderSize - borderSize;
+                break;
+              case 1: // Right border
+                x = Math.random() * borderSize + app.screen.width;
+                y = Math.random() * (app.screen.height + 2 * borderSize) - borderSize;
+                break;
+              case 2: // Bottom border
+                x = Math.random() * (app.screen.width + 2 * borderSize) - borderSize;
+                y = Math.random() * borderSize + app.screen.height;
+                break;
+              default: // Left border
+                x = Math.random() * borderSize - borderSize;
+                y = Math.random() * (app.screen.height + 2 * borderSize) - borderSize;
+                break;
+            }
+          } else {
+            // Initial spawn anywhere in extended region
+            x = Math.random() * (app.screen.width + 2 * borderSize) - borderSize;
+            y = Math.random() * (app.screen.height + 2 * borderSize) - borderSize;
+          }
 
-          star.x = Math.random() * app.screen.width;
-          star.y = Math.random() * app.screen.height;
+          graphics.x = x;
+          graphics.y = y;
+          
+          return { graphics, x, y, size, color };
+        };
 
-          starContainer.addChild(star);
+        // Initialize stars
+        for (let i = 0; i < numStars; i++) {
+          const star = createStar();
+          stars.push(star);
+          starContainer.addChild(star.graphics);
         }
 
-        // Animation loop
+        // Animation and recycling loop
         const animate = () => {
-          if (mountedRef.current && starContainer) {
-            starContainer.rotation += 0.0005;
+          if (!mountedRef.current || !starContainer) return;
+          
+          // Rotate the entire star field
+          starContainer.rotation += 0.0005;
+          
+          // Check for stars that have left the extended region and recycle them
+          for (let i = stars.length - 1; i >= 0; i--) {
+            const star = stars[i];
+            const worldPos = starContainer.toGlobal(star.graphics.position);
+            
+            // Check if star is outside the extended region
+            if (worldPos.x < -borderSize || 
+                worldPos.x > app.screen.width + borderSize ||
+                worldPos.y < -borderSize || 
+                worldPos.y > app.screen.height + borderSize) {
+              
+              // Remove old star
+              starContainer.removeChild(star.graphics);
+              star.graphics.destroy();
+              stars.splice(i, 1);
+              
+              // Create new star in border region
+              const newStar = createStar(true);
+              stars.push(newStar);
+              starContainer.addChild(newStar.graphics);
+            }
           }
         };
 
