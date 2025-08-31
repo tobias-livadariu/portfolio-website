@@ -23,11 +23,11 @@ function MainNavSection() {
             {label}
           </button>
           <Reply
-            className="text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash rotate-180 order-1"
+            className={`text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash rotate-180 order-1 ${label === "About" ? "mr-[3px]" : "mr-[2px]"}`}
             size={24}
           />
           <Reply
-            className="text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash order-3"
+            className="text-base peer-hover:text-campfire-ash peer-focus-visible:text-campfire-ash order-3 ml-[1px]"
             size={24}
           />
         </div>
