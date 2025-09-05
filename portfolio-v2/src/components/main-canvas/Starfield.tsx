@@ -7,6 +7,8 @@ interface Star {
   y: number;
   size: number;
   color: number;
+  radius: number;
+  angle: number;
 }
 
 const Starfield = () => {
@@ -117,10 +119,14 @@ const Starfield = () => {
             y = Math.random() * (app.screen.height + 2 * borderSize) - borderSize;
           }
 
+          // Calculate radius and angle from top-left corner (0,0)
+          const radius = Math.sqrt(x * x + y * y);
+          const angle = Math.atan2(y, x);
+
           graphics.x = x;
           graphics.y = y;
           
-          return { graphics, x, y, size, color };
+          return { graphics, x, y, size, color, radius, angle };
         };
 
         // Initialize stars
@@ -134,8 +140,26 @@ const Starfield = () => {
         const animate = () => {
           if (!mountedRef.current || !starContainer) return;
           
-          // Rotate the entire star field
-          starContainer.rotation += 0.0005;
+          // Move each star in circular motion around top-left corner (0,0)
+          // 1.8 degrees per second = 1.8 * (Math.PI / 180) radians per second
+          const angularSpeed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
+          
+          for (let i = 0; i < stars.length; i++) {
+            const star = stars[i];
+            
+            // Update angle
+            star.angle += angularSpeed;
+            
+            // Calculate new position based on circular motion
+            const newX = star.radius * Math.cos(star.angle);
+            const newY = star.radius * Math.sin(star.angle);
+            
+            // Update star position
+            star.graphics.x = newX;
+            star.graphics.y = newY;
+            star.x = newX;
+            star.y = newY;
+          }
           
           // Check for stars that have left the extended region and recycle them
           for (let i = stars.length - 1; i >= 0; i--) {
