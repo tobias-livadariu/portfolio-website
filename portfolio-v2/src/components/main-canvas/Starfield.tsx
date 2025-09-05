@@ -76,7 +76,7 @@ const Starfield = () => {
         const starContainer = new Container();
         app.stage.addChild(starContainer);
 
-        const numStars = 5000;
+        const numStars = 8000;
         const borderSize = 1000;
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
         const stars: Star[] = [];
@@ -93,23 +93,24 @@ const Starfield = () => {
           let x, y;
           
           if (inBorderOnly) {
-            // Spawn in the outer border (not on main screen)
+            // Spawn in the outer border regions (not on main screen)
+            // Ensure stars are placed far enough outside to be invisible
             const side = Math.floor(Math.random() * 4);
             switch (side) {
               case 0: // Top border
                 x = Math.random() * (app.screen.width + 2 * borderSize) - borderSize;
-                y = Math.random() * borderSize - borderSize;
+                y = Math.random() * borderSize - borderSize; // -borderSize to -borderSize/2
                 break;
               case 1: // Right border
-                x = Math.random() * borderSize + app.screen.width;
+                x = Math.random() * borderSize + app.screen.width; // screen.width to screen.width + borderSize
                 y = Math.random() * (app.screen.height + 2 * borderSize) - borderSize;
                 break;
               case 2: // Bottom border
                 x = Math.random() * (app.screen.width + 2 * borderSize) - borderSize;
-                y = Math.random() * borderSize + app.screen.height;
+                y = Math.random() * borderSize + app.screen.height; // screen.height to screen.height + borderSize
                 break;
               default: // Left border
-                x = Math.random() * borderSize - borderSize;
+                x = Math.random() * borderSize - borderSize; // -borderSize to 0
                 y = Math.random() * (app.screen.height + 2 * borderSize) - borderSize;
                 break;
             }
@@ -173,13 +174,13 @@ const Starfield = () => {
           // Check for stars that have left the extended region and recycle them
           for (let i = stars.length - 1; i >= 0; i--) {
             const star = stars[i];
-            const worldPos = starContainer.toGlobal(star.graphics.position);
             
-            // Check if star is outside the extended region
-            if (worldPos.x < -borderSize || 
-                worldPos.x > app.screen.width + borderSize ||
-                worldPos.y < -borderSize || 
-                worldPos.y > app.screen.height + borderSize) {
+            // Check if star is outside the extended region using current position
+            // We use star.x and star.y which are updated with circular motion
+            if (star.x < -borderSize || 
+                star.x > app.screen.width + borderSize ||
+                star.y < -borderSize || 
+                star.y > app.screen.height + borderSize) {
               
               // Remove old star
               starContainer.removeChild(star.graphics);
