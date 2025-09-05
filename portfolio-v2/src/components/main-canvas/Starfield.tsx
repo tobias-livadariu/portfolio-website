@@ -126,6 +126,12 @@ const Starfield = () => {
           graphics.x = x;
           graphics.y = y;
           
+          // Set initial rotation so the star's edge is tangential to its circular path
+          // For a square, we want the edge perpendicular to the radius vector
+          // The tangential direction is perpendicular to the radial direction
+          const tangentialAngle = angle + Math.PI / 2; // Add 90 degrees (π/2 radians)
+          graphics.rotation = tangentialAngle;
+          
           return { graphics, x, y, size, color, radius, angle };
         };
 
@@ -159,6 +165,9 @@ const Starfield = () => {
             star.graphics.y = newY;
             star.x = newX;
             star.y = newY;
+            
+            // Rotate the star around its own center at the same rate
+            star.graphics.rotation += angularSpeed;
           }
           
           // Check for stars that have left the extended region and recycle them
