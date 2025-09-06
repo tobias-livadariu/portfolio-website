@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { Application, Container, Graphics, Assets, Spritesheet, AnimatedSprite, Texture, Ticker } from "pixi.js";
+import { Application, Container, Graphics, Assets, Spritesheet, AnimatedSprite, Texture } from "pixi.js";
 
 interface Star {
   graphics: Graphics;
@@ -93,11 +93,10 @@ function screenCenter(app: Application) {
   return { cx: app.screen.width / 2, cy: app.screen.height / 2 };
 }
 
-function createPlanet(app: Application, ensureVisible = false, activeTypes: Set<PlanetType>): Planet | null {
-  // uniqueness: pick a type not yet active
-  const candidates = Array.from(planetFrames.keys()).filter(t => !activeTypes.has(t));
-  if (candidates.length === 0) return null;
-  const type = candidates[(Math.random() * candidates.length) | 0];
+function createPlanet(app: Application, ensureVisible = false): Planet | null {
+  // Pick any planet type randomly (no uniqueness constraint)
+  const planetTypes = Array.from(planetFrames.keys());
+  const type = planetTypes[(Math.random() * planetTypes.length) | 0];
 
   const variations = planetFrames.get(type);
   if (!variations || variations.length === 0) return null;
@@ -107,7 +106,7 @@ function createPlanet(app: Application, ensureVisible = false, activeTypes: Set<
 
   const sprite = new AnimatedSprite(frames);
   sprite.anchor.set(0.5);
-  sprite.animationSpeed = 5 / 60; // 5 FPS
+  sprite.animationSpeed = 2 / 60; // 2 FPS
   sprite.play();
 
   // placement
@@ -127,11 +126,25 @@ function createPlanet(app: Application, ensureVisible = false, activeTypes: Set<
       y = Math.random() * (h + 2 * border) - border;
       tries++;
     } while (Math.hypot(x, y) < minDist && tries < 50);
+    
+    // If we couldn't find a valid position after 50 tries, place it far away
+    if (tries >= 50) {
+      x = Math.random() * (w + 2 * border) - border;
+      y = Math.random() * (h + 2 * border) - border;
+      // Force it outside the prohibited zone by moving it further out
+      const currentDist = Math.hypot(x, y);
+      if (currentDist < minDist) {
+        const scale = (minDist + 100) / currentDist;
+        x *= scale;
+        y *= scale;
+      }
+    }
   }
 
   const radius = Math.hypot(x, y);
   const angle = Math.atan2(y, x);
-  const speed = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * 0.0009 + 0.00025);
+  // All planets use the same orbital speed as stars: 1.8 degrees per second
+  const speed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
 
   sprite.x = x; sprite.y = y; // initial position
 
@@ -139,13 +152,26 @@ function createPlanet(app: Application, ensureVisible = false, activeTypes: Set<
 }
 
 // ensure the ticker callback matches v8: (ticker: Ticker) => void
-function animatePlanets(ticker: Ticker, planets: Planet[]) {
-  const dt = ticker.deltaTime; // ~1 at 60fps
+function animatePlanets(planets: Planet[]) {
+  // Use the same angular speed as stars: 1.8 degrees per second
+  const angularSpeed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
+  
   for (let i = 0; i < planets.length; i++) {
     const p = planets[i];
-    p.angle += p.speed * dt;
-    p.sprite.x = p.radius * Math.cos(p.angle);
-    p.sprite.y = p.radius * Math.sin(p.angle);
+    
+    // Update angle using the same speed as stars
+    p.angle += angularSpeed;
+    
+    // Calculate new position based on circular motion
+    const newX = p.radius * Math.cos(p.angle);
+    const newY = p.radius * Math.sin(p.angle);
+    
+    // Update planet position
+    p.sprite.x = newX;
+    p.sprite.y = newY;
+    
+    // Rotate the planet around its own center at the same rate as stars
+    p.sprite.rotation += angularSpeed;
   }
 }
 
@@ -288,27 +314,24 @@ const Starfield = () => {
         // Load planet frames and initialize planets
         await loadPlanetFrames();
 
-        const activeTypes = new Set<PlanetType>();
         const planets: Planet[] = [];
-        const NUM_PLANETS = 6;
+        const NUM_PLANETS = 1000;
 
-        const p0 = createPlanet(app, true, activeTypes);
+        const p0 = createPlanet(app, true);
         if (p0) {
-          activeTypes.add(p0.type);
           planets.push(p0);
           planetContainer.addChild(p0.sprite);
         }
 
         while (planets.length < NUM_PLANETS) {
-          const p = createPlanet(app, false, activeTypes);
+          const p = createPlanet(app, false);
           if (!p) break;
-          activeTypes.add(p.type);
           planets.push(p);
           planetContainer.addChild(p.sprite);
         }
 
         // Animation and recycling loop with proper Pixi v8 ticker signature
-        const animateRef = { current: (ticker: Ticker) => {
+        const animateRef = { current: () => {
           if (!mountedRef.current || !starContainer) return;
           
           // Move each star in circular motion around top-left corner (0,0)
@@ -336,7 +359,7 @@ const Starfield = () => {
           }
           
           // Animate planets using the new function
-          animatePlanets(ticker, planets);
+          animatePlanets(planets);
           
           // Check for stars that have left the extended region and recycle them
           for (let i = stars.length - 1; i >= 0; i--) {
@@ -373,13 +396,11 @@ const Starfield = () => {
               // Remove old planet
               planetContainer.removeChild(planet.sprite);
               planet.sprite.destroy();
-              activeTypes.delete(planet.type);
               planets.splice(i, 1);
               
               // Create new planet in border region
-              const newPlanet = createPlanet(app, false, activeTypes);
+              const newPlanet = createPlanet(app, false);
               if (newPlanet) {
-                activeTypes.add(newPlanet.type);
                 planets.push(newPlanet);
                 planetContainer.addChild(newPlanet.sprite);
               }
