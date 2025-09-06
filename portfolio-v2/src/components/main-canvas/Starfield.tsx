@@ -278,6 +278,43 @@ const Starfield = () => {
 
         const numStars = 8000;
         const borderSize = 1000;
+
+        // --- Radius jitter configuration (tweak to bias outward) ---
+        const RADIUS_JITTER_MIN = -8;   // lower bound (pixels)
+        const RADIUS_JITTER_MAX = +12;  // upper bound (pixels) — slight outward skew
+
+        const randRange = (min: number, max: number) => min + Math.random() * (max - min);
+        const jitterRadius = (r: number) => Math.max(1, r + randRange(RADIUS_JITTER_MIN, RADIUS_JITTER_MAX));
+
+        /** Pick an off-screen angle for a given radius. For planets, prefer TOP/LEFT exits. */
+        function pickOffscreenAngle(
+          r: number,
+          app: Application,
+          border: number,
+          preferTopOrLeftOnly: boolean
+        ): number {
+          for (let tries = 0; tries < 64; tries++) {
+            const theta = preferTopOrLeftOnly
+              ? (Math.random() * Math.PI + Math.PI) // [π,2π): sin<0 (top) or cos<0 (left)
+              : (Math.random() * Math.PI * 2);
+
+            const x = r * Math.cos(theta);
+            const y = r * Math.sin(theta);
+
+            const outsideTop    = y < -border;
+            const outsideLeft   = x < -border;
+            const outsideRight  = x > app.screen.width  + border;
+            const outsideBottom = y > app.screen.height + border;
+
+            if (preferTopOrLeftOnly) {
+              if (outsideTop || outsideLeft) return theta;
+            } else {
+              if (outsideTop || outsideLeft || outsideRight || outsideBottom) return theta;
+            }
+          }
+          return (5 * Math.PI) / 4; // fallback: 225° (upper-left quadrant)
+        }
+
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
         const stars: Star[] = [];
 
@@ -336,6 +373,38 @@ const Starfield = () => {
           return { graphics, x, y, size, color, radius, angle };
         };
 
+        // --- Recycle helpers that preserve (jittered) radius and place off-screen ---
+        const createStarNearRadius = (targetR: number): Star => {
+          const s = createStar(true);
+          const theta = pickOffscreenAngle(targetR, app, borderSize, false);
+          const x = targetR * Math.cos(theta);
+          const y = targetR * Math.sin(theta);
+          s.graphics.x = x;
+          s.graphics.y = y;
+          s.x = x;
+          s.y = y;
+          s.radius = targetR;
+          s.angle = theta;
+          // keep tangential orientation consistent with your stars
+          s.graphics.rotation = theta + Math.PI / 2;
+          return s;
+        };
+
+        const createPlanetNearRadius = (targetR: number): Planet | null => {
+          const p = createPlanet(app, true);
+          if (!p) return null;
+          const theta = pickOffscreenAngle(targetR, app, borderSize, true);
+          const x = targetR * Math.cos(theta);
+          const y = targetR * Math.sin(theta);
+          p.sprite.x = x;
+          p.sprite.y = y;
+          p.radius = targetR;
+          p.angle = theta;
+          // orient top-left corner toward origin at this angle
+          p.sprite.rotation = theta - (3 * Math.PI) / 4;
+          return p;
+        };
+
         // Initialize stars
         for (let i = 0; i < numStars; i++) {
           const star = createStar();
@@ -347,7 +416,7 @@ const Starfield = () => {
         await loadPlanetFrames();
 
         const planets: Planet[] = [];
-        const NUM_PLANETS = 8000;
+        const NUM_PLANETS = 1000;
 
         // Create planets following the same methodology as stars
         for (let i = 0; i < NUM_PLANETS; i++) {
@@ -404,8 +473,9 @@ const Starfield = () => {
               star.graphics.destroy();
               stars.splice(i, 1);
               
-              // Create new star in border region
-              const newStar = createStar(true);
+              // Recycle at approximately the same radius (with configurable jitter)
+              const newRadius = jitterRadius(star.radius);
+              const newStar = createStarNearRadius(newRadius);
               stars.push(newStar);
               starContainer.addChild(newStar.graphics);
             }
@@ -427,8 +497,9 @@ const Starfield = () => {
               planet.sprite.destroy();
               planets.splice(i, 1);
               
-              // Create new planet ONLY in upper or left border regions
-              const newPlanet = createPlanet(app, true);
+              // Recycle at approximately the same radius (with configurable jitter)
+              const newRadius = jitterRadius(planet.radius);
+              const newPlanet = createPlanetNearRadius(newRadius);
               if (newPlanet) {
                 planets.push(newPlanet);
                 planetContainer.addChild(newPlanet.sprite);
