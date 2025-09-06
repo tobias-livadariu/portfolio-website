@@ -43,6 +43,9 @@ const MIN_SPAWN_DEPTH = 500;
 const MAX_SPAWN_DEPTH = 1000;
 const randRange = (min: number, max: number) => min + Math.random() * (max - min);
 
+// Planet exclusion zone around origin (configurable)
+const PLANET_EXCLUSION_RADIUS = 395; // pixels - planets cannot spawn within this distance of origin (0,0)
+
 async function loadPlanetFrames() {
   const types: PlanetType[] = [
     "astroid",
@@ -117,32 +120,41 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
 
   // placement - following the same methodology as stars
   const border = 1000; // extended region, consistent with stars logic
-  let x: number, y: number;
+  let x: number = 0, y: number = 0; // Initialize with default values
   
-  if (inBorderOnly) {
-    // Recycle: spawn only in TOP or LEFT size-aware strips, depth in [500, 1000]
-    const side = Math.random() < 0.5 ? "top" : "left";
-    const depth = randRange(MIN_SPAWN_DEPTH, MAX_SPAWN_DEPTH);
+  // Retry loop to avoid spawning too close to origin
+  for (let attempts = 0; attempts < 20; attempts++) {
+    if (inBorderOnly) {
+      // Recycle: spawn only in TOP or LEFT size-aware strips, depth in [500, 1000]
+      const side = Math.random() < 0.5 ? "top" : "left";
+      const depth = randRange(MIN_SPAWN_DEPTH, MAX_SPAWN_DEPTH);
 
-    if (side === "top") {
-      // full-width with slight overhang to avoid corner pops
-      x = Math.random() * (app.screen.width + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
-      // place center safely above the top by its bound radius + depth
-      y = -(halfDiag + depth);
+      if (side === "top") {
+        // full-width with slight overhang to avoid corner pops
+        x = Math.random() * (app.screen.width + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+        // place center safely above the top by its bound radius + depth
+        y = -(halfDiag + depth);
+      } else {
+        // place center safely left of the screen by its bound radius + depth
+        x = -(halfDiag + depth);
+        y = Math.random() * (app.screen.height + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+      }
     } else {
-      // place center safely left of the screen by its bound radius + depth
-      x = -(halfDiag + depth);
-      y = Math.random() * (app.screen.height + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+      // Initial spawn anywhere in extended region (like stars)
+      x = Math.random() * (app.screen.width + 2 * border) - border;
+      y = Math.random() * (app.screen.height + 2 * border) - border;
     }
-  } else {
-    // Initial spawn anywhere in extended region (like stars)
-    x = Math.random() * (app.screen.width + 2 * border) - border;
-    y = Math.random() * (app.screen.height + 2 * border) - border;
 
-    // If initially inside (or touching) the viewport, make it visible immediately
-    const insideX = x > -halfDiag && x < app.screen.width + halfDiag;
-    const insideY = y > -halfDiag && y < app.screen.height + halfDiag;
-    if (insideX && insideY) sprite.alpha = 1;
+    // Check if planet is far enough from origin
+    const distanceFromOrigin = Math.sqrt(x * x + y * y);
+    if (distanceFromOrigin >= PLANET_EXCLUSION_RADIUS) {
+      // If initially inside (or touching) the viewport, make it visible immediately
+      const insideX = x > -halfDiag && x < app.screen.width + halfDiag;
+      const insideY = y > -halfDiag && y < app.screen.height + halfDiag;
+      if (insideX && insideY) sprite.alpha = 1;
+      break; // Found a valid position
+    }
+    // If too close to origin, continue loop to retry
   }
 
   const radius = Math.hypot(x, y);
@@ -335,7 +347,7 @@ const Starfield = () => {
         await loadPlanetFrames();
 
         const planets: Planet[] = [];
-        const NUM_PLANETS = 1000;
+        const NUM_PLANETS = 8000;
 
         // Create planets following the same methodology as stars
         for (let i = 0; i < NUM_PLANETS; i++) {
