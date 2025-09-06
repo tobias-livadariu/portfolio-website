@@ -352,12 +352,12 @@
     }
   },
   "animations": {
-    "gas-giant-2-3": ["frame_0", "frame_1", "frame_2", "frame_3", "frame_4", "frame_5", "frame_6", "frame_7", "frame_8", "frame_9", "frame_10", "frame_11", "frame_12", "frame_13", "frame_14", "frame_15", "frame_16", "frame_17", "frame_18", "frame_19", "frame_20", "frame_21", "frame_22", "frame_23", "frame_24", "frame_25", "frame_26", "frame_27", "frame_28", "frame_29", "frame_30", "frame_31", "frame_32", "frame_33", "frame_34", "frame_35", "frame_36", "frame_37", "frame_38", "frame_39", "frame_40", "frame_41", "frame_42", "frame_43", "frame_44", "frame_45", "frame_46", "frame_47", "frame_48", "frame_49"]
+    "gas-giant-2-5": ["frame_0", "frame_1", "frame_2", "frame_3", "frame_4", "frame_5", "frame_6", "frame_7", "frame_8", "frame_9", "frame_10", "frame_11", "frame_12", "frame_13", "frame_14", "frame_15", "frame_16", "frame_17", "frame_18", "frame_19", "frame_20", "frame_21", "frame_22", "frame_23", "frame_24", "frame_25", "frame_26", "frame_27", "frame_28", "frame_29", "frame_30", "frame_31", "frame_32", "frame_33", "frame_34", "frame_35", "frame_36", "frame_37", "frame_38", "frame_39", "frame_40", "frame_41", "frame_42", "frame_43", "frame_44", "frame_45", "frame_46", "frame_47", "frame_48", "frame_49"]
   },
   "meta": {
     "app": "Custom Spritesheet Generator",
     "version": "1.0",
-    "image": "gas-giant-2-3.png",
+    "image": "gas-giant-2-5.png",
     "format": "RGBA8888",
     "size": {"w": 15000, "h": 300},
     "scale": "1"
