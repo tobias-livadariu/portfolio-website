@@ -32,10 +32,16 @@ interface Planet {
   radius: number;
   angle: number;
   speed: number;
+  boundRadius: number; // half-diagonal for size-aware visibility checks
 }
 
 // Map type -> [ variation0Frames[], variation1Frames[], ... ]
 const planetFrames = new Map<PlanetType, Texture[][]>();
+
+// Spawn band depth (measured perpendicular to edge) for recycled planets
+const MIN_SPAWN_DEPTH = 500;
+const MAX_SPAWN_DEPTH = 1000;
+const randRange = (min: number, max: number) => min + Math.random() * (max - min);
 
 async function loadPlanetFrames() {
   const types: PlanetType[] = [
@@ -105,29 +111,38 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
   sprite.animationSpeed = 2 / 60; // 2 FPS
   sprite.play();
 
+  // Precompute half-diagonal (includes current scale) and start transparent
+  const halfDiag = 0.5 * Math.hypot(sprite.width, sprite.height);
+  sprite.alpha = 0;
+
   // placement - following the same methodology as stars
   const border = 1000; // extended region, consistent with stars logic
-  const stripDepth = 500;
   let x: number, y: number;
   
   if (inBorderOnly) {
-    // Spawn ONLY in the upper or left border regions (not on main screen)
-    // This matches the star recycling logic exactly
-    const side = Math.floor(Math.random() * 2); // Only upper (0) or left (1) borders
-    switch (side) {
-      case 0: // Upper border
-        x = Math.random() * (app.screen.width + 2 * border) - border;
-        y = Math.random() * border - border; // -borderSize to -borderSize/2
-        break;
-      default: // Left border
-        x = Math.random() * border - border; // -borderSize to 0
-        y = Math.random() * (app.screen.height + 2 * border) - border;
-        break;
+    // Recycle: spawn only in TOP or LEFT size-aware strips, depth in [500, 1000]
+    const side = Math.random() < 0.5 ? "top" : "left";
+    const depth = randRange(MIN_SPAWN_DEPTH, MAX_SPAWN_DEPTH);
+
+    if (side === "top") {
+      // full-width with slight overhang to avoid corner pops
+      x = Math.random() * (app.screen.width + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+      // place center safely above the top by its bound radius + depth
+      y = -(halfDiag + depth);
+    } else {
+      // place center safely left of the screen by its bound radius + depth
+      x = -(halfDiag + depth);
+      y = Math.random() * (app.screen.height + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
     }
   } else {
     // Initial spawn anywhere in extended region (like stars)
     x = Math.random() * (app.screen.width + 2 * border) - border;
     y = Math.random() * (app.screen.height + 2 * border) - border;
+
+    // If initially inside (or touching) the viewport, make it visible immediately
+    const insideX = x > -halfDiag && x < app.screen.width + halfDiag;
+    const insideY = y > -halfDiag && y < app.screen.height + halfDiag;
+    if (insideX && insideY) sprite.alpha = 1;
   }
 
   const radius = Math.hypot(x, y);
@@ -138,16 +153,14 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
   sprite.x = x; 
   sprite.y = y; 
   
-  // Set initial rotation so the planet's top-left corner points towards the origin (0,0)
-  // This matches how stars are oriented initially
-  const tangentialAngle = angle - Math.PI / 4; // Add 90 degrees (π/2 radians)
-  sprite.rotation = tangentialAngle;
+  // Rotate so the top-left corner of the square faces the origin
+  sprite.rotation = angle - Math.PI / 4;
 
-  return { sprite, type, variant: variantIndex + 1, radius, angle, speed };
+  return { sprite, type, variant: variantIndex + 1, radius, angle, speed, boundRadius: halfDiag };
 }
 
 // ensure the ticker callback matches v8: (ticker: Ticker) => void
-function animatePlanets(planets: Planet[]) {
+function animatePlanets(planets: Planet[], app: Application) {
   // Use the same angular speed as stars: 1.8 degrees per second
   const angularSpeed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
   
@@ -167,6 +180,18 @@ function animatePlanets(planets: Planet[]) {
     
     // Rotate the planet around its own center at the same rate as stars
     p.sprite.rotation += angularSpeed;
+
+    // Fade-in once the bounding circle intersects the viewport
+    if (p.sprite.alpha < 1) {
+      const sx = p.sprite.x;
+      const sy = p.sprite.y;
+      const r  = p.boundRadius;
+      const insideX = sx > -r && sx < app.screen.width + r;
+      const insideY = sy > -r && sy < app.screen.height + r;
+      if (insideX && insideY) {
+        p.sprite.alpha = Math.min(1, p.sprite.alpha + 0.06);
+      }
+    }
   }
 }
 
@@ -349,8 +374,8 @@ const Starfield = () => {
             star.graphics.rotation += angularSpeed;
           }
           
-          // Animate planets using the new function
-          animatePlanets(planets);
+          // Animate planets using the new function (now needs app for fade-in checks)
+          animatePlanets(planets, app);
           
           // Check for stars that have left the extended region and recycle them
           for (let i = stars.length - 1; i >= 0; i--) {
