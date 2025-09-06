@@ -1,6 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Application, Container, Graphics, Assets, Spritesheet, AnimatedSprite, Texture } from "pixi.js";
 
+// Constant: 1.8 degrees per second, expressed as radians per millisecond
+const ANGULAR_SPEED_RAD_PER_MS = (1.8 * Math.PI / 180) / 1000;
+
 interface Star {
   graphics: Graphics;
   x: number;
@@ -160,7 +163,8 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
   const radius = Math.hypot(x, y);
   const angle = Math.atan2(y, x);
   // All planets use the same orbital speed as stars: 1.8 degrees per second
-  const speed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
+  // Store as radians per millisecond so motion is FPS-independent
+  const speed = ANGULAR_SPEED_RAD_PER_MS;
 
   sprite.x = x; 
   sprite.y = y; 
@@ -172,15 +176,12 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
 }
 
 // ensure the ticker callback matches v8: (ticker: Ticker) => void
-function animatePlanets(planets: Planet[], app: Application) {
-  // Use the same angular speed as stars: 1.8 degrees per second
-  const angularSpeed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
-  
+function animatePlanets(planets: Planet[], app: Application, deltaMS: number) {
   for (let i = 0; i < planets.length; i++) {
     const p = planets[i];
     
-    // Update angle using the same speed as stars
-    p.angle += angularSpeed;
+    // Update angle using time-based speed (rad/ms * ms)
+    p.angle += p.speed * deltaMS;
     
     // Calculate new position based on circular motion
     const newX = p.radius * Math.cos(p.angle);
@@ -190,8 +191,8 @@ function animatePlanets(planets: Planet[], app: Application) {
     p.sprite.x = newX;
     p.sprite.y = newY;
     
-    // Rotate the planet around its own center at the same rate as stars
-    p.sprite.rotation += angularSpeed;
+    // Rotate the planet around its own center at the same time-based rate
+    p.sprite.rotation += p.speed * deltaMS;
 
     // Fade-in once the bounding circle intersects the viewport
     if (p.sprite.alpha < 1) {
@@ -400,6 +401,7 @@ const Starfield = () => {
           p.sprite.y = y;
           p.radius = targetR;
           p.angle = theta;
+          // Speed is already set correctly by createPlanet, no need to change it
           // orient top-left corner toward origin at this angle
           p.sprite.rotation = theta - (3 * Math.PI) / 4;
           return p;
@@ -416,7 +418,7 @@ const Starfield = () => {
         await loadPlanetFrames();
 
         const planets: Planet[] = [];
-        const NUM_PLANETS = 1000;
+        const NUM_PLANETS = 10;
 
         // Create planets following the same methodology as stars
         for (let i = 0; i < NUM_PLANETS; i++) {
@@ -428,18 +430,20 @@ const Starfield = () => {
         }
 
         // Animation and recycling loop with proper Pixi v8 ticker signature
-        const animateRef = { current: () => {
+        const animateRef = { current: (ticker: any) => {
           if (!mountedRef.current || !starContainer) return;
           
-          // Move each star in circular motion around top-left corner (0,0)
-          // 1.8 degrees per second = 1.8 * (Math.PI / 180) radians per second
-          const angularSpeed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
+          // Elapsed real time this tick (ms). Limit step size for smooth motion.
+          const deltaMS = ticker?.deltaMS ?? 16.67;
+          // Limit only very large pauses; still honor most real time so speed stays ~1.8°/s
+          const clampedDeltaMS = Math.min(deltaMS, 100);
+          const step = ANGULAR_SPEED_RAD_PER_MS * clampedDeltaMS;
           
           for (let i = 0; i < stars.length; i++) {
             const star = stars[i];
             
-            // Update angle
-            star.angle += angularSpeed;
+            // Update angle using time-based step
+            star.angle += step;
             
             // Calculate new position based on circular motion
             const newX = star.radius * Math.cos(star.angle);
@@ -451,12 +455,12 @@ const Starfield = () => {
             star.x = newX;
             star.y = newY;
             
-            // Rotate the star around its own center at the same rate
-            star.graphics.rotation += angularSpeed;
+            // Rotate the star around its own center at the same time-based rate
+            star.graphics.rotation += step;
           }
           
-          // Animate planets using the new function (now needs app for fade-in checks)
-          animatePlanets(planets, app);
+          // Animate planets using clamped delta time
+          animatePlanets(planets, app, clampedDeltaMS);
           
           // Check for stars that have left the extended region and recycle them
           for (let i = stars.length - 1; i >= 0; i--) {
