@@ -89,11 +89,7 @@ async function loadPlanetFrames() {
   }
 }
 
-function screenCenter(app: Application) {
-  return { cx: app.screen.width / 2, cy: app.screen.height / 2 };
-}
-
-function createPlanet(app: Application, ensureVisible = false): Planet | null {
+function createPlanet(app: Application, inBorderOnly = false): Planet | null {
   // Pick any planet type randomly (no uniqueness constraint)
   const planetTypes = Array.from(planetFrames.keys());
   const type = planetTypes[(Math.random() * planetTypes.length) | 0];
@@ -109,36 +105,29 @@ function createPlanet(app: Application, ensureVisible = false): Planet | null {
   sprite.animationSpeed = 2 / 60; // 2 FPS
   sprite.play();
 
-  // placement
+  // placement - following the same methodology as stars
   const border = 1000; // extended region, consistent with stars logic
+  const stripDepth = 500;
   let x: number, y: number;
-  if (ensureVisible) {
-    const { cx, cy } = screenCenter(app);
-    const spread = 200;
-    x = cx + (Math.random() - 0.5) * spread * 2;
-    y = cy + (Math.random() - 0.5) * spread * 2;
-  } else {
-    const w = app.screen.width, h = app.screen.height;
-    const minDist = 300; // exclusion around origin
-    let tries = 0;
-    do {
-      x = Math.random() * (w + 2 * border) - border;
-      y = Math.random() * (h + 2 * border) - border;
-      tries++;
-    } while (Math.hypot(x, y) < minDist && tries < 50);
-    
-    // If we couldn't find a valid position after 50 tries, place it far away
-    if (tries >= 50) {
-      x = Math.random() * (w + 2 * border) - border;
-      y = Math.random() * (h + 2 * border) - border;
-      // Force it outside the prohibited zone by moving it further out
-      const currentDist = Math.hypot(x, y);
-      if (currentDist < minDist) {
-        const scale = (minDist + 100) / currentDist;
-        x *= scale;
-        y *= scale;
-      }
+  
+  if (inBorderOnly) {
+    // Spawn ONLY in the upper or left border regions (not on main screen)
+    // This matches the star recycling logic exactly
+    const side = Math.floor(Math.random() * 2); // Only upper (0) or left (1) borders
+    switch (side) {
+      case 0: // Upper border
+        x = Math.random() * (app.screen.width + 2 * border) - border;
+        y = Math.random() * border - border; // -borderSize to -borderSize/2
+        break;
+      default: // Left border
+        x = Math.random() * border - border; // -borderSize to 0
+        y = Math.random() * (app.screen.height + 2 * border) - border;
+        break;
     }
+  } else {
+    // Initial spawn anywhere in extended region (like stars)
+    x = Math.random() * (app.screen.width + 2 * border) - border;
+    y = Math.random() * (app.screen.height + 2 * border) - border;
   }
 
   const radius = Math.hypot(x, y);
@@ -146,7 +135,13 @@ function createPlanet(app: Application, ensureVisible = false): Planet | null {
   // All planets use the same orbital speed as stars: 1.8 degrees per second
   const speed = 1.8 * (Math.PI / 180) / 60; // Convert to radians per frame (assuming 60fps)
 
-  sprite.x = x; sprite.y = y; // initial position
+  sprite.x = x; 
+  sprite.y = y; 
+  
+  // Set initial rotation so the planet's top-left corner points towards the origin (0,0)
+  // This matches how stars are oriented initially
+  const tangentialAngle = angle - Math.PI / 4; // Add 90 degrees (π/2 radians)
+  sprite.rotation = tangentialAngle;
 
   return { sprite, type, variant: variantIndex + 1, radius, angle, speed };
 }
@@ -317,17 +312,13 @@ const Starfield = () => {
         const planets: Planet[] = [];
         const NUM_PLANETS = 1000;
 
-        const p0 = createPlanet(app, true);
-        if (p0) {
-          planets.push(p0);
-          planetContainer.addChild(p0.sprite);
-        }
-
-        while (planets.length < NUM_PLANETS) {
-          const p = createPlanet(app, false);
-          if (!p) break;
-          planets.push(p);
-          planetContainer.addChild(p.sprite);
+        // Create planets following the same methodology as stars
+        for (let i = 0; i < NUM_PLANETS; i++) {
+          const planet = createPlanet(app);
+          if (planet) {
+            planets.push(planet);
+            planetContainer.addChild(planet.sprite);
+          }
         }
 
         // Animation and recycling loop with proper Pixi v8 ticker signature
@@ -388,6 +379,7 @@ const Starfield = () => {
             const planet = planets[i];
             
             // Check if planet is outside the extended region using current position
+            // Delete planets when they exit the lower-right section (same as stars)
             if (planet.sprite.x < -borderSize || 
                 planet.sprite.x > app.screen.width + borderSize ||
                 planet.sprite.y < -borderSize || 
@@ -398,8 +390,8 @@ const Starfield = () => {
               planet.sprite.destroy();
               planets.splice(i, 1);
               
-              // Create new planet in border region
-              const newPlanet = createPlanet(app, false);
+              // Create new planet ONLY in upper or left border regions
+              const newPlanet = createPlanet(app, true);
               if (newPlanet) {
                 planets.push(newPlanet);
                 planetContainer.addChild(newPlanet.sprite);
