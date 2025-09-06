@@ -287,33 +287,49 @@ const Starfield = () => {
         const randRange = (min: number, max: number) => min + Math.random() * (max - min);
         const jitterRadius = (r: number) => Math.max(1, r + randRange(RADIUS_JITTER_MIN, RADIUS_JITTER_MAX));
 
-        /** Pick an off-screen angle for a given radius. For planets, prefer TOP/LEFT exits. */
+        /** Pick an angle so (r*cosθ, r*sinθ) is outside the viewport but INSIDE the extended region.
+         *  For planets, prefer TOP/LEFT strips; for stars, allow any strip (top/right/bottom/left).
+         *  This avoids spawn→immediate-cull thrash.
+         */
         function pickOffscreenAngle(
           r: number,
           app: Application,
           border: number,
           preferTopOrLeftOnly: boolean
         ): number {
-          for (let tries = 0; tries < 64; tries++) {
+          for (let tries = 0; tries < 128; tries++) {
+            // Sample any angle; mild bias to upper-left when preferTopOrLeftOnly
             const theta = preferTopOrLeftOnly
-              ? (Math.random() * Math.PI + Math.PI) // [π,2π): sin<0 (top) or cos<0 (left)
-              : (Math.random() * Math.PI * 2);
+              ? (Math.random() * Math.PI + Math.PI)   // [π, 2π) → often top/left half
+              : (Math.random() * Math.PI * 2);        // [0, 2π)
 
             const x = r * Math.cos(theta);
             const y = r * Math.sin(theta);
 
-            const outsideTop    = y < -border;
-            const outsideLeft   = x < -border;
-            const outsideRight  = x > app.screen.width  + border;
-            const outsideBottom = y > app.screen.height + border;
+            // Inside extended region bounds?
+            const insideExt =
+              x >= -border && x <= app.screen.width  + border &&
+              y >= -border && y <= app.screen.height + border;
+
+            // But outside the visible viewport?
+            const offscreen =
+              (x < 0 || x > app.screen.width || y < 0 || y > app.screen.height);
+
+            if (!insideExt || !offscreen) continue; // reject
 
             if (preferTopOrLeftOnly) {
-              if (outsideTop || outsideLeft) return theta;
+              // Only accept TOP or LEFT strips for planets
+              if (y < 0 || x < 0) return theta;
             } else {
-              if (outsideTop || outsideLeft || outsideRight || outsideBottom) return theta;
+              return theta; // any strip is fine for stars
             }
           }
-          return (5 * Math.PI) / 4; // fallback: 225° (upper-left quadrant)
+          // Deterministic fallback: aim into top-left strip inside extended region
+          // Pick a y in [-border+8, -8], compute x from r and return θ.
+          const yOff = -Math.min(border - 8, Math.max(8, r - 8));
+          const xMag = Math.sqrt(Math.max(0, r*r - yOff*yOff));
+          const xOff = -Math.min(xMag, app.screen.width + border - 8);
+          return Math.atan2(yOff, xOff);
         }
 
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
@@ -418,7 +434,7 @@ const Starfield = () => {
         await loadPlanetFrames();
 
         const planets: Planet[] = [];
-        const NUM_PLANETS = 10;
+        const NUM_PLANETS = 1000;
 
         // Create planets following the same methodology as stars
         for (let i = 0; i < NUM_PLANETS; i++) {
@@ -463,7 +479,9 @@ const Starfield = () => {
           animatePlanets(planets, app, clampedDeltaMS);
           
           // Check for stars that have left the extended region and recycle them
+          let recycleBudget = 200; // safety cap per frame
           for (let i = stars.length - 1; i >= 0; i--) {
+            if (recycleBudget-- <= 0) break;
             const star = stars[i];
             
             // Check if star is outside the extended region using current position
@@ -487,6 +505,7 @@ const Starfield = () => {
           
           // Check for planets that have left the extended region and recycle them
           for (let i = planets.length - 1; i >= 0; i--) {
+            if (recycleBudget-- <= 0) break;
             const planet = planets[i];
             
             // Check if planet is outside the extended region using current position
