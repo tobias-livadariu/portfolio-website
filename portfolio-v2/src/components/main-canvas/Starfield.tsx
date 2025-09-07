@@ -12,8 +12,6 @@ interface Star {
   color: number;
   radius: number;
   angle: number;
-  ageMS: number;     // lifetime accumulator in milliseconds
-  ttlMS: number;     // time to live (ms) before forced recycle
 }
 
 type PlanetType =
@@ -38,8 +36,6 @@ interface Planet {
   angle: number;
   speed: number;
   boundRadius: number; // half-diagonal for size-aware visibility checks
-  ageMS: number;     // lifetime accumulator in milliseconds
-  ttlMS: number;     // time to live (ms) before forced recycle
 }
 
 // Map type -> [ variation0Frames[], variation1Frames[], ... ]
@@ -176,7 +172,7 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
   // Rotate so the top-left corner of the square faces the origin
   sprite.rotation = angle - Math.PI / 4;
 
-  return { sprite, type, variant: variantIndex + 1, radius, angle, speed, boundRadius: halfDiag, ageMS: 0, ttlMS: 0 };
+  return { sprite, type, variant: variantIndex + 1, radius, angle, speed, boundRadius: halfDiag };
 }
 
 // ensure the ticker callback matches v8: (ticker: Ticker) => void
@@ -284,61 +280,57 @@ const Starfield = () => {
         const numStars = 8000;
         const borderSize = 1000;
 
-        // ----------------------------
-        // Radial Balancer configuration
-        // ----------------------------
-        const R_MIN = 50; // optional: small hole near origin; set to 1 if you want coverage at center
-        const R_MAX = Math.hypot(app.screen.width, app.screen.height) + borderSize;
-        const N_BINS = 64;
+        // --- Radius jitter configuration (tweak to bias outward) ---
+        const RADIUS_JITTER_MIN = -8;   // lower bound (pixels)
+        const RADIUS_JITTER_MAX = +12;  // upper bound (pixels) — slight outward skew
 
-        // Bin edges [R_MIN, R_MAX] split evenly in radius (target uses area weighting)
-        const edges: number[] = Array.from({ length: N_BINS + 1 }, (_, i) =>
-          R_MIN + (i * (R_MAX - R_MIN)) / N_BINS
-        );
-        const targetWeight: number[] = edges.slice(0, -1).map((r1, i) => {
-          const r2 = edges[i + 1];
-          return r2 * r2 - r1 * r1; // ∝ area of annulus
-        });
-        let counts: number[] = new Array(N_BINS).fill(0);
-
-        const binOf = (r: number) => {
-          const t = (r - R_MIN) / (R_MAX - R_MIN);
-          return Math.max(0, Math.min(N_BINS - 1, Math.floor(t * N_BINS)));
-        };
-        const noteAdd = (r: number) => { counts[binOf(r)]++; };
-        const noteRemove = (r: number) => { counts[binOf(r)]--; };
-
-        function sampleRadiusBalanced(): number {
-          // deficit = (targetWeight - currentCount), clipped to >= 0
-          const deficits = targetWeight.map((w, i) => Math.max(0, w - counts[i]));
-          let sum = 0;
-          for (let i = 0; i < deficits.length; i++) sum += deficits[i];
-          if (sum <= 0) {
-            // fallback: uniform-in-area
-            const u = Math.random();
-            return Math.sqrt(u * (R_MAX * R_MAX - R_MIN * R_MIN) + R_MIN * R_MIN);
-          }
-          let pick = Math.random() * sum;
-          let idx = 0;
-          for (; idx < deficits.length; idx++) {
-            pick -= deficits[idx];
-            if (pick <= 0) break;
-          }
-          const iBin = Math.max(0, Math.min(idx, N_BINS - 1));
-          const r1 = edges[iBin];
-          const r2 = edges[iBin + 1];
-          return r1 + Math.random() * (r2 - r1);
-        }
-
-        // ----------------------------
-        // TTL configuration
-        // ----------------------------
-        const TTL_MIN_MS = 20000;  // 20s
-        const TTL_MAX_MS = 40000;  // 40s
-        const FADE_RATE_PER_SEC = 2.0; // alpha per second when expiring
         const randRange = (min: number, max: number) => min + Math.random() * (max - min);
+        const jitterRadius = (r: number) => Math.max(1, r + randRange(RADIUS_JITTER_MIN, RADIUS_JITTER_MAX));
 
+        /** Pick an angle so (r*cosθ, r*sinθ) is outside the viewport but INSIDE the extended region.
+         *  For planets, prefer TOP/LEFT strips; for stars, allow any strip (top/right/bottom/left).
+         *  This avoids spawn→immediate-cull thrash.
+         */
+        function pickOffscreenAngle(
+          r: number,
+          app: Application,
+          border: number,
+          preferTopOrLeftOnly: boolean
+        ): number {
+          for (let tries = 0; tries < 128; tries++) {
+            // Sample any angle; mild bias to upper-left when preferTopOrLeftOnly
+            const theta = preferTopOrLeftOnly
+              ? (Math.random() * Math.PI + Math.PI)   // [π, 2π) → often top/left half
+              : (Math.random() * Math.PI * 2);        // [0, 2π)
 
+            const x = r * Math.cos(theta);
+            const y = r * Math.sin(theta);
+
+            // Inside extended region bounds?
+            const insideExt =
+              x >= -border && x <= app.screen.width  + border &&
+              y >= -border && y <= app.screen.height + border;
+
+            // But outside the visible viewport?
+            const offscreen =
+              (x < 0 || x > app.screen.width || y < 0 || y > app.screen.height);
+
+            if (!insideExt || !offscreen) continue; // reject
+
+            if (preferTopOrLeftOnly) {
+              // Only accept TOP or LEFT strips for planets
+              if (y < 0 || x < 0) return theta;
+            } else {
+              return theta; // any strip is fine for stars
+            }
+          }
+          // Deterministic fallback: aim into top-left strip inside extended region
+          // Pick a y in [-border+8, -8], compute x from r and return θ.
+          const yOff = -Math.min(border - 8, Math.max(8, r - 8));
+          const xMag = Math.sqrt(Math.max(0, r*r - yOff*yOff));
+          const xOff = -Math.min(xMag, app.screen.width + border - 8);
+          return Math.atan2(yOff, xOff);
+        }
 
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
         const stars: Star[] = [];
@@ -395,15 +387,41 @@ const Starfield = () => {
           const tangentialAngle = angle + Math.PI / 2; // Add 90 degrees (π/2 radians)
           graphics.rotation = tangentialAngle;
           
-          const star: Star = {
-            graphics, x, y, size, color, radius, angle,
-            ageMS: 0,
-            ttlMS: randRange(TTL_MIN_MS, TTL_MAX_MS),
-          };
-          noteAdd(radius);
-          return star;
+          return { graphics, x, y, size, color, radius, angle };
         };
 
+        // --- Recycle helpers that preserve (jittered) radius and place off-screen ---
+        const createStarNearRadius = (targetR: number): Star => {
+          const s = createStar(true);
+          const theta = pickOffscreenAngle(targetR, app, borderSize, false);
+          const x = targetR * Math.cos(theta);
+          const y = targetR * Math.sin(theta);
+          s.graphics.x = x;
+          s.graphics.y = y;
+          s.x = x;
+          s.y = y;
+          s.radius = targetR;
+          s.angle = theta;
+          // keep tangential orientation consistent with your stars
+          s.graphics.rotation = theta + Math.PI / 2;
+          return s;
+        };
+
+        const createPlanetNearRadius = (targetR: number): Planet | null => {
+          const p = createPlanet(app, true);
+          if (!p) return null;
+          const theta = pickOffscreenAngle(targetR, app, borderSize, true);
+          const x = targetR * Math.cos(theta);
+          const y = targetR * Math.sin(theta);
+          p.sprite.x = x;
+          p.sprite.y = y;
+          p.radius = targetR;
+          p.angle = theta;
+          // Speed is already set correctly by createPlanet, no need to change it
+          // orient top-left corner toward origin at this angle
+          p.sprite.rotation = theta - (3 * Math.PI) / 4;
+          return p;
+        };
 
         // Initialize stars
         for (let i = 0; i < numStars; i++) {
@@ -422,12 +440,8 @@ const Starfield = () => {
         for (let i = 0; i < NUM_PLANETS; i++) {
           const planet = createPlanet(app);
           if (planet) {
-            // attach TTL fields (since createPlanet is module-scoped)
-            (planet as any).ageMS = 0;
-            (planet as any).ttlMS = randRange(TTL_MIN_MS, TTL_MAX_MS);
             planets.push(planet);
             planetContainer.addChild(planet.sprite);
-            noteAdd(planet.radius);
           }
         }
 
@@ -459,48 +473,6 @@ const Starfield = () => {
             
             // Rotate the star around its own center at the same time-based rate
             star.graphics.rotation += step;
-
-            // --- TTL update ---
-            star.ageMS += deltaMS;
-            if (star.ageMS > star.ttlMS) {
-              star.graphics.alpha -= FADE_RATE_PER_SEC * (deltaMS / 1000);
-              if (star.graphics.alpha <= 0) {
-                // recycle like the extended-region path
-                noteRemove(star.radius);
-                starContainer.removeChild(star.graphics);
-                star.graphics.destroy();
-                stars.splice(i, 1);
-
-                const newRadius = sampleRadiusBalanced();
-                const newStar = createStar(true);
-                const theta = (() => {
-                  for (let tries = 0; tries < 64; tries++) {
-                    const t = Math.random() * Math.PI * 2;
-                    const nx = newRadius * Math.cos(t);
-                    const ny = newRadius * Math.sin(t);
-                    const insideExt = nx >= -borderSize && nx <= app.screen.width + borderSize && ny >= -borderSize && ny <= app.screen.height + borderSize;
-                    const offscreen = nx < 0 || nx > app.screen.width || ny < 0 || ny > app.screen.height;
-                    if (insideExt && offscreen) return t;
-                  }
-                  return (5 * Math.PI) / 4;
-                })();
-                const nx = newRadius * Math.cos(theta);
-                const ny = newRadius * Math.sin(theta);
-                newStar.graphics.x = nx;
-                newStar.graphics.y = ny;
-                newStar.x = nx;
-                newStar.y = ny;
-                newStar.radius = newRadius;
-                newStar.angle = theta;
-                newStar.ageMS = 0;
-                newStar.ttlMS = randRange(TTL_MIN_MS, TTL_MAX_MS);
-                newStar.graphics.alpha = 1;
-                newStar.graphics.rotation = theta + Math.PI / 2;
-                noteAdd(newRadius);
-                stars.push(newStar);
-                starContainer.addChild(newStar.graphics);
-              }
-            }
           }
           
           // Animate planets using clamped delta time
@@ -518,43 +490,14 @@ const Starfield = () => {
                 star.y < -borderSize || 
                 star.y > app.screen.height + borderSize) {
               
-              // Remove old star (decrement counts)
-              noteRemove(star.radius);
+              // Remove old star
               starContainer.removeChild(star.graphics);
               star.graphics.destroy();
               stars.splice(i, 1);
-
-              // Respawn using radial balancer
-              const newRadius = sampleRadiusBalanced();
-              const newStar = createStar(true);
-              // place on the circle at an off-screen angle inside extended region
-              {
-                const theta = (() => {
-                  // prefer top/left for consistency with planets, but any offscreen strip is fine
-                  for (let tries = 0; tries < 64; tries++) {
-                    const t = Math.random() * Math.PI * 2;
-                    const nx = newRadius * Math.cos(t);
-                    const ny = newRadius * Math.sin(t);
-                    const insideExt = nx >= -borderSize && nx <= app.screen.width + borderSize && ny >= -borderSize && ny <= app.screen.height + borderSize;
-                    const offscreen = nx < 0 || nx > app.screen.width || ny < 0 || ny > app.screen.height;
-                    if (insideExt && offscreen) return t;
-                  }
-                  return (5 * Math.PI) / 4; // fallback
-                })();
-                const nx = newRadius * Math.cos(theta);
-                const ny = newRadius * Math.sin(theta);
-                newStar.graphics.x = nx;
-                newStar.graphics.y = ny;
-                newStar.x = nx;
-                newStar.y = ny;
-                newStar.radius = newRadius;
-                newStar.angle = theta;
-                newStar.ageMS = 0;
-                newStar.ttlMS = randRange(TTL_MIN_MS, TTL_MAX_MS);
-                newStar.graphics.alpha = 1;
-                newStar.graphics.rotation = theta + Math.PI / 2;
-              }
-              noteAdd(newRadius);
+              
+              // Recycle at approximately the same radius (with configurable jitter)
+              const newRadius = jitterRadius(star.radius);
+              const newStar = createStarNearRadius(newRadius);
               stars.push(newStar);
               starContainer.addChild(newStar.graphics);
             }
@@ -572,86 +515,17 @@ const Starfield = () => {
                 planet.sprite.y < -borderSize || 
                 planet.sprite.y > app.screen.height + borderSize) {
               
-              // Remove old planet (decrement counts)
-              noteRemove(planet.radius);
+              // Remove old planet
               planetContainer.removeChild(planet.sprite);
               planet.sprite.destroy();
               planets.splice(i, 1);
-
-              // Respawn using radial balancer
-              const newRadius = sampleRadiusBalanced();
-              const newPlanet = createPlanet(app, true);
+              
+              // Recycle at approximately the same radius (with configurable jitter)
+              const newRadius = jitterRadius(planet.radius);
+              const newPlanet = createPlanetNearRadius(newRadius);
               if (newPlanet) {
-                const theta = (() => {
-                  for (let tries = 0; tries < 64; tries++) {
-                    const t = Math.random() * Math.PI * 2;
-                    const nx = newRadius * Math.cos(t);
-                    const ny = newRadius * Math.sin(t);
-                    const insideExt = nx >= -borderSize && nx <= app.screen.width + borderSize && ny >= -borderSize && ny <= app.screen.height + borderSize;
-                    const offscreen = nx < 0 || nx > app.screen.width || ny < 0 || ny > app.screen.height;
-                    // for planets, prefer top/left strips
-                    if (insideExt && offscreen && (nx < 0 || ny < 0)) return t;
-                  }
-                  return (5 * Math.PI) / 4; // fallback
-                })();
-                const nx = newRadius * Math.cos(theta);
-                const ny = newRadius * Math.sin(theta);
-                newPlanet.sprite.x = nx;
-                newPlanet.sprite.y = ny;
-                newPlanet.radius = newRadius;
-                newPlanet.angle = theta;
-                (newPlanet as any).ageMS = 0;
-                (newPlanet as any).ttlMS = randRange(TTL_MIN_MS, TTL_MAX_MS);
-                newPlanet.sprite.alpha = 1;
-                // keep your existing orientation rule (top-left corner points to origin)
-                newPlanet.sprite.rotation = theta - (3 * Math.PI) / 4;
-                noteAdd(newRadius);
                 planets.push(newPlanet);
                 planetContainer.addChild(newPlanet.sprite);
-              }
-            }
-          }
-
-          // TTL for planets (fade-out & recycle via balancer)
-          for (let i = planets.length - 1; i >= 0; i--) {
-            const p = planets[i];
-            (p as any).ageMS = ((p as any).ageMS ?? 0) + deltaMS;
-            if ((p as any).ageMS > (p as any).ttlMS) {
-              p.sprite.alpha -= FADE_RATE_PER_SEC * (deltaMS / 1000);
-              if (p.sprite.alpha <= 0) {
-                noteRemove(p.radius);
-                planetContainer.removeChild(p.sprite);
-                p.sprite.destroy();
-                planets.splice(i, 1);
-
-                const newRadius = sampleRadiusBalanced();
-                const newPlanet = createPlanet(app, true);
-                if (newPlanet) {
-                  const theta = (() => {
-                    for (let tries = 0; tries < 64; tries++) {
-                      const t = Math.random() * Math.PI * 2;
-                      const nx = newRadius * Math.cos(t);
-                      const ny = newRadius * Math.sin(t);
-                      const insideExt = nx >= -borderSize && nx <= app.screen.width + borderSize && ny >= -borderSize && ny <= app.screen.height + borderSize;
-                      const offscreen = nx < 0 || nx > app.screen.width || ny < 0 || ny > app.screen.height;
-                      if (insideExt && offscreen && (nx < 0 || ny < 0)) return t; // prefer top/left
-                    }
-                    return (5 * Math.PI) / 4;
-                  })();
-                  const nx = newRadius * Math.cos(theta);
-                  const ny = newRadius * Math.sin(theta);
-                  newPlanet.sprite.x = nx;
-                  newPlanet.sprite.y = ny;
-                  newPlanet.radius = newRadius;
-                  newPlanet.angle = theta;
-                  (newPlanet as any).ageMS = 0;
-                  (newPlanet as any).ttlMS = randRange(TTL_MIN_MS, TTL_MAX_MS);
-                  newPlanet.sprite.alpha = 1;
-                  newPlanet.sprite.rotation = theta - (3 * Math.PI) / 4;
-                  noteAdd(newRadius);
-                  planets.push(newPlanet);
-                  planetContainer.addChild(newPlanet.sprite);
-                }
               }
             }
           }
