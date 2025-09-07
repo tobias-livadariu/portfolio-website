@@ -7,6 +7,11 @@ const ANGULAR_SPEED_RAD_PER_MS = (1.8 * Math.PI / 180) / 1000;
 // Enclosing circle margin so all radii stay <= R_MAX
 const R_MAX_MARGIN = 500;
 
+// Densities per square pixel (tune to taste)
+// ~3.49e-4 and ~4.36e-5 approximate 8000 stars / 1000 planets on a 1920x1080 screen with margin
+const NUM_STARS_PER_UNIT   = 13e-4;   // stars per px^2
+const NUM_PLANETS_PER_UNIT = 3e-5;   // planets per px^2
+
 function getRMax(app: Application): number {
   return Math.hypot(app.screen.width, app.screen.height) + R_MAX_MARGIN;
 }
@@ -27,12 +32,6 @@ interface Star {
   color: number;
   radius: number;
   angle: number;
-  // Conservative maximum rightward extent from the star's transform origin
-  // (Graphics pivots at top-left). Used for left-exit culling.
-  rightExtent: number;
-  // Conservative maximum upward extent from the star's transform origin
-  // Used for bottom-exit culling.
-  topExtent: number;
 }
 
 type PlanetType =
@@ -118,7 +117,7 @@ async function loadPlanetFrames() {
   }
 }
 
-function createPlanet(app: Application): Planet | null {
+function createPlanet(app: Application, rMinOverride?: number, rMaxOverride?: number): Planet | null {
   // Pick any planet type randomly (no uniqueness constraint)
   const planetTypes = Array.from(planetFrames.keys());
   const type = planetTypes[(Math.random() * planetTypes.length) | 0];
@@ -138,9 +137,9 @@ function createPlanet(app: Application): Planet | null {
   const halfDiag = 0.5 * Math.hypot(sprite.width, sprite.height);
   sprite.alpha = 0;
 
-  // Initial placement: uniform-area polar sampling in [rMin, R_MAX]
-  const R_MAX = getRMax(app);
-  const rMin = Math.max(PLANET_EXCLUSION_RADIUS + 1, 1);
+  // Initial placement: uniform-area polar sampling in the requested ring
+  const R_MAX = (rMaxOverride ?? getRMax(app));
+  const rMin = Math.max((rMinOverride ?? (PLANET_EXCLUSION_RADIUS + 1)), 1);
   const { r, theta } = samplePolar(rMin, R_MAX);
   const x = r * Math.cos(theta);
   const y = r * Math.sin(theta);
@@ -205,6 +204,8 @@ const Starfield = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const appRef = useRef<Application | null>(null);
   const mountedRef = useRef(true);
+  // Track the enclosing-circle radius used at last layout
+  const rMaxRef = useRef<number>(0);
 
   const cleanup = useCallback(() => {
     mountedRef.current = false;
@@ -262,7 +263,10 @@ const Starfield = () => {
         // Append to body instead of container to avoid React interference
         document.body.appendChild(canvas);
 
-        // Create star recycling system
+        // Track current enclosing radius for resize scaling
+        rMaxRef.current = getRMax(app);
+
+        // Create star container
         const starContainer = new Container();
         app.stage.addChild(starContainer);
 
@@ -270,7 +274,13 @@ const Starfield = () => {
         const planetContainer = new Container();
         app.stage.addChild(planetContainer);
 
-        const numStars = 8000;
+        // === Initial counts from area ===
+        const R_MAX0 = getRMax(app);
+        const areaCircle0 = Math.PI * R_MAX0 * R_MAX0;
+        const rMinPlanet = Math.max(PLANET_EXCLUSION_RADIUS + 1, 1);
+        const areaRing0   = Math.PI * (R_MAX0 * R_MAX0 - rMinPlanet * rMinPlanet);
+        const numStars0   = Math.round(NUM_STARS_PER_UNIT   * areaCircle0);
+        const numPlanets0 = Math.round(NUM_PLANETS_PER_UNIT * areaRing0);
 
         // No radius jitter needed without recycling (keep helpers if used elsewhere)
 
@@ -279,8 +289,8 @@ const Starfield = () => {
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
         const stars: Star[] = [];
 
-        // Helper function to create a star sampled uniformly inside enclosing circle
-        const createStar = (): Star => {
+        // Helper to create a star sampled uniformly in ring [rMin, rMax]
+        const createStar = (rMin = 0, rMax = getRMax(app)): Star => {
           const size = Math.random() * 2 + 1;
           const color = colors[Math.floor(Math.random() * colors.length)];
           
@@ -288,9 +298,8 @@ const Starfield = () => {
           graphics.rect(0, 0, size, size);
           graphics.fill(color);
 
-          // Initial spawn anywhere inside the enclosing circle (uniform-area)
-          const R_MAX = getRMax(app);
-          const { r, theta } = samplePolar(0, R_MAX);
+          // Initial spawn anywhere inside the given ring (uniform-area)
+          const { r, theta } = samplePolar(rMin, rMax);
           const x = r * Math.cos(theta);
           const y = r * Math.sin(theta);
 
@@ -303,37 +312,35 @@ const Starfield = () => {
           const tangentialAngle = theta + Math.PI / 2; // Add 90 degrees (π/2 radians)
           graphics.rotation = tangentialAngle;
           
-          // Worst-case rightward extent from transform origin (top-left pivot)
-          const rightExtent = size * Math.SQRT2;
-          // Worst-case upward extent from transform origin (top-left pivot)
-          const topExtent = size * Math.SQRT2;
-          // No TTL needed without deletions
-          return { graphics, x, y, size, color, radius: r, angle: theta, rightExtent, topExtent };
+          // No extents or TTL needed in no-deletion mode
+          return { graphics, x, y, size, color, radius: r, angle: theta };
         };
 
-        // Recycling helpers no longer needed (no deletions)
+        // (old recycling helpers removed)
 
         // Initialize stars
-        for (let i = 0; i < numStars; i++) {
-          const star = createStar();
+        for (let i = 0; i < numStars0; i++) {
+          const star = createStar(0, R_MAX0);
           stars.push(star);
           starContainer.addChild(star.graphics);
         }
 
-        // Load planet frames and initialize planets
+        // Prepare planets array up-front (needed for resize scaling)
+        const planets: Planet[] = [];
+
+        // Load planet frames and then initialize planets
         await loadPlanetFrames();
 
-        const planets: Planet[] = [];
-        const NUM_PLANETS = 1000;
-
         // Create planets following the same methodology as stars
-        for (let i = 0; i < NUM_PLANETS; i++) {
-          const planet = createPlanet(app);
+        for (let i = 0; i < numPlanets0; i++) {
+          const planet = createPlanet(app, rMinPlanet, R_MAX0);
           if (planet) {
             planets.push(planet);
             planetContainer.addChild(planet.sprite);
           }
         }
+
+        // No proportional scaling; we add/remove to maintain density
 
         // Animation loop with proper Pixi v8 ticker signature (no recycling)
         const animateRef = { current: (ticker: any) => {
@@ -375,11 +382,61 @@ const Starfield = () => {
 
         app.ticker.add(animateRef.current);
 
-        // Handle window resize
+        // Handle window resize: recompute R_MAX and add/remove to keep density constant
         const handleResize = () => {
-          if (app && mountedRef.current) {
-            app.renderer.resize(window.innerWidth, window.innerHeight);
+          if (!app || !mountedRef.current) return;
+          app.renderer.resize(window.innerWidth, window.innerHeight);
+          const prevRMax = rMaxRef.current || getRMax(app);
+          const newRMax = getRMax(app);
+
+          if (newRMax === prevRMax) return;
+
+          const rMinPlanet = Math.max(PLANET_EXCLUSION_RADIUS + 1, 1);
+
+          if (newRMax < prevRMax) {
+            // ==== SHRINK: remove objects with radius > newRMax ====
+            // Stars
+            for (let i = stars.length - 1; i >= 0; i--) {
+              if (stars[i].radius > newRMax) {
+                starContainer.removeChild(stars[i].graphics);
+                stars[i].graphics.destroy();
+                stars.splice(i, 1);
+              }
+            }
+            // Planets
+            for (let i = planets.length - 1; i >= 0; i--) {
+              if (planets[i].radius > newRMax) {
+                planetContainer.removeChild(planets[i].sprite);
+                planets[i].sprite.destroy();
+                planets.splice(i, 1);
+              }
+            }
+          } else {
+            // ==== EXPAND: add objects to fill the annulus (prevRMax, newRMax] ====
+            const areaDeltaCircle = Math.PI * (newRMax * newRMax - prevRMax * prevRMax);
+            const addStars = Math.max(0, Math.round(NUM_STARS_PER_UNIT * areaDeltaCircle));
+
+            // For planets, honor the exclusion radius; only the part of the annulus outside rMin counts
+            const ringLow = Math.max(prevRMax, rMinPlanet);
+            const ringHigh = Math.max(newRMax, ringLow);
+            const areaDeltaRing = Math.PI * Math.max(0, (ringHigh * ringHigh - ringLow * ringLow));
+            const addPlanets = Math.max(0, Math.round(NUM_PLANETS_PER_UNIT * areaDeltaRing));
+
+            for (let i = 0; i < addStars; i++) {
+              const s = createStar(prevRMax, newRMax);
+              stars.push(s);
+              starContainer.addChild(s.graphics);
+            }
+            for (let i = 0; i < addPlanets; i++) {
+              const p = createPlanet(app, ringLow, ringHigh);
+              if (p) {
+                planets.push(p);
+                planetContainer.addChild(p.sprite);
+              }
+            }
           }
+
+          rMaxRef.current = newRMax;
         };
 
         window.addEventListener('resize', handleResize);
