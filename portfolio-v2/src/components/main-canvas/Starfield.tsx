@@ -12,6 +12,11 @@ interface Star {
   color: number;
   radius: number;
   angle: number;
+  // Conservative maximum rightward extent from the star's transform origin
+  // (Graphics pivots at top-left). Used for left-exit culling.
+  rightExtent: number;
+  // Optional TTL to retire truly tiny orbits that can never fully clear left edge
+  ttlMS?: number;
 }
 
 type PlanetType =
@@ -36,6 +41,8 @@ interface Planet {
   angle: number;
   speed: number;
   boundRadius: number; // half-diagonal for size-aware visibility checks
+  // Optional TTL for orbits smaller than the sprite's own half-diagonal
+  ttlMS?: number;
 }
 
 // Map type -> [ variation0Frames[], variation1Frames[], ... ]
@@ -128,19 +135,27 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
   // Retry loop to avoid spawning too close to origin
   for (let attempts = 0; attempts < 20; attempts++) {
     if (inBorderOnly) {
-      // Recycle: spawn only in TOP or LEFT size-aware strips, depth in [500, 1000]
-      const side = Math.random() < 0.5 ? "top" : "left";
+      // Recycle: place in a size-aware strip along any edge; depth in [500, 1000]
+      const side = Math.floor(Math.random() * 4); // 0=top,1=right,2=bottom,3=left
       const depth = randRange(MIN_SPAWN_DEPTH, MAX_SPAWN_DEPTH);
 
-      if (side === "top") {
-        // full-width with slight overhang to avoid corner pops
-        x = Math.random() * (app.screen.width + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
-        // place center safely above the top by its bound radius + depth
-        y = -(halfDiag + depth);
-      } else {
-        // place center safely left of the screen by its bound radius + depth
-        x = -(halfDiag + depth);
-        y = Math.random() * (app.screen.height + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+      switch (side) {
+        case 0: // top
+          x = Math.random() * (app.screen.width + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+          y = -(halfDiag + depth);
+          break;
+        case 1: // right
+          x = app.screen.width + halfDiag + depth;
+          y = Math.random() * (app.screen.height + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+          break;
+        case 2: // bottom
+          x = Math.random() * (app.screen.width + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+          y = app.screen.height + halfDiag + depth;
+          break;
+        default: // left
+          x = -(halfDiag + depth);
+          y = Math.random() * (app.screen.height + 2 * MAX_SPAWN_DEPTH) - MAX_SPAWN_DEPTH;
+          break;
       }
     } else {
       // Initial spawn anywhere in extended region (like stars)
@@ -162,9 +177,9 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
 
   const radius = Math.hypot(x, y);
   const angle = Math.atan2(y, x);
-  // All planets use the same orbital speed as stars: 1.8 degrees per second
-  // Store as radians per millisecond so motion is FPS-independent
-  const speed = ANGULAR_SPEED_RAD_PER_MS;
+  // Per-planet angular speed variance (±15%) to break phase lock
+  // Keeps average ~1.8°/s while ensuring phases diffuse over time
+  const speed = ANGULAR_SPEED_RAD_PER_MS * (0.85 + Math.random() * 0.30);
 
   sprite.x = x; 
   sprite.y = y; 
@@ -172,7 +187,9 @@ function createPlanet(app: Application, inBorderOnly = false): Planet | null {
   // Rotate so the top-left corner of the square faces the origin
   sprite.rotation = angle - Math.PI / 4;
 
-  return { sprite, type, variant: variantIndex + 1, radius, angle, speed, boundRadius: halfDiag };
+  // TTL only needed if orbit can never fully clear the left edge
+  const ttlMS = (radius <= halfDiag + 1) ? (8000 + Math.random() * 8000) : undefined;
+  return { sprite, type, variant: variantIndex + 1, radius, angle, speed, boundRadius: halfDiag, ttlMS };
 }
 
 // ensure the ticker callback matches v8: (ticker: Ticker) => void
@@ -193,6 +210,11 @@ function animatePlanets(planets: Planet[], app: Application, deltaMS: number) {
     
     // Rotate the planet around its own center at the same time-based rate
     p.sprite.rotation += p.speed * deltaMS;
+
+    // TTL guard for truly tiny orbits that can never fully leave the screen left
+    if (p.ttlMS !== undefined) {
+      p.ttlMS = Math.max(0, p.ttlMS - deltaMS);
+    }
 
     // Fade-in once the bounding circle intersects the viewport
     if (p.sprite.alpha < 1) {
@@ -387,7 +409,11 @@ const Starfield = () => {
           const tangentialAngle = angle + Math.PI / 2; // Add 90 degrees (π/2 radians)
           graphics.rotation = tangentialAngle;
           
-          return { graphics, x, y, size, color, radius, angle };
+          // Worst-case rightward extent from transform origin (top-left pivot)
+          const rightExtent = size * Math.SQRT2;
+          // TTL if orbit <= own extent → can never fully clear left edge
+          const ttlMS = (radius <= rightExtent + 1) ? (8000 + Math.random() * 8000) : undefined;
+          return { graphics, x, y, size, color, radius, angle, rightExtent, ttlMS };
         };
 
         // --- Recycle helpers that preserve (jittered) radius and place off-screen ---
@@ -402,6 +428,9 @@ const Starfield = () => {
           s.y = y;
           s.radius = targetR;
           s.angle = theta;
+          // Update rightExtent and ttlMS based on new radius
+          s.rightExtent = s.size * Math.SQRT2;
+          s.ttlMS = (targetR <= s.rightExtent + 1) ? (8000 + Math.random() * 8000) : undefined;
           // keep tangential orientation consistent with your stars
           s.graphics.rotation = theta + Math.PI / 2;
           return s;
@@ -410,13 +439,16 @@ const Starfield = () => {
         const createPlanetNearRadius = (targetR: number): Planet | null => {
           const p = createPlanet(app, true);
           if (!p) return null;
-          const theta = pickOffscreenAngle(targetR, app, borderSize, true);
+          // Unbiased offscreen angle (allow any edge), reduces TOP/LEFT accumulation
+          const theta = pickOffscreenAngle(targetR, app, borderSize, false);
           const x = targetR * Math.cos(theta);
           const y = targetR * Math.sin(theta);
           p.sprite.x = x;
           p.sprite.y = y;
           p.radius = targetR;
           p.angle = theta;
+          // Update ttlMS based on new radius
+          p.ttlMS = (targetR <= p.boundRadius + 1) ? (8000 + Math.random() * 8000) : undefined;
           // Speed is already set correctly by createPlanet, no need to change it
           // orient top-left corner toward origin at this angle
           p.sprite.rotation = theta - (3 * Math.PI) / 4;
@@ -473,22 +505,25 @@ const Starfield = () => {
             
             // Rotate the star around its own center at the same time-based rate
             star.graphics.rotation += step;
+
+            // Decrement TTL (if present)
+            if (star.ttlMS !== undefined) {
+              star.ttlMS = Math.max(0, star.ttlMS - clampedDeltaMS);
+            }
           }
           
           // Animate planets using clamped delta time
           animatePlanets(planets, app, clampedDeltaMS);
           
-          // Check for stars that have left the extended region and recycle them
+          // Check for stars that have fully exited the screen to the LEFT, or hit TTL
           let recycleBudget = 200; // safety cap per frame
           for (let i = stars.length - 1; i >= 0; i--) {
             if (recycleBudget-- <= 0) break;
             const star = stars[i];
             
-            // Check if star is outside the extended region using current position
-            if (star.x < -borderSize || 
-                star.x > app.screen.width + borderSize ||
-                star.y < -borderSize || 
-                star.y > app.screen.height + borderSize) {
+            const fullyLeft = (star.graphics.x + star.rightExtent) < 0;
+            const expired = (star.ttlMS !== undefined && star.ttlMS <= 0);
+            if (fullyLeft || expired) {
               
               // Remove old star
               starContainer.removeChild(star.graphics);
@@ -503,17 +538,14 @@ const Starfield = () => {
             }
           }
           
-          // Check for planets that have left the extended region and recycle them
+          // Check for planets that have fully exited left, or hit TTL, and recycle
           for (let i = planets.length - 1; i >= 0; i--) {
             if (recycleBudget-- <= 0) break;
             const planet = planets[i];
             
-            // Check if planet is outside the extended region using current position
-            // Delete planets when they exit the lower-right section (same as stars)
-            if (planet.sprite.x < -borderSize || 
-                planet.sprite.x > app.screen.width + borderSize ||
-                planet.sprite.y < -borderSize || 
-                planet.sprite.y > app.screen.height + borderSize) {
+            const fullyLeft = (planet.sprite.x + planet.boundRadius) < 0;
+            const expired = (planet.ttlMS !== undefined && planet.ttlMS <= 0);
+            if (fullyLeft || expired) {
               
               // Remove old planet
               planetContainer.removeChild(planet.sprite);
