@@ -15,6 +15,9 @@ interface Star {
   // Conservative maximum rightward extent from the star's transform origin
   // (Graphics pivots at top-left). Used for left-exit culling.
   rightExtent: number;
+  // Conservative maximum upward extent from the star's transform origin
+  // Used for bottom-exit culling.
+  topExtent: number;
   // Optional TTL to retire truly tiny orbits that can never fully clear left edge
   ttlMS?: number;
 }
@@ -411,9 +414,11 @@ const Starfield = () => {
           
           // Worst-case rightward extent from transform origin (top-left pivot)
           const rightExtent = size * Math.SQRT2;
+          // Worst-case upward extent from transform origin (top-left pivot)
+          const topExtent = size * Math.SQRT2;
           // TTL if orbit <= own extent → can never fully clear left edge
           const ttlMS = (radius <= rightExtent + 1) ? (8000 + Math.random() * 8000) : undefined;
-          return { graphics, x, y, size, color, radius, angle, rightExtent, ttlMS };
+          return { graphics, x, y, size, color, radius, angle, rightExtent, topExtent, ttlMS };
         };
 
         // --- Recycle helpers that preserve (jittered) radius and place off-screen ---
@@ -428,8 +433,9 @@ const Starfield = () => {
           s.y = y;
           s.radius = targetR;
           s.angle = theta;
-          // Update rightExtent and ttlMS based on new radius
+          // Update extents and ttlMS based on new radius
           s.rightExtent = s.size * Math.SQRT2;
+          s.topExtent = s.size * Math.SQRT2;
           s.ttlMS = (targetR <= s.rightExtent + 1) ? (8000 + Math.random() * 8000) : undefined;
           // keep tangential orientation consistent with your stars
           s.graphics.rotation = theta + Math.PI / 2;
@@ -515,15 +521,16 @@ const Starfield = () => {
           // Animate planets using clamped delta time
           animatePlanets(planets, app, clampedDeltaMS);
           
-          // Check for stars that have fully exited the screen to the LEFT, or hit TTL
+          // Check for stars that have fully exited LEFT or BOTTOM, or hit TTL
           let recycleBudget = 200; // safety cap per frame
           for (let i = stars.length - 1; i >= 0; i--) {
             if (recycleBudget-- <= 0) break;
             const star = stars[i];
             
             const fullyLeft = (star.graphics.x + star.rightExtent) < 0;
+            const fullyBottom = (star.graphics.y - star.topExtent) > app.screen.height;
             const expired = (star.ttlMS !== undefined && star.ttlMS <= 0);
-            if (fullyLeft || expired) {
+            if (fullyLeft || fullyBottom || expired) {
               
               // Remove old star
               starContainer.removeChild(star.graphics);
@@ -538,14 +545,15 @@ const Starfield = () => {
             }
           }
           
-          // Check for planets that have fully exited left, or hit TTL, and recycle
+          // Check for planets that have fully exited LEFT or BOTTOM, or hit TTL, and recycle
           for (let i = planets.length - 1; i >= 0; i--) {
             if (recycleBudget-- <= 0) break;
             const planet = planets[i];
             
             const fullyLeft = (planet.sprite.x + planet.boundRadius) < 0;
+            const fullyBottom = (planet.sprite.y - planet.boundRadius) > app.screen.height;
             const expired = (planet.ttlMS !== undefined && planet.ttlMS <= 0);
-            if (fullyLeft || expired) {
+            if (fullyLeft || fullyBottom || expired) {
               
               // Remove old planet
               planetContainer.removeChild(planet.sprite);
