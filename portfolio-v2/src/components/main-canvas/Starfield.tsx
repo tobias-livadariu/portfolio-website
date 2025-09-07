@@ -312,49 +312,45 @@ const Starfield = () => {
         const randRange = (min: number, max: number) => min + Math.random() * (max - min);
         const jitterRadius = (r: number) => Math.max(1, r + randRange(RADIUS_JITTER_MIN, RADIUS_JITTER_MAX));
 
-        /** Pick an angle so (r*cosθ, r*sinθ) is outside the viewport but INSIDE the extended region.
-         *  For planets, prefer TOP/LEFT strips; for stars, allow any strip (top/right/bottom/left).
-         *  This avoids spawn→immediate-cull thrash.
-         */
-        function pickOffscreenAngle(
-          r: number,
-          app: Application,
-          border: number,
-          preferTopOrLeftOnly: boolean
-        ): number {
-          for (let tries = 0; tries < 128; tries++) {
-            // Sample any angle; mild bias to upper-left when preferTopOrLeftOnly
-            const theta = preferTopOrLeftOnly
-              ? (Math.random() * Math.PI + Math.PI)   // [π, 2π) → often top/left half
-              : (Math.random() * Math.PI * 2);        // [0, 2π)
 
-            const x = r * Math.cos(theta);
-            const y = r * Math.sin(theta);
+        // Place a point on TOP (y = -extent) or RIGHT (x = width + extent) at a given radius.
+        // Returns a position just outside the viewport; falls back to TOP if needed.
+        function spawnOnTopOrRightAtRadius(
+          targetR: number,
+          extent: number, // planets: boundRadius; stars: size*sqrt(2)
+          app: Application
+        ): { x: number; y: number } {
+          const W = app.screen.width;
 
-            // Inside extended region bounds?
-            const insideExt =
-              x >= -border && x <= app.screen.width  + border &&
-              y >= -border && y <= app.screen.height + border;
+          // Feasibility checks: for TOP we need r >= extent; for RIGHT we need r >= (W + extent)
+          const canTop = targetR >= extent;
+          const canRight = targetR >= (W + extent);
 
-            // But outside the visible viewport?
-            const offscreen =
-              (x < 0 || x > app.screen.width || y < 0 || y > app.screen.height);
+          // Try RIGHT ~50% of the time if feasible; otherwise TOP if feasible
+          const tryRightFirst = Math.random() < 0.5 && canRight;
 
-            if (!insideExt || !offscreen) continue; // reject
-
-            if (preferTopOrLeftOnly) {
-              // Only accept TOP or LEFT strips for planets
-              if (y < 0 || x < 0) return theta;
-            } else {
-              return theta; // any strip is fine for stars
+          if (tryRightFirst) {
+            const x = W + extent;            // leftmost bound circle just touches the right edge
+            const sq = targetR * targetR - x * x;
+            if (sq >= 0) {
+              const ymag = Math.sqrt(sq);
+              const y = (Math.random() < 0.5 ? ymag : -ymag);
+              return { x, y };
             }
           }
-          // Deterministic fallback: aim into top-left strip inside extended region
-          // Pick a y in [-border+8, -8], compute x from r and return θ.
-          const yOff = -Math.min(border - 8, Math.max(8, r - 8));
-          const xMag = Math.sqrt(Math.max(0, r*r - yOff*yOff));
-          const xOff = -Math.min(xMag, app.screen.width + border - 8);
-          return Math.atan2(yOff, xOff);
+
+          if (canTop) {
+            const y = -extent;               // bottommost bound circle just touches the top edge
+            const sq = targetR * targetR - y * y;
+            if (sq >= 0) {
+              const xmag = Math.sqrt(sq);
+              const x = (Math.random() < 0.5 ? xmag : -xmag);
+              return { x, y };
+            }
+          }
+
+          // Fallback for very small radii: park just above screen with random x
+          return { x: Math.random() * W, y: -extent };
         }
 
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
@@ -423,41 +419,51 @@ const Starfield = () => {
 
         // --- Recycle helpers that preserve (jittered) radius and place off-screen ---
         const createStarNearRadius = (targetR: number): Star => {
-          const s = createStar(true);
-          const theta = pickOffscreenAngle(targetR, app, borderSize, false);
-          const x = targetR * Math.cos(theta);
-          const y = targetR * Math.sin(theta);
-          s.graphics.x = x;
-          s.graphics.y = y;
-          s.x = x;
-          s.y = y;
-          s.radius = targetR;
+          const s = createStar(true); // create visual + size; position will be overridden
+          const extent = s.size * Math.SQRT2; // symmetric conservative bound
+          const pos = spawnOnTopOrRightAtRadius(targetR, extent, app);
+
+          s.graphics.x = pos.x;
+          s.graphics.y = pos.y;
+          s.x = pos.x;
+          s.y = pos.y;
+
+          // Back-compute orbital parameters from position
+          const theta = Math.atan2(pos.y, pos.x);
+          const r = Math.hypot(pos.x, pos.y); // ~targetR; may drift slightly if fallback used
           s.angle = theta;
-          // Update extents and ttlMS based on new radius
-          s.rightExtent = s.size * Math.SQRT2;
-          s.topExtent = s.size * Math.SQRT2;
-          s.ttlMS = (targetR <= s.rightExtent + 1) ? (8000 + Math.random() * 8000) : undefined;
-          // keep tangential orientation consistent with your stars
+          s.radius = r;
+
+          // Extents + TTL (tiny orbits that can never clear get TTL)
+          s.rightExtent = extent;
+          s.topExtent   = extent;
+          s.ttlMS = (r <= extent + 1) ? (8000 + Math.random() * 8000) : undefined;
+
+          // Keep tangential orientation (edge perpendicular to radius)
           s.graphics.rotation = theta + Math.PI / 2;
           return s;
         };
 
         const createPlanetNearRadius = (targetR: number): Planet | null => {
-          const p = createPlanet(app, true);
+          const p = createPlanet(app, true); // build sprite; position will be overridden
           if (!p) return null;
-          // Unbiased offscreen angle (allow any edge), reduces TOP/LEFT accumulation
-          const theta = pickOffscreenAngle(targetR, app, borderSize, false);
-          const x = targetR * Math.cos(theta);
-          const y = targetR * Math.sin(theta);
-          p.sprite.x = x;
-          p.sprite.y = y;
-          p.radius = targetR;
+          const extent = p.boundRadius;      // center anchor ⇒ half-diagonal
+          const pos = spawnOnTopOrRightAtRadius(targetR, extent, app);
+
+          p.sprite.x = pos.x;
+          p.sprite.y = pos.y;
+
+          // Back-compute orbital parameters
+          const theta = Math.atan2(pos.y, pos.x);
+          const r = Math.hypot(pos.x, pos.y);
           p.angle = theta;
-          // Update ttlMS based on new radius
-          p.ttlMS = (targetR <= p.boundRadius + 1) ? (8000 + Math.random() * 8000) : undefined;
-          // Speed is already set correctly by createPlanet, no need to change it
-          // orient top-left corner toward origin at this angle
-          p.sprite.rotation = theta - (3 * Math.PI) / 4;
+          p.radius = r;
+
+          // TTL for tiny orbits
+          p.ttlMS = (r <= extent + 1) ? (8000 + Math.random() * 8000) : undefined;
+
+          // Keep your orientation rule (square corner toward origin)
+          p.sprite.rotation = theta - Math.PI / 4;
           return p;
         };
 
