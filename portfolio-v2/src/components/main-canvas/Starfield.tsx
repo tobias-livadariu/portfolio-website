@@ -8,7 +8,6 @@ const ANGULAR_SPEED_RAD_PER_MS = (1.8 * Math.PI / 180) / 1000;
 const R_MAX_MARGIN = 500;
 
 // Densities per square pixel (tune to taste)
-// ~3.49e-4 and ~4.36e-5 approximate 8000 stars / 1000 planets on a 1920x1080 screen with margin
 const NUM_STARS_PER_UNIT   = 13e-4;   // stars per px^2
 const NUM_PLANETS_PER_UNIT = 3e-5;   // planets per px^2
 
