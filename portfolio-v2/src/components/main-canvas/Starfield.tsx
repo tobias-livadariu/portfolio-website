@@ -11,9 +11,16 @@ const R_MAX_MARGIN = 500;
 const NUM_STARS_PER_UNIT   = 13e-4;   // stars per px^2
 const NUM_PLANETS_PER_UNIT = 3e-5;   // planets per px^2
 
+// Planet creation throttling
+const PLANETS_PER_READY_VARIANT = 6;   // how many to enqueue when a variant finishes
+const PLANET_SPAWN_BUDGET_PER_TICK = 4; // how many to actually create each animation tick
+
 function getRMax(app: Application): number {
   return Math.hypot(app.screen.width, app.screen.height) + R_MAX_MARGIN;
 }
+
+// Yield control so the browser can render a frame
+const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
 // Uniform-area polar sampling in ring [rMin, rMax]
 function samplePolar(rMin: number, rMax: number): { r: number; theta: number } {
@@ -115,6 +122,8 @@ async function loadPlanetFrames(
         variations[v - 1] = frames;
         // Notify that this (type, variant) is now available
         onVariantReady?.(type, v - 1);
+        // Yield a frame before parsing the next variant to keep UI responsive
+        await nextFrame();
       } catch (error) {
         console.warn(`Failed to load ${type}-${v}:`, error);
       }
@@ -151,7 +160,9 @@ function createPlanet(
   const sprite = new AnimatedSprite(frames);
   sprite.anchor.set(0.5);
   sprite.animationSpeed = 2 / 60; // 2 FPS
-  sprite.play();
+  // Defer playback to reduce offscreen work; start when entering viewport
+  const startFrame = (Math.random() * frames.length) | 0;
+  sprite.gotoAndStop(startFrame);
 
   // Precompute half-diagonal (includes current scale) and start transparent
   const halfDiag = 0.5 * Math.hypot(sprite.width, sprite.height);
@@ -211,6 +222,7 @@ function animatePlanets(planets: Planet[], app: Application, deltaMS: number) {
       const insideX = sx > -r && sx < app.screen.width + r;
       const insideY = sy > -r && sy < app.screen.height + r;
       if (insideX && insideY) {
+        if (!p.sprite.playing) p.sprite.play();
         p.sprite.alpha = Math.min(1, p.sprite.alpha + 0.06);
       }
     }
@@ -342,8 +354,9 @@ const Starfield = () => {
           starContainer.addChild(star.graphics);
         }
 
-        // Prepare planets array up-front
+        // Prepare planets array and a spawn queue to throttle creation
         const planets: Planet[] = [];
+        const planetSpawnQueue: Array<() => void> = [];
         
         // === Start animating immediately (stars only for now) ===
         const animateRef = { current: (ticker: any) => {
@@ -361,13 +374,22 @@ const Starfield = () => {
             star.x = newX; star.y = newY;
             star.graphics.rotation += step;
           }
+          // Throttle planet creation to avoid bursty GC / frame spikes
+          let budget = PLANET_SPAWN_BUDGET_PER_TICK;
+          while (budget-- > 0 && planetSpawnQueue.length) {
+            const job = planetSpawnQueue.shift()!;
+            job();
+          }
           animatePlanets(planets, app, clampedDeltaMS);
         }};
         app.ticker.add(animateRef.current);
 
         // === Progressive planet creation as spritesheets become available ===
         const VARIANTS_EXPECTED = PLANET_TYPES.length * VARIANTS_PER_TYPE; // 60
-        const perVariantQuota = Math.max(1, Math.ceil(numPlanets0 / VARIANTS_EXPECTED));
+        const perVariantQuota = Math.max(1, Math.min(
+          PLANETS_PER_READY_VARIANT,
+          Math.ceil(numPlanets0 / VARIANTS_EXPECTED)
+        ));
         let createdInitialPlanets = 0;
 
         const onVariantReady = (type: PlanetType, variantIndex: number) => {
@@ -376,16 +398,18 @@ const Starfield = () => {
           const remaining = numPlanets0 - createdInitialPlanets;
           const toSpawn = Math.min(perVariantQuota, remaining);
           for (let i = 0; i < toSpawn; i++) {
-            const p = createPlanet(app, rMinPlanet, R_MAX0, type, variantIndex);
-            if (p) {
-              planets.push(p);
-              planetContainer.addChild(p.sprite);
-              createdInitialPlanets++;
-            }
+            planetSpawnQueue.push(() => {
+              const p = createPlanet(app, rMinPlanet, R_MAX0, type, variantIndex);
+              if (p) {
+                planets.push(p);
+                planetContainer.addChild(p.sprite);
+                createdInitialPlanets++;
+              }
+            });
           }
         };
 
-        // Kick off loading (do NOT await); planets will flow in per variant
+        // Kick off loading (do NOT await); yield between variants for responsiveness
         loadPlanetFrames(onVariantReady);
 
         // No proportional scaling; we add/remove to maintain density
@@ -438,11 +462,13 @@ const Starfield = () => {
               starContainer.addChild(s.graphics);
             }
             for (let i = 0; i < addPlanets; i++) {
-              const p = createPlanet(app, ringLow, ringHigh);
-              if (p) {
-                planets.push(p);
-                planetContainer.addChild(p.sprite);
-              }
+              planetSpawnQueue.push(() => {
+                const p = createPlanet(app, ringLow, ringHigh);
+                if (p) {
+                  planets.push(p);
+                  planetContainer.addChild(p.sprite);
+                }
+              });
             }
           }
 
