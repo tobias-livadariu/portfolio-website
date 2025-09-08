@@ -60,30 +60,36 @@ interface Planet {
 // Map type -> [ variation0Frames[], variation1Frames[], ... ]
 const planetFrames = new Map<PlanetType, Texture[][]>();
 
+// Hoisted list of all planet types and expected variants per type
+const PLANET_TYPES: PlanetType[] = [
+  "astroid",
+  "black-hole",
+  "galaxy",
+  "gas-giant-1",
+  "gas-giant-2",
+  "ice-world",
+  "islands",
+  "lava-world",
+  "no-atmosphere",
+  "star",
+  "terran-dry",
+  "terran-wet",
+];
+const VARIANTS_PER_TYPE = 5;
+
 
 // Planet exclusion zone around origin (configurable)
 const PLANET_EXCLUSION_RADIUS = 395; // pixels - planets cannot spawn within this distance of origin (0,0)
 
-async function loadPlanetFrames() {
-  const types: PlanetType[] = [
-    "astroid",
-    "black-hole",
-    "galaxy",
-    "gas-giant-1",
-    "gas-giant-2",
-    "ice-world",
-    "islands",
-    "lava-world",
-    "no-atmosphere",
-    "star",
-    "terran-dry",
-    "terran-wet",
-  ];
-
-  for (const type of types) {
+async function loadPlanetFrames(
+  onVariantReady?: (type: PlanetType, variantIndex: number) => void
+) {
+  for (const type of PLANET_TYPES) {
     const variations: Texture[][] = [];
+    // Expose partially-loaded type immediately so createPlanet can see ready variants
+    planetFrames.set(type, variations);
 
-    for (let v = 1; v <= 5; v++) {
+    for (let v = 1; v <= VARIANTS_PER_TYPE; v++) {
       const jsonUrl = `/rotating-planet-spritesheets/${type}/${type}-${v}.json`;
       const pngUrl = `/rotating-planet-spritesheets/${type}/${type}-${v}.png`;
 
@@ -107,25 +113,40 @@ async function loadPlanetFrames() {
           continue;
         }
         variations[v - 1] = frames;
+        // Notify that this (type, variant) is now available
+        onVariantReady?.(type, v - 1);
       } catch (error) {
         console.warn(`Failed to load ${type}-${v}:`, error);
       }
     }
-
-    if (variations.length) planetFrames.set(type, variations);
+    // variations is already set incrementally above
   }
 }
 
-function createPlanet(app: Application, rMinOverride?: number, rMaxOverride?: number): Planet | null {
+function createPlanet(
+  app: Application,
+  rMinOverride?: number,
+  rMaxOverride?: number,
+  typeOverride?: PlanetType,
+  variantOverride?: number // 0-based index
+): Planet | null {
   // Pick any planet type randomly (no uniqueness constraint)
   const planetTypes = Array.from(planetFrames.keys());
-  const type = planetTypes[(Math.random() * planetTypes.length) | 0];
+  if (planetTypes.length === 0) return null;
+  const type = (typeOverride ?? planetTypes[(Math.random() * planetTypes.length) | 0]);
 
   const variations = planetFrames.get(type);
-  if (!variations || variations.length === 0) return null;
-
-  const variantIndex = (Math.random() * variations.length) | 0; // 0..4
-  const frames = variations[variantIndex];
+  if (!variations) return null;
+  // Build a list of loaded variant indices (holes may exist while others load)
+  const loadedIndices: number[] = [];
+  for (let i = 0; i < variations.length; i++) {
+    if (variations[i] && variations[i].length) loadedIndices.push(i);
+  }
+  if (loadedIndices.length === 0) return null;
+  const chosenIndex = (variantOverride !== undefined && loadedIndices.includes(variantOverride))
+    ? variantOverride
+    : loadedIndices[(Math.random() * loadedIndices.length) | 0];
+  const frames = variations[chosenIndex];
 
   const sprite = new AnimatedSprite(frames);
   sprite.anchor.set(0.5);
@@ -143,10 +164,7 @@ function createPlanet(app: Application, rMinOverride?: number, rMaxOverride?: nu
   const x = r * Math.cos(theta);
   const y = r * Math.sin(theta);
 
-  // If initially inside (or touching) the viewport, make it visible immediately
-  const insideX = x > -halfDiag && x < app.screen.width + halfDiag;
-  const insideY = y > -halfDiag && y < app.screen.height + halfDiag;
-  if (insideX && insideY) sprite.alpha = 1;
+  // Always fade-in using existing logic in animatePlanets (no instant alpha=1)
 
   const radius = r;
   const angle = theta;
@@ -161,7 +179,7 @@ function createPlanet(app: Application, rMinOverride?: number, rMaxOverride?: nu
   sprite.rotation = angle - Math.PI / 4;
 
   // No TTL needed without deletions
-  return { sprite, type, variant: variantIndex + 1, radius, angle, speed, boundRadius: halfDiag };
+  return { sprite, type, variant: chosenIndex + 1, radius, angle, speed, boundRadius: halfDiag };
 }
 
 // ensure the ticker callback matches v8: (ticker: Ticker) => void
@@ -324,62 +342,55 @@ const Starfield = () => {
           starContainer.addChild(star.graphics);
         }
 
-        // Prepare planets array up-front (needed for resize scaling)
+        // Prepare planets array up-front
         const planets: Planet[] = [];
-
-        // Load planet frames and then initialize planets
-        await loadPlanetFrames();
-
-        // Create planets following the same methodology as stars
-        for (let i = 0; i < numPlanets0; i++) {
-          const planet = createPlanet(app, rMinPlanet, R_MAX0);
-          if (planet) {
-            planets.push(planet);
-            planetContainer.addChild(planet.sprite);
+        
+        // === Start animating immediately (stars only for now) ===
+        const animateRef = { current: (ticker: any) => {
+          if (!mountedRef.current || !starContainer) return;
+          const deltaMS = ticker?.deltaMS ?? 16.67;
+          const clampedDeltaMS = Math.min(deltaMS, 100);
+          const step = ANGULAR_SPEED_RAD_PER_MS * clampedDeltaMS;
+          for (let i = 0; i < stars.length; i++) {
+            const star = stars[i];
+            star.angle += step;
+            const newX = star.radius * Math.cos(star.angle);
+            const newY = star.radius * Math.sin(star.angle);
+            star.graphics.x = newX;
+            star.graphics.y = newY;
+            star.x = newX; star.y = newY;
+            star.graphics.rotation += step;
           }
-        }
+          animatePlanets(planets, app, clampedDeltaMS);
+        }};
+        app.ticker.add(animateRef.current);
+
+        // === Progressive planet creation as spritesheets become available ===
+        const VARIANTS_EXPECTED = PLANET_TYPES.length * VARIANTS_PER_TYPE; // 60
+        const perVariantQuota = Math.max(1, Math.ceil(numPlanets0 / VARIANTS_EXPECTED));
+        let createdInitialPlanets = 0;
+
+        const onVariantReady = (type: PlanetType, variantIndex: number) => {
+          if (!mountedRef.current) return;
+          if (createdInitialPlanets >= numPlanets0) return;
+          const remaining = numPlanets0 - createdInitialPlanets;
+          const toSpawn = Math.min(perVariantQuota, remaining);
+          for (let i = 0; i < toSpawn; i++) {
+            const p = createPlanet(app, rMinPlanet, R_MAX0, type, variantIndex);
+            if (p) {
+              planets.push(p);
+              planetContainer.addChild(p.sprite);
+              createdInitialPlanets++;
+            }
+          }
+        };
+
+        // Kick off loading (do NOT await); planets will flow in per variant
+        loadPlanetFrames(onVariantReady);
 
         // No proportional scaling; we add/remove to maintain density
 
-        // Animation loop with proper Pixi v8 ticker signature (no recycling)
-        const animateRef = { current: (ticker: any) => {
-          if (!mountedRef.current || !starContainer) return;
-          
-          // Elapsed real time this tick (ms). Limit step size for smooth motion.
-          const deltaMS = ticker?.deltaMS ?? 16.67;
-          // Limit only very large pauses; still honor most real time so speed stays ~1.8°/s
-          const clampedDeltaMS = Math.min(deltaMS, 100);
-          const step = ANGULAR_SPEED_RAD_PER_MS * clampedDeltaMS;
-          
-          for (let i = 0; i < stars.length; i++) {
-            const star = stars[i];
-            
-            // Update angle using time-based step
-            star.angle += step;
-            
-            // Calculate new position based on circular motion
-            const newX = star.radius * Math.cos(star.angle);
-            const newY = star.radius * Math.sin(star.angle);
-            
-            // Update star position
-            star.graphics.x = newX;
-            star.graphics.y = newY;
-            star.x = newX;
-            star.y = newY;
-            
-            // Rotate the star around its own center at the same time-based rate
-            star.graphics.rotation += step;
-
-            // No TTL updates needed without deletions
-          }
-          
-          // Animate planets using clamped delta time
-          animatePlanets(planets, app, clampedDeltaMS);
-          
-          // No culling / recycling — objects persist forever
-        }};
-
-        app.ticker.add(animateRef.current);
+        // (animateRef already added above)
 
         // Handle window resize: recompute R_MAX and add/remove to keep density constant
         const handleResize = () => {
