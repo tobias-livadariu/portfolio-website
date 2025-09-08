@@ -5,7 +5,7 @@ import { Application, Container, Graphics, Assets, Spritesheet, AnimatedSprite, 
 const ANGULAR_SPEED_RAD_PER_MS = (1.8 * Math.PI / 180) / 1000;
 
 // Enclosing circle margin so all radii stay <= R_MAX
-const R_MAX_MARGIN = 500;
+const R_MAX_MARGIN = 0;
 
 // Densities per square pixel (tune to taste)
 const NUM_STARS_PER_UNIT   = 13e-4;   // stars per px^2
