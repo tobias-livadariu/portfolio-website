@@ -1,0 +1,40 @@
+/* src/styles/pixel.css */
+
+/* Crisp scaling for pixel art images */
+.img-pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges; /* Safari fallback */
+}
+
+/* Pixel frame (no SVGs/images) using layered outlines & shadows */
+.pixel-frame {
+  position: relative;
+  box-shadow:
+    0 0 0 3px #000,                /* outer black */
+    0 0 0 6px #f7d8c0,             /* campfire-ash */
+    0 0 0 9px #000;                /* outer black ring */
+}
+
+/* Pixel corners (fake 1px steps) */
+.pixel-frame::before,
+.pixel-frame::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.6) inset, /* subtle inner ridge */
+    0 0 0 2px rgba(0,0,0,0.25) inset; /* bevel */
+}
+
+/* Pixel button helper (optional) */
+.pixel-btn {
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 4px 0 4px #000; /* drop */
+}
+.pixel-btn:active { transform: translateY(2px); box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 2px 0 4px #000; }
