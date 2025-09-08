@@ -1,5 +1,8 @@
 /* src/styles/pixel.css */
 
+/* Prevent layout shift when scrollbars appear/disappear */
+html { scrollbar-gutter: stable both-edges; }
+
 /* Crisp scaling for pixel art images */
 .img-pixelated {
   image-rendering: pixelated;

@@ -33,9 +33,9 @@ export default function PixelModal({ children, title }: { children: React.ReactN
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
         >
-          {/* Backdrop */}
+          {/* Backdrop: remove backdrop-blur to avoid expensive sampling over WebGL */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-[1px]"
+            className="absolute inset-0 bg-black/65"
             onClick={close}
           />
 
@@ -45,7 +45,8 @@ export default function PixelModal({ children, title }: { children: React.ReactN
             aria-modal="true"
             aria-label={title}
             ref={panelRef}
-            className="relative pixel-frame w-[70vw] h-[80vh] bg-[#070B14] text-campfire overflow-hidden grid grid-rows-[auto,1fr]"
+            className="relative pixel-frame w-[70vw] h-[80vh] bg-[#070B14] text-campfire overflow-hidden grid grid-rows-[auto,1fr] transform-gpu [will-change:transform]"
+            style={{ contain: 'layout paint size' }}
             initial={{ y: "100vh" }}
             animate={{ y: 0 }}
             exit={{ y: "100vh" }}
