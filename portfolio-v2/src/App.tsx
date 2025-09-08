@@ -1,19 +1,12 @@
 import Starfield from "./components/main-canvas/Starfield";
-import MainTitle from "./components/MainTitle";
-import { ModalProvider } from "./components/modal/ModalContext";
-import ModalRoot from "./components/modal/ModalRoot";
+import ModalAwareContent from "./components/ModalAwareContent";
 
 function App() {
   return (
-    <ModalProvider>
+    <div>
       <Starfield />
-      <MainTitle
-        intro="Hey, I'm"
-        firstName="Tobias"
-        lastName="Livadariu"
-      />
-      <ModalRoot />
-    </ModalProvider>
+      <ModalAwareContent />
+    </div>
   );
 }
 

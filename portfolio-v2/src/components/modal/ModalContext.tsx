@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useRef, useState, ReactNode } from "react";
+import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 
 export type ModalKey = "about" | "resume" | "portfolio" | "contact" | null;
 
