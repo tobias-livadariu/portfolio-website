@@ -1,13 +1,18 @@
 export default function AboutPanel() {
   return (
     <div className="flex flex-col md:flex-row gap-4 items-start">
-      <img
-        src="/images/me.png" /* replace with your path */
-        alt="Tobias portrait"
-        className="w-[20vw] h-auto mx-auto md:mx-0 object-cover flex-shrink-0"
-      />
+      <div className="flex flex-col items-center flex-shrink-0">
+        <img
+          src="/images/me.png" /* replace with your path */
+          alt="Tobias portrait"
+          className="w-[20vw] h-auto object-cover"
+        />
+        <p className="text-[14px] text-lightish-gray mt-2 text-center md:text-left">
+          A drawing of my face made by a friend
+        </p>
+      </div>
 
-      <div className="space-y-3 leading-relaxed text-[15px]">
+      <div className="space-y-3 text-light-gray leading-relaxed text-[16px]">
         <p>
           Hi! I'm Tobias, a Waterloo SE student. I've built things across React/TS, Redux, .NET/C#, CosmosDB, and more. I love performance‑minded UI and playful pixel aesthetics.
         </p>
