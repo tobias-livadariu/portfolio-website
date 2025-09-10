@@ -1,10 +1,10 @@
 export default function AboutPanel() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[220px,1fr] gap-4 items-start">
+    <div className="flex flex-col md:flex-row gap-4 items-start">
       <img
         src="/images/me.png" /* replace with your path */
         alt="Tobias portrait"
-        className="w-[180px] h-[180px] mx-auto md:mx-0 object-cover"
+        className="w-[20vw] h-auto mx-auto md:mx-0 object-cover flex-shrink-0"
       />
 
       <div className="space-y-3 leading-relaxed text-[15px]">
