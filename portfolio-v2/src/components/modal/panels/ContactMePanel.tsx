@@ -2,7 +2,7 @@ import { DevicePhone, Mail, Github, Dashboard } from "@nsmr/pixelart-react";
 
 export default function ContactMePanel() {
   return (
-    <div className="w-full flex flex-col space-y-6 text-light-gray">
+    <div className="w-full flex flex-col space-y-6 text-campfire-ash">
       <p className="text-[20px] font-pressstart"># REACH OUT</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

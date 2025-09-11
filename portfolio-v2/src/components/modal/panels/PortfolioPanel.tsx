@@ -1,4 +1,5 @@
 import ImageTextCaption from "./panel-shared-components/ImageTextCaption";
+import HorizontalHashedLine from "./panel-shared-components/HorizontalHashedLine";
 
 export default function AboutPanel() {
   return (
@@ -19,8 +20,13 @@ export default function AboutPanel() {
         </ul>
       </ImageTextCaption>
 
-      <p>&#9633;</p>
-      <hr className="pixel-divider my-6" aria-hidden="true" />
+      {/* ASCII divider: & - # - # - … - & */}
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="my-6"
+      />
 
       <ImageTextCaption
         imageUrl="/images/me.png"

@@ -11,7 +11,7 @@ const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${DRIVE_ID}
 
 export default function ResumePanel() {
   return (
-    <div className="flex flex-col space-y-4 text-light-gray mx-auto">
+    <div className="flex flex-col space-y-4 text-campfire-ash mx-auto">
       <p className="text-[20px] font-pressstart"># MY RESUME</p>
       {/* Pixel-framed viewer */}
       <div className="pixel-frame bg-[#070B14] p-2">

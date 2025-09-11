@@ -18,12 +18,12 @@ export default function ImageTextCaption(props: PropsWithChildren<ImageTextCapti
             className="md:w-[30vw] lg:w-[25vw] xl:w-[20vw] h-auto object-cover"
           />
         </div>
-        <p className="hidden md:block text-[14px] text-lightish-gray mt-2 text-center md:text-left">
+        <p className="hidden md:block text-[14px] text-light-gray mt-2 text-center md:text-left">
           {imageCaption}
         </p>
       </div>
 
-      <div className="space-y-4 text-light-gray leading-relaxed text-[16px]">
+      <div className="space-y-4 text-campfire-ash leading-relaxed text-[16px]">
         {children}
       </div>
     </div>
