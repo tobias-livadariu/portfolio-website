@@ -86,3 +86,63 @@
     0 0 0 2px #000,            /* crisp border */
     0 0 0 4px var(--color-campfire-ash);
 }
+
+/* Pixel hollow-box divider */
+.pixel-divider {
+  /* Tunables */
+  --box: 16px;            /* size of each square */
+  --gap: 10px;            /* space between squares */
+  --stroke: 2px;          /* border thickness */
+  --fg: #f7d8c0;          /* outline color */
+  --bg: #070B14;          /* inner (and page) color */
+  --tile: calc(var(--box) + var(--gap));
+
+  height: var(--box);
+  border: 0;
+  background-color: var(--bg);
+
+  /* Top + bottom borders of each square */
+  background-image:
+    /* top bar */
+    repeating-linear-gradient(
+      to right,
+      var(--fg) 0 var(--box),
+      transparent var(--box) var(--tile)
+    ),
+    /* bottom bar */
+    repeating-linear-gradient(
+      to right,
+      var(--fg) 0 var(--box),
+      transparent var(--box) var(--tile)
+    ),
+
+    /* left vertical edge of each square */
+    repeating-linear-gradient(
+      to right,
+      var(--fg) 0 var(--stroke),
+      transparent var(--stroke) var(--tile)
+    ),
+
+    /* right vertical edge of each square */
+    repeating-linear-gradient(
+      to right,
+      transparent 0 calc(var(--box) - var(--stroke)),
+      var(--fg) calc(var(--box) - var(--stroke)) var(--box),
+      transparent var(--box) var(--tile)
+    );
+
+  /* Position the two horizontal bars */
+  background-size:
+    100% var(--stroke),
+    100% var(--stroke),
+    100% 100%,
+    100% 100%;
+
+  background-position:
+    left top,
+    left bottom,
+    left top,
+    left top;
+
+  background-repeat: no-repeat;
+}
