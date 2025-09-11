@@ -35,7 +35,7 @@ export default function PixelModal({ children, title }: { children: React.ReactN
       const headerBottom = bodyEl.offsetTop;
       const bodyScroll = bodyEl.scrollHeight; // full body content height
       const total = headerBottom + bodyScroll;
-      const cap = Math.floor(Math.min(total, window.innerHeight * 0.8));
+      const cap = Math.floor(Math.min(total, window.innerHeight * 0.9));
       setHeight(cap);
     };
 

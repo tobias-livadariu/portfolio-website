@@ -11,7 +11,8 @@ const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${DRIVE_ID}
 
 export default function ResumePanel() {
   return (
-    <div className="flex flex-col space-y-4 text-light-gray">
+    <div className="flex flex-col space-y-4 text-light-gray mx-auto">
+      <p className="text-[20px] font-pressstart"># MY RESUME</p>
       {/* Pixel-framed viewer */}
       <div className="pixel-frame bg-[#070B14] p-2">
         <div className="h-[65vh]">
@@ -29,23 +30,18 @@ export default function ResumePanel() {
       {/* Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <a href={OPEN_SRC} target="_blank" rel="noreferrer"
-           className="pixel-contact-btn w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+           className="pixel-contact-btn justify-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
           <span>Open in Google Drive</span>
         </a>
         <a href={DOWNLOAD_SRC}
-           className="pixel-contact-btn w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+           className="pixel-contact-btn justify-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
           <span>Download PDF</span>
         </a>
-        <a href="/files/Resume.pdf" target="_blank" rel="noreferrer"
-           className="pixel-contact-btn w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
-          <span>Local Fallback {/* TODO(optional): place a copy at /public/files/Resume.pdf */}</span>
+        <a href="/resume.pdf" target="_blank" rel="noreferrer"
+           className="pixel-contact-btn justify-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <span>Local Fallback {/* TODO(optional): place a copy at /public/resume.pdf */}</span>
         </a>
       </div>
-
-      <p className="text-[12px] text-soft-gray">
-        If the preview doesn't load, use the buttons above. Drive sharing must be set to
-        <span className="ml-1 font-pixelemu">Anyone with the link — Viewer</span>.
-      </p>
     </div>
   );
 }
