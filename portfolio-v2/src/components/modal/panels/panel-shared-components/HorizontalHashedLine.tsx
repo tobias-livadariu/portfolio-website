@@ -90,7 +90,7 @@ export default function HorizontalHashedLine({
       const el = wrapRef.current;
       if (!el) return;
       // clientWidth is what we can fill with no scrollbars
-      const w = el.clientWidth;
+      const w = el.clientWidth - 30;
       setLine(build(w));
     };
 
