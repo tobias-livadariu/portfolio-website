@@ -5,15 +5,15 @@ export default function AboutPanel() {
         <img
           src="/images/me.png" /* replace with your path */
           alt="Tobias portrait"
-          className="w-[20vw] h-auto object-cover"
+          className="md:w-[20vw] h-auto object-cover"
         />
-        <p className="text-[14px] text-lightish-gray mt-2 text-center md:text-left">
+        <p className="hidden md:block text-[14px] text-lightish-gray mt-2 text-center md:text-left">
           A drawing of my face made by a friend
         </p>
       </div>
 
       <div className="space-y-4 text-light-gray leading-relaxed text-[16px]">
-        <p className="text-[20px] font-pressstart"># ABOUT ME</p>
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># ABOUT ME</p>
         <p className="text-[16px]">## TOBIAS LIVADARIU</p>
 
         <p>
