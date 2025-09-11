@@ -1,8 +1,5 @@
 /* src/styles/pixel.css */
 
-/* Prevent layout shift when scrollbars appear/disappear */
-html { scrollbar-gutter: stable both-edges; }
-
 /* Crisp scaling for pixel art images */
 .img-pixelated {
   image-rendering: pixelated;
@@ -41,3 +38,16 @@ html { scrollbar-gutter: stable both-edges; }
     0 0 0 2px #000,
     0 0 0 4px #f7d8c0,
     0 2px 0 4px #000; }
+
+.pm-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pm-scrollbar::-webkit-scrollbar-thumb {
+  background: #e97531;
+  border-radius: 3px;
+}
+
+.pm-scrollbar::-webkit-scrollbar-track {
+  background: #070B14;
+}

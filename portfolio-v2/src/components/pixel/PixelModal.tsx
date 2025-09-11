@@ -54,7 +54,7 @@ export default function PixelModal({ children, title }: { children: React.ReactN
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-2 border-b border-black bg-campfire-ash/10">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-black bg-campfire-ash/10 pt-[16px] pb-[18px]">
               <h2 className="font-pixelemu text-[18px]">{title}</h2>
               <button
                 data-autofocus
@@ -66,7 +66,7 @@ export default function PixelModal({ children, title }: { children: React.ReactN
             </div>
 
             {/* Body */}
-            <div className="p-4 overflow-y-auto">
+            <div className="p-4 overflow-y-auto pm-scrollbar">
               {children}
             </div>
           </motion.div>
