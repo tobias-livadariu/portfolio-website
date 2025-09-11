@@ -79,7 +79,7 @@ export default function PixelModal({ children, title }: { children: React.ReactN
             aria-modal="true"
             aria-label={title}
             ref={panelRef}
-            className="relative pixel-frame w-[87vw] md:w-[70vw] bg-[#070B14] text-campfire overflow-hidden flex flex-col transform-gpu [will-change:transform]"
+            className="relative pixel-frame w-[87vw] md:w-[85vw] lg:w-[70vw] bg-[#070B14] text-campfire overflow-hidden flex flex-col transform-gpu [will-change:transform]"
             style={{ contain: 'layout paint size', height }}
             initial={{ y: "100vh" }}
             animate={{ y: 0 }}

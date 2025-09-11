@@ -30,16 +30,16 @@ export default function ResumePanel() {
       {/* Actions */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <a href={OPEN_SRC} target="_blank" rel="noreferrer"
-           className="pixel-contact-btn justify-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
-          <span>Open in Google Drive</span>
+           className="pixel-contact-btn justify-center text-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          Open in Google Drive
         </a>
         <a href={DOWNLOAD_SRC}
-           className="pixel-contact-btn justify-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
-          <span>Download PDF</span>
+           className="pixel-contact-btn justify-center text-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          Download PDF
         </a>
         <a href="/resume.pdf" target="_blank" rel="noreferrer"
-           className="pixel-contact-btn justify-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
-          <span>Local Fallback {/* TODO(optional): place a copy at /public/resume.pdf */}</span>
+           className="pixel-contact-btn justify-center text-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          Local Fallback
         </a>
       </div>
     </div>
