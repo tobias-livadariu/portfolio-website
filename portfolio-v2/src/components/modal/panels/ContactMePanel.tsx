@@ -1,41 +1,30 @@
-export default function AboutPanel() {
+import { DevicePhone, Mail, Github, Dashboard } from "@nsmr/pixelart-react";
+
+export default function ContactMePanel() {
   return (
-    <div className="flex flex-col md:flex-row gap-4 items-start">
-      <div className="flex flex-col items-center flex-shrink-0">
-        <img
-          src="/images/me.png" /* replace with your path */
-          alt="Tobias portrait"
-          className="w-[20vw] h-auto object-cover"
-        />
-        <p className="text-[14px] text-lightish-gray mt-2 text-center md:text-left">
-          A drawing of my face made by a friend
-        </p>
-      </div>
+    <div className="flex flex-col space-y-6 text-light-gray">
+      <p className="text-[20px] font-pressstart"># REACH OUT</p>
 
-      <div className="space-y-4 text-light-gray leading-relaxed text-[16px]">
-        <p className="text-[20px] font-pressstart"># ABOUT ME</p>
-        <p className="text-[16px]">## TOBIAS LIVADARIU</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="tel:6479063238" className="pixel-contact-btn flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <DevicePhone className="w-6 h-6" />
+          <span className="ml-3">Cellular (647-906-3238)</span>
+        </a>
 
-        <p>
-          I’m a 2nd-year Software Engineering student at the University of Waterloo, 
-          passionate about building tools at the intersection of frontend design and 
-          backend systems. I’ve worked on projects like DealerAI’s Admin Portal and 
-          Food Banks Canada’s Exchange platform.
-        </p>
+        <a href="mailto:tlivadar@uwaterloo.ca" className="pixel-contact-btn flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <Mail className="w-6 h-6" />
+          <span className="ml-3">Email</span>
+        </a>
 
-        <p>
-          Outside of coding, I enjoy getting lost in books and challenging myself in 
-          the gym. Reading keeps my imagination sharp, and lifting keeps me grounded.
-        </p>
+        <a href="https://linkedin.com/in/tobias-livadariu" target="_blank" rel="noreferrer" className="pixel-contact-btn flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <Dashboard className="w-6 h-6" />
+          <span className="ml-3">LinkedIn</span>
+        </a>
 
-        <p className="text-[16px]">## SKILLS & INTERESTS</p>
-
-        <ul className="list-disc pixel-list pl-5">
-          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
-          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
-          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
-          <li>Hobbies: Reading fantasy novels, lifting weights</li>
-        </ul>
+        <a href="https://github.com/tobias-livadariu" target="_blank" rel="noreferrer" className="pixel-contact-btn flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <Github className="w-6 h-6" />
+          <span className="ml-3">GitHub</span>
+        </a>
       </div>
     </div>
   );

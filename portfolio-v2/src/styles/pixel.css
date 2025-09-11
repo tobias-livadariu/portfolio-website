@@ -39,6 +39,22 @@
     0 0 0 4px #f7d8c0,
     0 2px 0 4px #000; }
 
+/* Pixel contact buttons */
+.pixel-contact-btn {
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 4px 0 4px #000;
+  transition: background 0.2s, transform 0.1s;
+}
+.pixel-contact-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 2px 0 4px #000;
+}
+
 .pm-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
