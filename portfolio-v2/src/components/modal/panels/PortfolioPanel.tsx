@@ -1,7 +1,7 @@
 import ImageTextCaption from "./panel-shared-components/ImageTextCaption";
 import HorizontalHashedLine from "./panel-shared-components/HorizontalHashedLine";
 
-export default function AboutPanel() {
+export default function PortfolioPanel() {
   return (
     <div>
       <ImageTextCaption
