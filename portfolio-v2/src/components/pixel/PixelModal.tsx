@@ -89,7 +89,7 @@ export default function PixelModal({ children, title }: { children: React.ReactN
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-black bg-campfire-ash/10 pt-[16px] pb-[18px]">
-              <h2 className="font-pixelemu lg:text-[24px]">{title}</h2>
+              <h2 className="font-pixelemu sm:text-[18px] lg:text-[22px]">{title}</h2>
               <button
                 data-autofocus
                 onClick={close}
