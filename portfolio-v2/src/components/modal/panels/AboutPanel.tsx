@@ -12,94 +12,29 @@ export default function AboutPanel() {
         </p>
       </div>
 
-      <div className="space-y-3 text-light-gray leading-relaxed text-[16px]">
+      <div className="space-y-4 text-light-gray leading-relaxed text-[16px]">
+        <p className="text-[20px] font-pressstart"># ABOUT ME</p>
+        <p className="text-[16px]">## TOBIAS LIVADARIU</p>
+
         <p>
-          Hi! I'm Tobias, a Waterloo SE student. I've built things across React/TS, Redux, .NET/C#, CosmosDB, and more. I love performance‑minded UI and playful pixel aesthetics.
+          I’m a 2nd-year Software Engineering student at the University of Waterloo, 
+          passionate about building tools at the intersection of frontend design and 
+          backend systems. I’ve worked on projects like DealerAI’s Admin Portal and 
+          Food Banks Canada’s Exchange platform.
         </p>
-        <ul className="list-disc pl-5">
-          <li>IdeaNotion — DealerAI Admin Portal (React/Redux), FBC Exchange</li>
-          <li>RL/AB‑testing explorations for pricing & loyalty</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
-          <li>Hobby: graphics & starfields (Pixi)</li>
+
+        <p>
+          Outside of coding, I enjoy getting lost in books and challenging myself in 
+          the gym. Reading keeps my imagination sharp, and lifting keeps me grounded.
+        </p>
+
+        <p className="text-[16px]">## SKILLS & INTERESTS</p>
+
+        <ul className="list-disc pixel-list pl-5">
+          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
+          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
+          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
+          <li>Hobbies: Reading fantasy novels, lifting weights</li>
         </ul>
       </div>
     </div>

@@ -51,3 +51,22 @@
 .pm-scrollbar::-webkit-scrollbar-track {
   background: #070B14;
 }
+
+.pixel-list {
+  list-style-type: none;       /* remove default bullets */
+  padding-left: 0;
+  margin: 0;
+}
+
+.pixel-list li {
+  background: #070B14;         /* same base as modal */
+  color: var(--color-light-gray);
+  margin: 6px 0;
+  padding: 6px 10px;
+  font-family: var(--font-pixantiqua);
+  font-size: 15px;
+  display: block;
+  box-shadow:
+    0 0 0 2px #000,            /* crisp border */
+    0 0 0 4px var(--color-campfire-ash);
+}
