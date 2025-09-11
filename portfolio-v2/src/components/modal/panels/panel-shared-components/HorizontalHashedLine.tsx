@@ -51,7 +51,7 @@ export default function HorizontalHashedLine({
     };
 
     // Start with minimal pattern: "& -"
-    let pattern = "&-";
+    let pattern = "<-";
     let totalWidth = calculateTotalWidth(pattern);
 
     // If even the minimal pattern doesn't fit, return just "&"
@@ -78,7 +78,7 @@ export default function HorizontalHashedLine({
     }
 
     // Add the final "&"
-    pattern += "&";
+    pattern += ">";
     
     return pattern;
   };
