@@ -61,7 +61,7 @@ export default function PixelModal({ children, title }: { children: React.ReactN
       {key && (
         <motion.div
           aria-hidden={false}
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+          className="fixed inset-0 z-[60] flex items-start pt-8 sm:items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
