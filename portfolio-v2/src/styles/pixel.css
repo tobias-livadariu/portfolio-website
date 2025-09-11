@@ -76,7 +76,7 @@
 
 .pixel-list li {
   background: #070B14;         /* same base as modal */
-  color: var(--color-campfire-ash);
+  color: var(--color-light-gray);
   margin: 6px 0;
   padding: 6px 10px;
   font-family: var(--font-pixantiqua);

@@ -90,7 +90,7 @@ export default function HorizontalHashedLine({
       const el = wrapRef.current;
       if (!el) return;
       // clientWidth is what we can fill with no scrollbars
-      const w = el.clientWidth - 30;
+      const w = el.clientWidth - 17;
       setLine(build(w));
     };
 
@@ -134,6 +134,8 @@ export default function HorizontalHashedLine({
           // visual spacing handled by letter-spacing;
           // our width math already accounted for gapW
           letterSpacing: `${gap}px`,
+          // center the line horizontally
+          textAlign: "center",
           // unselectable
           userSelect: "none",
           WebkitUserSelect: "none",
