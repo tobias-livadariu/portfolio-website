@@ -1,42 +1,51 @@
-export default function AboutPanel() {
+// TODO: Paste your Google Drive FILE ID below (the string between /d/ and /view in the URL)
+const DRIVE_ID = "1J4pOm1PnVdsCDL9Tp-9v2_JQKk7rNE_m";
+
+// Optional cache-buster to force preview refresh after you upload a new version in Drive
+// e.g., change to '?v=2025-09-10' when you update your resume
+const CACHE_BUSTER = "?v=2025-09-10"; // TODO(optional): set like '?v=2025-09-10'
+
+const PREVIEW_SRC  = `https://drive.google.com/file/d/${DRIVE_ID}/preview${CACHE_BUSTER}`;
+const OPEN_SRC     = `https://drive.google.com/file/d/${DRIVE_ID}/view`;
+const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${DRIVE_ID}`;
+
+export default function ResumePanel() {
   return (
-    <div className="flex flex-col md:flex-row gap-4 items-start">
-      <div className="flex flex-col items-center flex-shrink-0">
-        <img
-          src="/images/me.png" /* replace with your path */
-          alt="Tobias portrait"
-          className="w-[20vw] h-auto object-cover"
-        />
-        <p className="text-[14px] text-lightish-gray mt-2 text-center md:text-left">
-          A drawing of my face made by a friend
-        </p>
+    <div className="flex flex-col space-y-4 text-light-gray">
+      {/* Pixel-framed viewer */}
+      <div className="pixel-frame bg-[#070B14] p-2">
+        <div className="h-[65vh]">
+          {/* If the preview fails (ad-block/permissions), action buttons below provide fallbacks */}
+          <iframe
+            className="w-full h-full"
+            src={PREVIEW_SRC}
+            loading="lazy"
+            allow="autoplay"
+            title="Tobias Livadariu — Resume Preview"
+          />
+        </div>
       </div>
 
-      <div className="space-y-4 text-light-gray leading-relaxed text-[16px]">
-        <p className="text-[20px] font-pressstart"># ABOUT ME</p>
-        <p className="text-[16px]">## TOBIAS LIVADARIU</p>
-
-        <p>
-          I’m a 2nd-year Software Engineering student at the University of Waterloo, 
-          passionate about building tools at the intersection of frontend design and 
-          backend systems. I’ve worked on projects like DealerAI’s Admin Portal and 
-          Food Banks Canada’s Exchange platform.
-        </p>
-
-        <p>
-          Outside of coding, I enjoy getting lost in books and challenging myself in 
-          the gym. Reading keeps my imagination sharp, and lifting keeps me grounded.
-        </p>
-
-        <p className="text-[16px]">## SKILLS & INTERESTS</p>
-
-        <ul className="list-disc pixel-list pl-5">
-          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
-          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
-          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
-          <li>Hobbies: Reading fantasy novels, lifting weights</li>
-        </ul>
+      {/* Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <a href={OPEN_SRC} target="_blank" rel="noreferrer"
+           className="pixel-contact-btn w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <span>Open in Google Drive</span>
+        </a>
+        <a href={DOWNLOAD_SRC}
+           className="pixel-contact-btn w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <span>Download PDF</span>
+        </a>
+        <a href="/files/Resume.pdf" target="_blank" rel="noreferrer"
+           className="pixel-contact-btn w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
+          <span>Local Fallback {/* TODO(optional): place a copy at /public/files/Resume.pdf */}</span>
+        </a>
       </div>
+
+      <p className="text-[12px] text-soft-gray">
+        If the preview doesn't load, use the buttons above. Drive sharing must be set to
+        <span className="ml-1 font-pixelemu">Anyone with the link — Viewer</span>.
+      </p>
     </div>
   );
 }
