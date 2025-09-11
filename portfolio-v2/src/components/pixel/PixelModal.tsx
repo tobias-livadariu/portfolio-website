@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useModal } from "../modal/ModalContext";
 
 export default function PixelModal({ children, title }: { children: React.ReactNode; title: string }) {
   const { key, close } = useModal();
   const panelRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
 
   // Escape to close
   useEffect(() => {
@@ -21,6 +23,38 @@ export default function PixelModal({ children, title }: { children: React.ReactN
            ?? panelRef.current?.querySelector<HTMLElement>("button, a, input, textarea, select");
     el?.focus?.();
   }, [key]);
+
+  // Recalculate modal height = min(contentHeight, 80vh)
+  useLayoutEffect(() => {
+    if (!key) return; // only when open
+
+    const recalc = () => {
+      const bodyEl = bodyRef.current;
+      if (!bodyEl) return;
+      // header height is body.offsetTop relative to panel
+      const headerBottom = bodyEl.offsetTop;
+      const bodyScroll = bodyEl.scrollHeight; // full body content height
+      const total = headerBottom + bodyScroll;
+      const cap = Math.floor(Math.min(total, window.innerHeight * 0.8));
+      setHeight(cap);
+    };
+
+    // Initial calc on open
+    requestAnimationFrame(recalc);
+
+    // Observe content growth/shrink
+    const ro = new ResizeObserver(() => recalc());
+    if (bodyRef.current) ro.observe(bodyRef.current);
+
+    // Recalc on window resize
+    const onResize = () => recalc();
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      window.removeEventListener('resize', onResize);
+      ro.disconnect();
+    };
+  }, [key, children]);
 
   return (
     <AnimatePresence>
@@ -45,8 +79,8 @@ export default function PixelModal({ children, title }: { children: React.ReactN
             aria-modal="true"
             aria-label={title}
             ref={panelRef}
-            className="relative pixel-frame w-[70vw] h-[80vh] bg-[#070B14] text-campfire overflow-hidden grid grid-rows-[auto,1fr] transform-gpu [will-change:transform]"
-            style={{ contain: 'layout paint size' }}
+            className="relative pixel-frame w-[70vw] bg-[#070B14] text-campfire overflow-hidden flex flex-col transform-gpu [will-change:transform]"
+            style={{ contain: 'layout paint size', height }}
             initial={{ y: "100vh" }}
             animate={{ y: 0 }}
             exit={{ y: "100vh" }}
@@ -66,7 +100,7 @@ export default function PixelModal({ children, title }: { children: React.ReactN
             </div>
 
             {/* Body */}
-            <div className="p-4 overflow-y-auto pm-scrollbar">
+            <div ref={bodyRef} className="p-4 overflow-y-auto pm-scrollbar flex flex-col items-start">
               {children}
             </div>
           </motion.div>
