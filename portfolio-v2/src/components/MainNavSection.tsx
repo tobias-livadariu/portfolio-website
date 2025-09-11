@@ -6,7 +6,7 @@ function MainNavSection() {
   const { open } = useModal();
   const handleClick = (label: string) => {
     const key = label.toLowerCase().replace(" ", "") as
-      | "about" | "resume" | "portfolio" | "contact";
+      | "about" | "resume" | "portfolio" | "contactme";
     open(key);
   };
 

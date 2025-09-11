@@ -1,6 +1,6 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 
-export type ModalKey = "about" | "resume" | "portfolio" | "contact" | null;
+export type ModalKey = "about" | "resume" | "portfolio" | "contactme" | null;
 
 interface ModalState {
   key: ModalKey;

@@ -1,6 +1,9 @@
 import PixelModal from "../pixel/PixelModal";
 import { useModal } from "./ModalContext";
 import AboutPanel from "./panels/AboutPanel";
+import ResumePanel from "./panels/ResumePanel";
+import PortfolioPanel from "./panels/PortfolioPanel";
+import ContactMePanel from "./panels/ContactMePanel";
 
 export default function ModalRoot() {
   const { key } = useModal();
@@ -8,17 +11,19 @@ export default function ModalRoot() {
 
   const titleMap = {
     about: "About",
-    resume: "Résumé",
+    resume: "Resume",
     portfolio: "Portfolio",
-    contact: "Contact me",
+    contactme: "Contact Me",
   } as const;
+
+  console.log("The key is", key)
 
   return (
     <PixelModal title={titleMap[key]}> {
       key === "about" ? <AboutPanel/> :
-      key === "resume" ? <div className="font-pixelemu">Coming soon…</div> :
-      key === "portfolio" ? <div className="font-pixelemu">Coming soon…</div> :
-      <div className="font-pixelemu">Coming soon…</div>
+      key === "resume" ? <ResumePanel/> :
+      key === "portfolio" ? <PortfolioPanel/> :
+      <ContactMePanel/>
     } </PixelModal>
   );
 }
