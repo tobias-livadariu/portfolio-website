@@ -13,140 +13,118 @@ export default function PortfolioPanel() {
         <p className="mb-2">My last internship was an incredible experience.</p>
         <p className="mb-5"><span></span>I had the opportunity to work on three major projects:</p>
         <ul className="list-disc pixel-list pl-5">
-          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
-          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
-          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
-          <li>Hobbies: Reading fantasy novels, lifting weights</li>
+          <li>DealerAI Admin Portal - <span className="italic">React, TypeScript, Tailwind, Redux, C#, .NET, OpenAI API, SQL, CosmosDB</span></li>
+          <li>Food Banks Canada Main Website - <span className="italic">PHP, Laravel, Sage, WordPress, SCSS, Bootstrap</span></li>
+          <li>Food Banks Canada Admin Portal - <span className="italic">React, TypeScript, Tailwind, RTK Query, C#, .NET, EF Core, SQL</span></li>
         </ul>
       </ImageTextCaption>
 
-      {/* ASCII divider: & - # - # - … - & */}
       <HorizontalHashedLine
         color="#f7d8c0"
         fontSize={18}
         gap={2}
-        className="my-6"
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
       />
 
       <ImageTextCaption
-        imageUrl="/images/me.png"
-        imageAlt="Portrait of me!"
-        imageCaption="A drawing of my face made by a friend"
+        imageUrl="/images/dealerai-website-social-preview-graphic.png"
+        imageAlt="Logo of DealerAI"
+        imageCaption="DealerAI's logo, IdeaNotion's main product"
       >
-        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># ABOUT ME</p>
-        <p className="text-[16px]">## TOBIAS LIVADARIU</p>
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># DEALERAI</p>
+        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
 
         <p>
-          I’m a 2nd-year Software Engineering student at the University of Waterloo, 
-          passionate about building tools at the intersection of frontend design and 
-          backend systems. I’ve worked on projects like DealerAI’s Admin Portal and 
-          Food Banks Canada’s Exchange platform.
+          TODO
         </p>
 
+        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
-          Outside of coding, I enjoy getting lost in books and challenging myself in 
-          the gym. Reading keeps my imagination sharp, and lifting keeps me grounded.
+          TODO
         </p>
-
-        <p className="text-[16px]">## SKILLS & INTERESTS</p>
-
-        <ul className="list-disc pixel-list pl-5">
-          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
-          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
-          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
-          <li>Hobbies: Reading fantasy novels, lifting weights</li>
-        </ul>
       </ImageTextCaption>
+
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
+      />
 
       <ImageTextCaption
-        imageUrl="/images/me.png"
-        imageAlt="Portrait of me!"
-        imageCaption="A drawing of my face made by a friend"
+        imageUrl="/images/foodbankscanada-image-cropped.png"
+        imageAlt="Food Banks Canada's Logo"
+        imageCaption="Food Banks Canada's logo"
       >
-        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># ABOUT ME</p>
-        <p className="text-[16px]">## TOBIAS LIVADARIU</p>
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - MAIN WEBSITE</p>
+        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
 
         <p>
-          I’m a 2nd-year Software Engineering student at the University of Waterloo, 
-          passionate about building tools at the intersection of frontend design and 
-          backend systems. I’ve worked on projects like DealerAI’s Admin Portal and 
-          Food Banks Canada’s Exchange platform.
+          TODO
         </p>
 
+        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
-          Outside of coding, I enjoy getting lost in books and challenging myself in 
-          the gym. Reading keeps my imagination sharp, and lifting keeps me grounded.
+          TODO
         </p>
-
-        <p className="text-[16px]">## SKILLS & INTERESTS</p>
-
-        <ul className="list-disc pixel-list pl-5">
-          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
-          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
-          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
-          <li>Hobbies: Reading fantasy novels, lifting weights</li>
-        </ul>
       </ImageTextCaption>
+
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
+      />
 
       <ImageTextCaption
-        imageUrl="/images/me.png"
-        imageAlt="Portrait of me!"
-        imageCaption="A drawing of my face made by a friend"
+        imageUrl="/images/foodbankscanada-theexchange.png"
+        imageAlt="The Exchange's Landing Page"
+        imageCaption="The Exchange's landing page"
       >
-        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># ABOUT ME</p>
-        <p className="text-[16px]">## TOBIAS LIVADARIU</p>
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - THE EXCHANGE</p>
+        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
 
         <p>
-          I’m a 2nd-year Software Engineering student at the University of Waterloo, 
-          passionate about building tools at the intersection of frontend design and 
-          backend systems. I’ve worked on projects like DealerAI’s Admin Portal and 
-          Food Banks Canada’s Exchange platform.
+          TODO
         </p>
 
+        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
-          Outside of coding, I enjoy getting lost in books and challenging myself in 
-          the gym. Reading keeps my imagination sharp, and lifting keeps me grounded.
+          TODO
         </p>
-
-        <p className="text-[16px]">## SKILLS & INTERESTS</p>
-
-        <ul className="list-disc pixel-list pl-5">
-          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
-          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
-          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
-          <li>Hobbies: Reading fantasy novels, lifting weights</li>
-        </ul>
       </ImageTextCaption>
+
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
+      />
 
       <ImageTextCaption
-        imageUrl="/images/me.png"
-        imageAlt="Portrait of me!"
-        imageCaption="A drawing of my face made by a friend"
+        imageUrl="/images/foodbankscanada-theexchange.png"
+        imageAlt="The Exchange's Landing Page"
+        imageCaption="The Exchange's landing page"
       >
-        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># ABOUT ME</p>
-        <p className="text-[16px]">## TOBIAS LIVADARIU</p>
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - THE EXCHANGE</p>
+        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
 
         <p>
-          I’m a 2nd-year Software Engineering student at the University of Waterloo, 
-          passionate about building tools at the intersection of frontend design and 
-          backend systems. I’ve worked on projects like DealerAI’s Admin Portal and 
-          Food Banks Canada’s Exchange platform.
+          TODO
         </p>
 
+        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
-          Outside of coding, I enjoy getting lost in books and challenging myself in 
-          the gym. Reading keeps my imagination sharp, and lifting keeps me grounded.
+          TODO
         </p>
-
-        <p className="text-[16px]">## SKILLS & INTERESTS</p>
-
-        <ul className="list-disc pixel-list pl-5">
-          <li>Frontend: React, TypeScript, Tailwind, Pixi.js</li>
-          <li>Backend: C#, .NET, SQL, CosmosDB, Azure</li>
-          <li>Interests: Full-stack design (React + .NET) + scalable APIs & databases</li>
-          <li>Hobbies: Reading fantasy novels, lifting weights</li>
-        </ul>
       </ImageTextCaption>
+
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
+      />
     </div>
   );
 }
