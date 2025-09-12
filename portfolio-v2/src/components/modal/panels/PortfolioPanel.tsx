@@ -30,15 +30,16 @@ export default function PortfolioPanel() {
         imageUrl="/images/dealerai-website-social-preview-graphic.png"
         imageAlt="Logo of DealerAI"
         imageCaption="DealerAI's logo, IdeaNotion's main product"
+        href="https://dealerai.com/"
+        newTab
+        tilt
+        tiltMaxDeg={8}
+        tiltScale={1.02}
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># DEALERAI</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           AI platform helping dealerships convert online traffic into booked appointments via a customizable, multi-agent chatbot and an admin portal for training, knowledge, conversation review, and reporting.
-          <br />
-          <i><a href="https://dealerai.com/" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>DealerAI website</a></i>
-          <br />
-          <i><a href="https://portal.dealerai.com/" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>DealerAI portal</a></i>
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
@@ -61,13 +62,14 @@ export default function PortfolioPanel() {
         imageUrl="/images/foodbankscanada-image-cropped.png"
         imageAlt="Food Banks Canada's Logo"
         imageCaption="Food Banks Canada's logo"
+        href="https://foodbankscanada.ca/"
+        newTab
+        tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - MAIN WEBSITE</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           Public-facing WordPress site for Food Banks Canada with bilingual pages, campaign content, custom ACF blocks, and tailored components consistent with Figma designs.
-          <br />
-          <i><a href="https://foodbankscanada.ca/" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>Visit Food Banks Canada</a></i>
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
@@ -88,13 +90,14 @@ export default function PortfolioPanel() {
         imageUrl="/images/foodbankscanada-theexchange.png"
         imageAlt="The Exchange's Landing Page"
         imageCaption="The Exchange's landing page"
+        href="https://theexchange.foodbankscanada.ca/"
+        newTab
+        tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - THE EXCHANGE</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           Member/admin portal used across the FBC network for data management, content, and operations — modernized with Material React Table UIs and a typed API layer.
-          <br />
-          <i><a href="https://theexchange.foodbankscanada.ca/" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>Open The Exchange (login)</a></i>
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
@@ -117,13 +120,14 @@ export default function PortfolioPanel() {
         imageUrl="/images/codespeak-logo.png"
         imageAlt="CodeSpeak Logo"
         imageCaption="CodeSpeak's logo"
+        href="https://devpost.com/software/codespeak"
+        newTab
+        tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># CODESPEAK</p>
         <p className="text:[16px]">## PROJECT DESCRIPTION</p>
         <p>
           Browser-based, accessible IDE for low/vision-impaired coders — keyboard-first UI, audio feedback via Google TTS, and AI assistance using Gemini with a verifier.
-          <br />
-          <i><a href="https://devpost.com/software/codespeak" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>View on Devpost</a></i>
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
@@ -145,13 +149,14 @@ export default function PortfolioPanel() {
         imageUrl="/images/binthereai-thumbnail.png"
         imageAlt="BinThere.ai's Logo"
         imageCaption="BinThere.ai's logo"
+        href="https://devpost.com/software/bin-there-ai"
+        newTab
+        tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># BINTHERE.AI</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           Camera-based waste sorting helper that classifies materials (YOLO/Roboflow) and suggests proper disposal or reuse, with a friendly React UI and a Streamlit-powered control plane.
-          <br />
-          <i><a href="https://devpost.com/software/bin-there-ai" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>View on Devpost</a></i>
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
@@ -172,13 +177,14 @@ export default function PortfolioPanel() {
         imageUrl="/images/lights-on-thumbnail.png"
         imageAlt="Lights On Photo"
         imageCaption="An image of Lights On's landing page"
+        href="https://github.com/tobias-livadariu/lights-on"
+        newTab
+        tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># LIGHTS ON</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           A fast puzzle game with a global leaderboard built on a modern MERN-style stack.
-          <br />
-          <i><a href="https://github.com/tobias-livadariu/lights-on" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>GitHub repository</a></i>
         </p>
         <p>
           - Implemented game logic and leaderboard APIs with React + Node/Express + MongoDB Atlas<br />
@@ -197,15 +203,14 @@ export default function PortfolioPanel() {
         imageUrl="/images/calciumclicker-thumbnail.png"
         imageAlt="Calcium Clicker Photo"
         imageCaption="An image of Calcium Clicker's landing page"
+        href="https://tobiliv.pythonanywhere.com"
+        newTab
+        tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># CALCIUM CLICKER</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
-          A browser-based incremental game where you harvest and automate “skeleton” production. Built with Flask, SQL, and AJAX for smooth DOM updates and persistent progress.
-          <br />
-          <i><a href="https://tobiliv.pythonanywhere.com" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>Live demo</a></i>
-          <br />
-          <i><a href="https://github.com/tobias-livadariu/calcium-clicker" target="_blank" rel="noreferrer" style={{ color: "#e97531" }}>GitHub repository</a></i>
+          A browser-based incremental game where you harvest and automate "skeleton" production. Built with Flask, SQL, and AJAX for smooth DOM updates and persistent progress.
         </p>
         <p>
           - Built Flask routes and SQL schema for login, upgrades, and timed automation<br />
