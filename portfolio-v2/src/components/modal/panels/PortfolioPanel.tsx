@@ -8,6 +8,9 @@ export default function PortfolioPanel() {
         imageUrl="/images/ideanotion-banner.png"
         imageAlt="IdeaNotion's banner"
         imageCaption="The sign of my last employer!"
+        href="https://ideanotion.net/"
+        newTab
+        tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># IDEANOTION DEVELOPMENT INC.</p>
         <p className="mb-2">My last internship was an incredible experience.</p>
