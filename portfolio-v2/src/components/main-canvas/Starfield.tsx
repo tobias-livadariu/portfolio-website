@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { Application, Container, Graphics, Assets, Spritesheet, AnimatedSprite, Texture, Ticker } from "pixi.js";
+import { Application, Container, Assets, Spritesheet, AnimatedSprite, Texture, Ticker, Sprite } from "pixi.js";
 
 // Extend Application interface for cleanup function
 interface ExtendedApplication extends Application {
@@ -40,7 +40,7 @@ function samplePolar(rMin: number, rMax: number): { r: number; theta: number } {
 }
 
 interface Star {
-  graphics: Graphics;
+  sprite: Sprite;
   x: number;
   y: number;
   size: number;
@@ -97,21 +97,16 @@ const VARIANTS_PER_TYPE = 5;
 // Planet exclusion zone around origin (configurable)
 const PLANET_EXCLUSION_RADIUS = 395; // pixels - planets cannot spawn within this distance of origin (0,0)
 
-// Width-based scaling constants
-const BASE_WIDTH = 1200; // breakpoint where scaling begins
-const S_MAX = 2.0; // optional clamp for maximum scale
-const WIDTH_SCALE_EXP = 1; // linear scaling exponent
-
 // Scale factor computation based on viewport width
-function getScaleFromWidth(width: number): number {
+function getScaleFromWidth(): number {
   // Keep visuals consistent; no width-based scaling desired.
   return 1;
 }
 
 // World-space radius computation (screen radius divided by scale)
 function getRMaxWorld(app: Application, scale: number): number {
-  const pxRadius = Math.hypot(app.screen.width, app.screen.height) + R_MAX_MARGIN;
-  return pxRadius / Math.max(1, scale);
+  // Keep formulas consistent with getRMax()
+  return getRMax(app) / Math.max(1, scale);
 }
 
 // World-space exclusion radius for planets
@@ -338,7 +333,7 @@ const Starfield = () => {
         document.body.appendChild(canvas);
 
         // Compute initial scale factor based on viewport width
-        const initialScale = getScaleFromWidth(window.innerWidth);
+        const initialScale = getScaleFromWidth();
         
         // Create root container for world-space scaling
         const rootContainer = new Container();
@@ -372,32 +367,31 @@ const Starfield = () => {
 
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
         const stars: Star[] = [];
+        const STAR_TEXTURE = Texture.WHITE; // shared 1×1 white texture
 
         // Helper to create a star sampled uniformly in ring [rMin, rMax]
         const createStar = (rMin = 0, rMax = getRMax(app)): Star => {
           const size = Math.random() * 2 + 1;
           const color = colors[Math.floor(Math.random() * colors.length)];
-          
-          const graphics = new Graphics();
-          graphics.rect(0, 0, size, size);
-          graphics.fill(color);
+
+          // Use a lightweight Sprite instead of Graphics; tint + resize the shared texture
+          const sprite = new Sprite(STAR_TEXTURE);
+          sprite.anchor.set(0.5);
+          sprite.width = size;
+          sprite.height = size;
+          sprite.tint = color;
 
           // Initial spawn anywhere inside the given ring (uniform-area)
           const { r, theta } = samplePolar(rMin, rMax);
           const x = r * Math.cos(theta);
           const y = r * Math.sin(theta);
 
-          graphics.x = x;
-          graphics.y = y;
-          
-          // Set initial rotation so the star's edge is tangential to its circular path
-          // For a square, we want the edge perpendicular to the radius vector
-          // The tangential direction is perpendicular to the radial direction
-          const tangentialAngle = theta + Math.PI / 2; // Add 90 degrees (π/2 radians)
-          graphics.rotation = tangentialAngle;
-          
-          // No extents or TTL needed in no-deletion mode
-          return { graphics, x, y, size, color, radius: r, angle: theta };
+          sprite.x = x;
+          sprite.y = y;
+          // Keep the edge tangential to the circular path
+          sprite.rotation = theta + Math.PI / 2;
+
+          return { sprite, x, y, size, color, radius: r, angle: theta };
         };
 
         // (old recycling helpers removed)
@@ -406,7 +400,7 @@ const Starfield = () => {
         for (let i = 0; i < numStars0; i++) {
           const star = createStar(0, R_MAX_WORLD);
           stars.push(star);
-          starContainer.addChild(star.graphics);
+          starContainer.addChild(star.sprite);
         }
 
         // Prepare planets array and a spawn queue to throttle creation
@@ -424,10 +418,11 @@ const Starfield = () => {
             star.angle += step;
             const newX = star.radius * Math.cos(star.angle);
             const newY = star.radius * Math.sin(star.angle);
-            star.graphics.x = newX;
-            star.graphics.y = newY;
+            star.sprite.x = newX;
+            star.sprite.y = newY;
             star.x = newX; star.y = newY;
-            star.graphics.rotation += step;
+            // Set rotation directly from angle to avoid extra accumulation/drift
+            star.sprite.rotation = star.angle + Math.PI / 2;
           }
           // Throttle only PLANET creation (LIFO) when spritesheets are still loading
           let budget = PLANET_SPAWN_BUDGET_PER_TICK;
@@ -480,8 +475,8 @@ const Starfield = () => {
         // === Helpers to clear and rebuild everything ===
         const clearStars = () => {
           for (let i = stars.length - 1; i >= 0; i--) {
-            starContainer.removeChild(stars[i].graphics);
-            stars[i].graphics.destroy();
+            starContainer.removeChild(stars[i].sprite);
+            stars[i].sprite.destroy();
           }
           stars.length = 0;
         };
@@ -498,7 +493,7 @@ const Starfield = () => {
           for (let i = 0; i < count; i++) {
             const s = createStar(0, rMaxWorld);
             stars.push(s);
-            starContainer.addChild(s.graphics);
+            starContainer.addChild(s.sprite);
           }
         };
 
