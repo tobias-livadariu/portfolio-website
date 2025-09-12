@@ -14,7 +14,7 @@ export default function PortfolioPanel() {
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># IDEANOTION DEVELOPMENT INC.</p>
         <p className="mb-2">My last internship was an incredible experience.</p>
-        <p className="mb-5"><span></span>I had the opportunity to work on three major projects:</p>
+        <p className="mb-5">I had the opportunity to work on three major projects:</p>
         <ul className="list-disc pixel-list pl-5">
           <li>DealerAI Admin Portal - <span className="italic">React, TypeScript, Tailwind, Redux, C#, .NET, OpenAI API, SQL, CosmosDB</span></li>
           <li>Food Banks Canada Main Website - <span className="italic">PHP, Laravel, Sage, WordPress, SCSS, Bootstrap</span></li>
@@ -40,18 +40,21 @@ export default function PortfolioPanel() {
         tiltScale={1.02}
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># DEALERAI</p>
-        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
+        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
         <p>
-          AI platform helping dealerships convert online traffic into booked appointments via a customizable, multi-agent chatbot and an admin portal for training, knowledge, conversation review, and reporting.
+          DealerAI's offers AI for car dealerships through its Multi-Agent Generative System to streamline operations and boost lead efficiency.
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
-        <p>
-          - Built a conversation summarization tool (React + OpenAI + .NET) to speed manual review across high-volume chats<br />
-          - Revamped the RAG knowledge base page (React/Redux) with a responsive table of contents and reliable saving<br />
-          - Added C#/.NET controllers with Azure CosmosDB to persist user settings beyond the session lifecycle<br />
-          - Implemented a lightweight Markdown editor adopted internally for faster prompt authoring<br />
-          - Closed numerous frontend defects and triaged client support items across the admin portal
-        </p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Developed an AI-powered conversation summarization tool using React, OpenAI API, and a .NET backend,
+          reducing manual review from 6 – 10 mins per chat to less than 40 secs across 4500+ daily conversations</li>
+          <li>Revamped the RAG knowledge base page in React/Redux with a responsive table of contents and data-saving
+          fixes, cutting reported save errors to 0% and speeding workflows for 150+ client dealerships in Canada</li>
+          <li>Built backend controllers in C#/.NET with Azure CosmosDB to persist user settings beyond session storage, saving
+          400+ dealership staff 1–2 mins per login across thousands of sessions by eliminating repeated reconfiguration</li>
+          <li>Developed a Markdown editor, adopted by the lead AI developer, enabling 30% faster prompt formatting</li>
+          <li>Resolved 35+ frontend bugs and 4 client support requests, contributing to an 18% drop in reported issues</li>
+        </ul>
       </ImageTextCaption>
 
       <HorizontalHashedLine
@@ -70,16 +73,21 @@ export default function PortfolioPanel() {
         tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - MAIN WEBSITE</p>
-        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
+        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
         <p>
           Public-facing WordPress site for Food Banks Canada with bilingual pages, campaign content, custom ACF blocks, and tailored components consistent with Figma designs.
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
-        <p>
-          - Built reusable ACF blocks (PHP/Laravel/Sage) to standardize page assembly and styling<br />
-          - Reworked many English/French pages to match Figma: responsive layout, typography, and consistent design<br />
-          - Upgraded legacy sliders to SwiperJS, fixed maps, and refined Gravity Forms styling for stability and polish
-        </p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Transitioned 5 legacy admin data tables into a modern Material React Table UI, replacing outdated rigid table
+          structures with responsive designs and persistent state, reducing workflow steps for client administrators by 30%</li>
+          <li>Migrated and refactored 5 C#/.NET controllers, 62 endpoints, and 55 DTO classes, using EF Core to build
+          optimized SQL database queries and serve structured data via API endpoints for safe and consistent data transfer</li>
+          <li>Developed 5 RTK Query APIs in TypeScript providing cached, type-safe data access between frontend and backend</li>
+          <li>Implemented robust server-side filtering and drag-and-drop reordering in multi-tab forms, reducing data fetch
+          delays and decreasing manual data entry errors, resulting in greater operational efficiency</li>
+          <li>Refactored backend file upload services to use the latest Azure SDK, increasing maintainability</li>
+        </ul>
       </ImageTextCaption>
 
       <HorizontalHashedLine
@@ -98,18 +106,17 @@ export default function PortfolioPanel() {
         tilt
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - THE EXCHANGE</p>
-        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
+        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
         <p>
-          Member/admin portal used across the FBC network for data management, content, and operations — modernized with Material React Table UIs and a typed API layer.
+          Admin portal used across the Food Banks Canada network to manage data, content, and operations, with integrated real-time chat for member collaboration.
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
-        <p>
-          - Replaced legacy admin tables with Material React Table, adding responsive layouts and persistent state<br />
-          - Migrated/refactored C#/.NET controllers, endpoints, and DTOs; optimized queries via EF Core<br />
-          - Created RTK Query APIs for cached, type-safe data access between frontend and .NET backend<br />
-          - Implemented server-side filtering and drag-and-drop reordering in multi-tab forms to reduce user friction<br />
-          - Updated backend file uploads to latest Azure SDK for long-term maintainability
-        </p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Built 15+ reusable ACF blocks with PHP/Laravel/WordPress, simplifying creation of consistent page layouts</li>
+          <li>Overhauled over 20 pages across English and French to match Figma designs, implementing responsive layouts,
+          refined typography, and consistent styling to ensure a polished and accessible cross-language user experience</li>
+          <li>Upgraded sliders to SwiperJS, fixed maps, and refined form styling, enhancing site stability and performance</li>
+        </ul>
       </ImageTextCaption>
 
       <HorizontalHashedLine
