@@ -32,12 +32,10 @@ export default function PortfolioPanel() {
         imageCaption="DealerAI's logo, IdeaNotion's main product"
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># DEALERAI</p>
-        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
-
+        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           TODO
         </p>
-
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
           TODO
@@ -57,12 +55,10 @@ export default function PortfolioPanel() {
         imageCaption="Food Banks Canada's logo"
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - MAIN WEBSITE</p>
-        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
-
+        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           TODO
         </p>
-
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
           TODO
@@ -82,12 +78,10 @@ export default function PortfolioPanel() {
         imageCaption="The Exchange's landing page"
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - THE EXCHANGE</p>
-        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
-
+        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           TODO
         </p>
-
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
           TODO
@@ -102,17 +96,15 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="/images/foodbankscanada-theexchange.png"
-        imageAlt="The Exchange's Landing Page"
-        imageCaption="The Exchange's landing page"
+        imageUrl="/images/codespeak-logo.png"
+        imageAlt="CodeSpeak Logo"
+        imageCaption="CodeSpeak's logo"
       >
-        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># FOOD BANKS CANADA - THE EXCHANGE</p>
-        <p className="text-[16px]">## PRODUCT DESCRIPTION</p>
-
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># CODESPEAK</p>
+        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
         <p>
           TODO
         </p>
-
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <p>
           TODO
@@ -125,6 +117,68 @@ export default function PortfolioPanel() {
         gap={2}
         className="mt-6 mb-8 md:mt-8 md:mb-10"
       />
+
+      <ImageTextCaption
+        imageUrl="/images/binthereai-thumbnail.png"
+        imageAlt="BinThere.ai's Logo"
+        imageCaption="BinThere.ai's logo"
+      >
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># BINTHERE.AI</p>
+        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
+        <p>
+          TODO
+        </p>
+        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
+        <p>
+          TODO
+        </p>
+      </ImageTextCaption>
+
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
+      />
+
+      <ImageTextCaption
+        imageUrl="/images/lights-on-thumbnail.png"
+        imageAlt="Lights On Photo"
+        imageCaption="An image of Lights On's landing page"
+      >
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># LIGHTS ON</p>
+        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
+        <p>
+          TODO
+        </p>
+        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
+        <p>
+          TODO
+        </p>
+      </ImageTextCaption>
+
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
+      />
+
+      <ImageTextCaption
+        imageUrl="/images/calciumclicker-thumbnail.png"
+        imageAlt="Calcium Clicker Photo"
+        imageCaption="An image of Calcium Clicker's landing page"
+      >
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># CALCIUM CLICKER</p>
+        <p className="text-[16px]">## PROJECT DESCRIPTION</p>
+        <p>
+          TODO
+        </p>
+        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
+        <p>
+          TODO
+        </p>
+      </ImageTextCaption>
     </div>
   );
 }
