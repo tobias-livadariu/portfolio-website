@@ -16,8 +16,6 @@ export default function ModalRoot() {
     contactme: "Contact Me",
   } as const;
 
-  console.log("The key is", key)
-
   return (
     <PixelModal title={titleMap[key]}> {
       key === "about" ? <AboutPanel/> :
