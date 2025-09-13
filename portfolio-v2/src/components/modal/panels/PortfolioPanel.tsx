@@ -136,16 +136,14 @@ export default function PortfolioPanel() {
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># CODESPEAK</p>
         <p className="text:[16px]">## PROJECT DESCRIPTION</p>
-        <p>
-          Browser-based, accessible IDE for low/vision-impaired coders — keyboard-first UI, audio feedback via Google TTS, and AI assistance using Gemini with a verifier.
+        <p className="italic">
+          "Modern IDEs are cluttered and visual-heavy, leaving blind users behind. CodeSpeak is a voice-powered, AI-assisted grid IDE with clear layouts and audio feedback—helping blind coders build freely."
         </p>
-        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
-        <p>
-          - Built the React frontend with focus order, ARIA-friendly controls, and concise info density<br />
-          - Implemented Flask + Express APIs; wired SQLAlchemy models and Google Cloud Text-to-Speech delivery<br />
-          - Prototyped a classification-based verifier to improve the reliability of AI suggestions<br />
-          - Solved storage/streaming hurdles by proxying GCS audio through a Node/Express endpoint
-        </p>
+        <p className="text-[16px]">## TECHNICAL DETAILS</p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Created an intelligent IDE for visually impaired users leveraging Gemini API and a neural network verifier</li>
+          <li>Built a React frontend with keyboard navigation and audio feedback via Google TTS and Flask+Express</li>
+        </ul>
       </ImageTextCaption>
 
       <HorizontalHashedLine
@@ -165,15 +163,14 @@ export default function PortfolioPanel() {
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># BINTHERE.AI</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
-        <p>
-          Camera-based waste sorting helper that classifies materials (YOLO/Roboflow) and suggests proper disposal or reuse, with a friendly React UI and a Streamlit-powered control plane.
+        <p className="italic">
+          "BinThere.Ai uses AI to instantly scan your trash and guide you on recycling, composting, or discarding. Make eco-friendly choices, track your impact, and help create a sustainable future—effortlessly!"
         </p>
-        <p className="text-[16px]">## MY CONTRIBUTIONS</p>
-        <p>
-          - Integrated YOLO/Roboflow image detection and wired prompts to OpenAI for actionable guidance<br />
-          - Built the React frontend and embedded a themed Streamlit view for AI tooling<br />
-          - Orchestrated Flask + Streamlit concurrently and cleaned up CSS to blend the UIs
-        </p>
+        <p className="text-[16px]">## TECHNICAL DETAILS</p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Built waste-sorting tool with YOLO+Roboflow image detection and OpenAI API disposal suggestions</li>
+          <li>Embedded Streamlit/Flask services for real-time analysis, impact tracking, and gamified stats</li>
+        </ul>
       </ImageTextCaption>
 
       <HorizontalHashedLine
@@ -193,13 +190,13 @@ export default function PortfolioPanel() {
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># LIGHTS ON</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
-        <p>
-          A fast puzzle game with a global leaderboard built on a modern MERN-style stack.
+        <p className="italic">
+          "A simple web-based puzzle game inspired by the famous 'Lights Out!' toy."
         </p>
-        <p>
-          - Implemented game logic and leaderboard APIs with React + Node/Express + MongoDB Atlas<br />
-          - Deployed on an Azure Ubuntu VM with systemd services, hardened ports, and firewall rules
-        </p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Built a timed puzzle game with leaderboards using React, Node.js/Express and MongoDB Atlas</li>
+          <li>Deployed on Azure Ubuntu VM as systemd services, configuring ports and security groups for reliable hosting</li>
+        </ul>
       </ImageTextCaption>
 
       <HorizontalHashedLine
@@ -219,14 +216,12 @@ export default function PortfolioPanel() {
       >
         <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># CALCIUM CLICKER</p>
         <p className="text-[16px]">## PROJECT DESCRIPTION</p>
-        <p>
-          A browser-based incremental game where you harvest and automate "skeleton" production. Built with Flask, SQL, and AJAX for smooth DOM updates and persistent progress.
+        <p className="italic">
+          "An incremental web game inspired by classics like Cookie Clicker and Swarm Simulator where players, as necromancers, grow their undead skeleton army."
         </p>
-        <p>
-          - Built Flask routes and SQL schema for login, upgrades, and timed automation<br />
-          - Implemented AJAX-driven DOM syncing and number-suffix formatting for large values<br />
-          - Added a lightweight client state to avoid race conditions and reduce DB calls
-        </p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Developed an incremental game in Flask, using SQL and AJAX for persistence and dynamic DOM updates</li>
+        </ul>
       </ImageTextCaption>
     </div>
   );
