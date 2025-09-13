@@ -1,10 +1,14 @@
 import { Reply } from "@nsmr/pixelart-react"
 import HorizontalDottedLine from "./HorizontalDottedLine"
+import { useModal } from "./modal/ModalContext"
 
 function MainNavSection() {
+  const { open } = useModal();
   const handleClick = (label: string) => {
-    console.log(`${label} clicked`)
-  }
+    const key = label.toLowerCase().replace(" ", "") as
+      | "about" | "resume" | "portfolio" | "contactme";
+    open(key);
+  };
 
   return (
     <div className="inline-flex flex-col items-center space-y-0.5">

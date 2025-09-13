@@ -1,0 +1,134 @@
+/* src/styles/pixel.css */
+
+/* Crisp scaling for pixel art images */
+.img-pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges; /* Safari fallback */
+}
+
+/* Pixel frame (no SVGs/images) using layered outlines & shadows */
+.pixel-frame {
+  position: relative;
+  box-shadow:
+    0 0 0 3px #000,                /* outer black */
+    0 0 0 6px #f7d8c0,             /* campfire-ash */
+    0 0 0 9px #000;                /* outer black ring */
+}
+
+/* Pixel corners (fake 1px steps) */
+.pixel-frame::before,
+.pixel-frame::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.6) inset, /* subtle inner ridge */
+    0 0 0 2px rgba(0,0,0,0.25) inset; /* bevel */
+}
+
+/* Pixel button helper (optional) */
+.pixel-btn {
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 4px 0 4px #000; /* drop */
+}
+.pixel-btn:active { transform: translateY(2px); box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 2px 0 4px #000; }
+
+/* Pixel contact buttons */
+.pixel-contact-btn {
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 4px 0 4px #000;
+  transition: background 0.2s, transform 0.1s;
+}
+.pixel-contact-btn:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 0 0 2px #000,
+    0 0 0 4px #f7d8c0,
+    0 2px 0 4px #000;
+}
+
+.pm-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.pm-scrollbar::-webkit-scrollbar-thumb {
+  background: #e97531;
+  border-radius: 3px;
+}
+
+.pm-scrollbar::-webkit-scrollbar-track {
+  background: #070B14;
+}
+
+.pixel-list {
+  list-style-type: none;       /* remove default bullets */
+  padding-left: 0;
+  margin: 0;
+}
+
+.pixel-list li {
+  background: #070B14;         /* same base as modal */
+  color: var(--color-light-gray);
+  margin: 6px 0;
+  padding: 6px 10px;
+  font-family: var(--font-pixantiqua);
+  font-size: 15px;
+  display: block;
+  box-shadow:
+    0 0 0 2px #000,            /* crisp border */
+    0 0 0 4px var(--color-campfire-ash);
+}
+
+/* ----------------------------- */
+/* Tilted clickable image cards  */
+/* ----------------------------- */
+.tilt-card {
+  perspective: 1000px; /* provides 3D space */
+}
+.tilt-inner {
+  position: relative;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  transform: rotateX(calc(var(--tx, 0) * 1deg)) rotateY(calc(var(--ty, 0) * 1deg)) scale(var(--tilt-scale, 1));
+  will-change: transform;
+}
+.tilt-glare {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at calc(var(--sx, 0.5) * 100%) calc(var(--sy, 0.5) * 100%),
+    rgba(255,255,255,0.18),
+    rgba(255,255,255,0) 60%
+  );
+  border-radius: 6px;
+}
+.tilt-badge {
+  position: absolute;
+  right: 8px; top: 8px;
+  font-family: var(--font-pressstart, monospace);
+  font-size: 10px;
+  padding: 4px 6px;
+  background: #e97531;
+  color: #070B14;
+  box-shadow: 0 0 0 2px #000, 0 0 0 4px #f7d8c0, 0 2px 0 4px #000;
+}
+.pixel-frame-hover:hover .tilt-inner {
+  box-shadow: 0 10px 26px rgba(233,117,49,0.25);
+}
+
+/* Aspect ratio helpers (optional) */
+.ratio-16x9 { aspect-ratio: 16 / 9; }
+.ratio-4x3  { aspect-ratio: 4 / 3; }
+.ratio-1x1  { aspect-ratio: 1 / 1; }
+
+/* Campfire italic link utility */
+.ext-link { color: #e97531; font-style: italic; }
+.ext-link:hover { text-decoration: underline; }

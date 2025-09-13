@@ -1,5 +1,10 @@
 import { useEffect, useRef, useCallback } from "react";
-import { Application, Container, Graphics, Assets, Spritesheet, AnimatedSprite, Texture } from "pixi.js";
+import { Application, Container, Assets, Spritesheet, AnimatedSprite, Texture, Ticker, Sprite } from "pixi.js";
+
+// Extend Application interface for cleanup function
+interface ExtendedApplication extends Application {
+  _cleanup?: () => void;
+}
 
 // Constant: 1.8 degrees per second, expressed as radians per millisecond
 const ANGULAR_SPEED_RAD_PER_MS = (1.8 * Math.PI / 180) / 1000;
@@ -9,11 +14,15 @@ const R_MAX_MARGIN = 0;
 
 // Densities per square pixel (tune to taste)
 const NUM_STARS_PER_UNIT   = 13e-4;   // stars per px^2
-const NUM_PLANETS_PER_UNIT = 3e-5;   // planets per px^2
+const NUM_PLANETS_PER_UNIT = 3e-5;    // planets per px^2
+
+// Hard caps (do not exceed these totals)
+const MAX_STARS   = 30000;
+const MAX_PLANETS = 10000;
 
 // Planet creation throttling
 const PLANETS_PER_READY_VARIANT = 6;   // how many to enqueue when a variant finishes
-const PLANET_SPAWN_BUDGET_PER_TICK = 4; // how many to actually create each animation tick
+const PLANET_SPAWN_BUDGET_PER_TICK = 4; // how many to actually create each animation tick (used only while spritesheets are still loading)
 
 function getRMax(app: Application): number {
   return Math.hypot(app.screen.width, app.screen.height) + R_MAX_MARGIN;
@@ -31,7 +40,7 @@ function samplePolar(rMin: number, rMax: number): { r: number; theta: number } {
 }
 
 interface Star {
-  graphics: Graphics;
+  sprite: Sprite;
   x: number;
   y: number;
   size: number;
@@ -87,6 +96,32 @@ const VARIANTS_PER_TYPE = 5;
 
 // Planet exclusion zone around origin (configurable)
 const PLANET_EXCLUSION_RADIUS = 395; // pixels - planets cannot spawn within this distance of origin (0,0)
+
+// Scale factor computation based on viewport width
+function getScaleFromWidth(): number {
+  // Keep visuals consistent; no width-based scaling desired.
+  return 1;
+}
+
+// World-space radius computation (screen radius divided by scale)
+function getRMaxWorld(app: Application, scale: number): number {
+  // Keep formulas consistent with getRMax()
+  return getRMax(app) / Math.max(1, scale);
+}
+
+// World-space exclusion radius for planets
+function getPlanetExclusionWorld(scale: number): number {
+  return PLANET_EXCLUSION_RADIUS / Math.max(1, scale);
+}
+
+// Effective densities that decrease as scale increases (compensates for apparent area increase)
+function getEffectiveDensities(scale: number): { D_STAR: number; D_PLANET: number } {
+  const factor = scale * scale; // stage scale increases apparent area by S^2
+  return {
+    D_STAR: NUM_STARS_PER_UNIT / factor,
+    D_PLANET: NUM_PLANETS_PER_UNIT / factor,
+  };
+}
 
 async function loadPlanetFrames(
   onVariantReady?: (type: PlanetType, variantIndex: number) => void
@@ -194,7 +229,7 @@ function createPlanet(
 }
 
 // ensure the ticker callback matches v8: (ticker: Ticker) => void
-function animatePlanets(planets: Planet[], app: Application, deltaMS: number) {
+function animatePlanets(planets: Planet[], app: Application, deltaMS: number, scaleFactor: number) {
   for (let i = 0; i < planets.length; i++) {
     const p = planets[i];
     
@@ -214,13 +249,14 @@ function animatePlanets(planets: Planet[], app: Application, deltaMS: number) {
 
     // No TTL updates needed without deletions
 
-    // Fade-in once the bounding circle intersects the viewport
+    // Fade-in once the bounding circle intersects the viewport (use screen coordinates)
     if (p.sprite.alpha < 1) {
-      const sx = p.sprite.x;
-      const sy = p.sprite.y;
-      const r  = p.boundRadius;
-      const insideX = sx > -r && sx < app.screen.width + r;
-      const insideY = sy > -r && sy < app.screen.height + r;
+      // Convert world coordinates to screen coordinates by multiplying by scale factor
+      const screenX = p.sprite.x * scaleFactor;
+      const screenY = p.sprite.y * scaleFactor;
+      const screenBoundR = p.boundRadius * scaleFactor; // bound radius also scales with container
+      const insideX = screenX > -screenBoundR && screenX < app.screen.width + screenBoundR;
+      const insideY = screenY > -screenBoundR && screenY < app.screen.height + screenBoundR;
       if (insideX && insideY) {
         if (!p.sprite.playing) p.sprite.play();
         p.sprite.alpha = Math.min(1, p.sprite.alpha + 0.06);
@@ -233,8 +269,12 @@ const Starfield = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const appRef = useRef<Application | null>(null);
   const mountedRef = useRef(true);
-  // Track the enclosing-circle radius used at last layout
+  // Track the world-space radius and scale factor used at last layout
   const rMaxRef = useRef<number>(0);
+  const rMaxPxRef = useRef<number>(0);
+  const scaleRef = useRef<number>(1);
+  const spritesheetsReadyRef = useRef<boolean>(false);
+  const initialLoadRef = useRef<boolean>(true);
 
   const cleanup = useCallback(() => {
     mountedRef.current = false;
@@ -255,7 +295,7 @@ const Starfield = () => {
   }, []);
 
   useEffect(() => {
-    let app: Application;
+    let app: ExtendedApplication;
     mountedRef.current = true;
 
     const initPixi = async () => {
@@ -292,24 +332,34 @@ const Starfield = () => {
         // Append to body instead of container to avoid React interference
         document.body.appendChild(canvas);
 
-        // Track current enclosing radius for resize scaling
-        rMaxRef.current = getRMax(app);
+        // Compute initial scale factor based on viewport width
+        const initialScale = getScaleFromWidth();
+        
+        // Create root container for world-space scaling
+        const rootContainer = new Container();
+        rootContainer.scale.set(initialScale);
+        app.stage.addChild(rootContainer);
 
-        // Create star container
+        // Create star container (child of root)
         const starContainer = new Container();
-        app.stage.addChild(starContainer);
+        rootContainer.addChild(starContainer);
 
-        // Create planet container
+        // Create planet container (child of root) 
         const planetContainer = new Container();
-        app.stage.addChild(planetContainer);
+        rootContainer.addChild(planetContainer);
 
-        // === Initial counts from area ===
-        const R_MAX0 = getRMax(app);
-        const areaCircle0 = Math.PI * R_MAX0 * R_MAX0;
-        const rMinPlanet = Math.max(PLANET_EXCLUSION_RADIUS + 1, 1);
-        const areaRing0   = Math.PI * (R_MAX0 * R_MAX0 - rMinPlanet * rMinPlanet);
-        const numStars0   = Math.round(NUM_STARS_PER_UNIT   * areaCircle0);
-        const numPlanets0 = Math.round(NUM_PLANETS_PER_UNIT * areaRing0);
+        // Track current world-space radius and scale factor for resize scaling
+        rMaxRef.current = getRMaxWorld(app, initialScale);
+        scaleRef.current = initialScale;
+
+        // === Initial counts from world-space area ===
+        const R_MAX_WORLD = getRMaxWorld(app, initialScale);
+        const { D_STAR, D_PLANET } = getEffectiveDensities(initialScale);
+        const areaCircleWorld = Math.PI * R_MAX_WORLD * R_MAX_WORLD;
+        const rMinPlanetWorld = Math.max(getPlanetExclusionWorld(initialScale), 1);
+        const areaRingWorld = Math.PI * (R_MAX_WORLD * R_MAX_WORLD - rMinPlanetWorld * rMinPlanetWorld);
+        const numStars0 = Math.round(D_STAR * areaCircleWorld);
+        const numPlanets0 = Math.round(D_PLANET * areaRingWorld);
 
         // No radius jitter needed without recycling (keep helpers if used elsewhere)
 
@@ -317,41 +367,40 @@ const Starfield = () => {
 
         const colors = [0xffffff, 0xa8a8b3, 0x7d7d87, 0x6c6f7a, 0x5a6a85];
         const stars: Star[] = [];
+        const STAR_TEXTURE = Texture.WHITE; // shared 1×1 white texture
 
         // Helper to create a star sampled uniformly in ring [rMin, rMax]
         const createStar = (rMin = 0, rMax = getRMax(app)): Star => {
           const size = Math.random() * 2 + 1;
           const color = colors[Math.floor(Math.random() * colors.length)];
-          
-          const graphics = new Graphics();
-          graphics.rect(0, 0, size, size);
-          graphics.fill(color);
+
+          // Use a lightweight Sprite instead of Graphics; tint + resize the shared texture
+          const sprite = new Sprite(STAR_TEXTURE);
+          sprite.anchor.set(0.5);
+          sprite.width = size;
+          sprite.height = size;
+          sprite.tint = color;
 
           // Initial spawn anywhere inside the given ring (uniform-area)
           const { r, theta } = samplePolar(rMin, rMax);
           const x = r * Math.cos(theta);
           const y = r * Math.sin(theta);
 
-          graphics.x = x;
-          graphics.y = y;
-          
-          // Set initial rotation so the star's edge is tangential to its circular path
-          // For a square, we want the edge perpendicular to the radius vector
-          // The tangential direction is perpendicular to the radial direction
-          const tangentialAngle = theta + Math.PI / 2; // Add 90 degrees (π/2 radians)
-          graphics.rotation = tangentialAngle;
-          
-          // No extents or TTL needed in no-deletion mode
-          return { graphics, x, y, size, color, radius: r, angle: theta };
+          sprite.x = x;
+          sprite.y = y;
+          // Keep the edge tangential to the circular path
+          sprite.rotation = theta + Math.PI / 2;
+
+          return { sprite, x, y, size, color, radius: r, angle: theta };
         };
 
         // (old recycling helpers removed)
 
-        // Initialize stars
+        // Initialize stars using world-space coordinates
         for (let i = 0; i < numStars0; i++) {
-          const star = createStar(0, R_MAX0);
+          const star = createStar(0, R_MAX_WORLD);
           stars.push(star);
-          starContainer.addChild(star.graphics);
+          starContainer.addChild(star.sprite);
         }
 
         // Prepare planets array and a spawn queue to throttle creation
@@ -359,7 +408,7 @@ const Starfield = () => {
         const planetSpawnQueue: Array<() => void> = [];
         
         // === Start animating immediately (stars only for now) ===
-        const animateRef = { current: (ticker: any) => {
+        const animateRef = { current: (ticker: Ticker) => {
           if (!mountedRef.current || !starContainer) return;
           const deltaMS = ticker?.deltaMS ?? 16.67;
           const clampedDeltaMS = Math.min(deltaMS, 100);
@@ -369,18 +418,19 @@ const Starfield = () => {
             star.angle += step;
             const newX = star.radius * Math.cos(star.angle);
             const newY = star.radius * Math.sin(star.angle);
-            star.graphics.x = newX;
-            star.graphics.y = newY;
+            star.sprite.x = newX;
+            star.sprite.y = newY;
             star.x = newX; star.y = newY;
-            star.graphics.rotation += step;
+            // Set rotation directly from angle to avoid extra accumulation/drift
+            star.sprite.rotation = star.angle + Math.PI / 2;
           }
-          // Throttle planet creation to avoid bursty GC / frame spikes
+          // Throttle only PLANET creation (LIFO) when spritesheets are still loading
           let budget = PLANET_SPAWN_BUDGET_PER_TICK;
           while (budget-- > 0 && planetSpawnQueue.length) {
-            const job = planetSpawnQueue.shift()!;
+            const job = planetSpawnQueue.pop()!; // use as a stack (LIFO)
             job();
           }
-          animatePlanets(planets, app, clampedDeltaMS);
+          animatePlanets(planets, app, clampedDeltaMS, scaleRef.current);
         }};
         app.ticker.add(animateRef.current);
 
@@ -394,12 +444,13 @@ const Starfield = () => {
 
         const onVariantReady = (type: PlanetType, variantIndex: number) => {
           if (!mountedRef.current) return;
+          if (!initialLoadRef.current) return; // stop auto-spawn after initial load completes
           if (createdInitialPlanets >= numPlanets0) return;
           const remaining = numPlanets0 - createdInitialPlanets;
           const toSpawn = Math.min(perVariantQuota, remaining);
           for (let i = 0; i < toSpawn; i++) {
             planetSpawnQueue.push(() => {
-              const p = createPlanet(app, rMinPlanet, R_MAX0, type, variantIndex);
+              const p = createPlanet(app, rMinPlanetWorld, R_MAX_WORLD, type, variantIndex);
               if (p) {
                 planets.push(p);
                 planetContainer.addChild(p.sprite);
@@ -409,61 +460,58 @@ const Starfield = () => {
           }
         };
 
-        // Kick off loading (do NOT await); yield between variants for responsiveness
-        loadPlanetFrames(onVariantReady);
+        // Kick off loading; when done, mark spritesheets ready
+        // (Do NOT await inside init; allow UI to remain responsive.)
+        loadPlanetFrames(onVariantReady)
+          .finally(() => {
+            spritesheetsReadyRef.current = true;
+            initialLoadRef.current = false;
+          });
 
         // No proportional scaling; we add/remove to maintain density
 
         // (animateRef already added above)
 
-        // Handle window resize: recompute R_MAX and add/remove to keep density constant
-        const handleResize = () => {
-          if (!app || !mountedRef.current) return;
-          app.renderer.resize(window.innerWidth, window.innerHeight);
-          const prevRMax = rMaxRef.current || getRMax(app);
-          const newRMax = getRMax(app);
+        // === Helpers to clear and rebuild everything ===
+        const clearStars = () => {
+          for (let i = stars.length - 1; i >= 0; i--) {
+            starContainer.removeChild(stars[i].sprite);
+            stars[i].sprite.destroy();
+          }
+          stars.length = 0;
+        };
 
-          if (newRMax === prevRMax) return;
+        const clearPlanets = () => {
+          for (let i = planets.length - 1; i >= 0; i--) {
+            planetContainer.removeChild(planets[i].sprite);
+            planets[i].sprite.destroy();
+          }
+          planets.length = 0;
+        };
 
-          const rMinPlanet = Math.max(PLANET_EXCLUSION_RADIUS + 1, 1);
+        const rebuildStars = (count: number, rMaxWorld: number) => {
+          for (let i = 0; i < count; i++) {
+            const s = createStar(0, rMaxWorld);
+            stars.push(s);
+            starContainer.addChild(s.sprite);
+          }
+        };
 
-          if (newRMax < prevRMax) {
-            // ==== SHRINK: remove objects with radius > newRMax ====
-            // Stars
-            for (let i = stars.length - 1; i >= 0; i--) {
-              if (stars[i].radius > newRMax) {
-                starContainer.removeChild(stars[i].graphics);
-                stars[i].graphics.destroy();
-                stars.splice(i, 1);
-              }
-            }
-            // Planets
-            for (let i = planets.length - 1; i >= 0; i--) {
-              if (planets[i].radius > newRMax) {
-                planetContainer.removeChild(planets[i].sprite);
-                planets[i].sprite.destroy();
-                planets.splice(i, 1);
+        const rebuildPlanets = (count: number, rMinWorld: number, rMaxWorld: number) => {
+          if (spritesheetsReadyRef.current) {
+            // All frames available: build synchronously
+            for (let i = 0; i < count; i++) {
+              const p = createPlanet(app, rMinWorld, rMaxWorld);
+              if (p) {
+                planets.push(p);
+                planetContainer.addChild(p.sprite);
               }
             }
           } else {
-            // ==== EXPAND: add objects to fill the annulus (prevRMax, newRMax] ====
-            const areaDeltaCircle = Math.PI * (newRMax * newRMax - prevRMax * prevRMax);
-            const addStars = Math.max(0, Math.round(NUM_STARS_PER_UNIT * areaDeltaCircle));
-
-            // For planets, honor the exclusion radius; only the part of the annulus outside rMin counts
-            const ringLow = Math.max(prevRMax, rMinPlanet);
-            const ringHigh = Math.max(newRMax, ringLow);
-            const areaDeltaRing = Math.PI * Math.max(0, (ringHigh * ringHigh - ringLow * ringLow));
-            const addPlanets = Math.max(0, Math.round(NUM_PLANETS_PER_UNIT * areaDeltaRing));
-
-            for (let i = 0; i < addStars; i++) {
-              const s = createStar(prevRMax, newRMax);
-              stars.push(s);
-              starContainer.addChild(s.graphics);
-            }
-            for (let i = 0; i < addPlanets; i++) {
+            // Still loading: push to LIFO stack and let ticker drain
+            for (let i = 0; i < count; i++) {
               planetSpawnQueue.push(() => {
-                const p = createPlanet(app, ringLow, ringHigh);
+                const p = createPlanet(app, rMinWorld, rMaxWorld);
                 if (p) {
                   planets.push(p);
                   planetContainer.addChild(p.sprite);
@@ -471,14 +519,44 @@ const Starfield = () => {
               });
             }
           }
+        };
 
-          rMaxRef.current = newRMax;
+        // Handle window resize: clear & rebuild based on new area (no incremental add/remove)
+        const handleResize = () => {
+          if (!app || !mountedRef.current || !rootContainer) return;
+          
+          // 1. Resize renderer
+          app.renderer.resize(window.innerWidth, window.innerHeight);
+          
+          // 2. Keep scale fixed at 1 (no width-based visual scaling)
+          const newScale = 1;
+          rootContainer.scale.set(newScale);
+
+          // 3. Recompute area & counts with caps
+          const newRMaxWorld = getRMaxWorld(app, newScale);
+          const { D_STAR: dStar, D_PLANET: dPlanet } = getEffectiveDensities(newScale);
+          const rMinPlanetWorld = Math.max(getPlanetExclusionWorld(newScale), 1);
+          const areaCircleWorld = Math.PI * newRMaxWorld * newRMaxWorld;
+          const areaRingWorld = Math.PI * Math.max(0, (newRMaxWorld * newRMaxWorld - rMinPlanetWorld * rMinPlanetWorld));
+          const nextStars = Math.min(MAX_STARS, Math.round(dStar * areaCircleWorld));
+          const nextPlanets = Math.min(MAX_PLANETS, Math.round(dPlanet * areaRingWorld));
+
+          // 4. Clear everything and rebuild fresh
+          clearStars();
+          clearPlanets();
+          rebuildStars(nextStars, newRMaxWorld);
+          rebuildPlanets(nextPlanets, rMinPlanetWorld, newRMaxWorld);
+
+          // 5. Persist refs
+          scaleRef.current = newScale;
+          rMaxRef.current = newRMaxWorld;
+          rMaxPxRef.current = getRMax(app);
         };
 
         window.addEventListener('resize', handleResize);
 
         // Store cleanup references
-        (app as any)._cleanup = () => {
+        app._cleanup = () => {
           if (animateRef.current) {
             app.ticker.remove(animateRef.current);
           }
@@ -494,8 +572,8 @@ const Starfield = () => {
     initPixi();
 
     return () => {
-      if (app && (app as any)._cleanup) {
-        (app as any)._cleanup();
+      if (app && app._cleanup) {
+        app._cleanup();
       }
       cleanup();
     };
