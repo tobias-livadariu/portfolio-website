@@ -3,7 +3,7 @@ import ImageTextCaption from "./panel-shared-components/ImageTextCaption";
 export default function AboutPanel() {
   return (
     <ImageTextCaption
-      imageUrl="/images/me.png"
+      imageUrl="images/me.png"
       imageAlt="Portrait of me!"
       imageCaption="A drawing of my face made by a friend"
     >

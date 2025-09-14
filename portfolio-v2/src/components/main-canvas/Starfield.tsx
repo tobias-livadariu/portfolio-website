@@ -132,8 +132,8 @@ async function loadPlanetFrames(
     planetFrames.set(type, variations);
 
     for (let v = 1; v <= VARIANTS_PER_TYPE; v++) {
-      const jsonUrl = `/rotating-planet-spritesheets/${type}/${type}-${v}.json`;
-      const pngUrl = `/rotating-planet-spritesheets/${type}/${type}-${v}.png`;
+      const jsonUrl = `rotating-planet-spritesheets/${type}/${type}-${v}.json`;
+      const pngUrl = `rotating-planet-spritesheets/${type}/${type}-${v}.png`;
 
       try {
         const [atlasData, baseTexture] = await Promise.all([
