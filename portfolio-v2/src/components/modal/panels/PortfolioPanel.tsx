@@ -5,7 +5,7 @@ export default function PortfolioPanel() {
   return (
     <div>
       <ImageTextCaption
-        imageUrl="images/ideanotion-banner.png"
+        imageUrl="/portfolio/images/ideanotion-banner.png"
         imageAlt="IdeaNotion's banner"
         imageCaption="The sign of my last employer!"
         href="https://ideanotion.net/"
@@ -30,7 +30,7 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="images/dealerai-website-social-preview-graphic.png"
+        imageUrl="/portfolio/images/dealerai-website-social-preview-graphic.png"
         imageAlt="Logo of DealerAI"
         imageCaption="DealerAI's logo, IdeaNotion's main product"
         href="https://dealerai.com/"
@@ -65,7 +65,7 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="images/foodbankscanada-image-cropped.png"
+        imageUrl="/portfolio/images/foodbankscanada-image-cropped.png"
         imageAlt="Food Banks Canada's Logo"
         imageCaption="Food Banks Canada's logo"
         href="https://foodbankscanada.ca/"
@@ -98,7 +98,7 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="images/foodbankscanada-theexchange.png"
+        imageUrl="/portfolio/images/foodbankscanada-theexchange.png"
         imageAlt="The Exchange's Landing Page"
         imageCaption="The Exchange's landing page"
         href="https://theexchange.foodbankscanada.ca/"
@@ -127,7 +127,7 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="images/codespeak-logo.png"
+        imageUrl="/portfolio/images/codespeak-logo.png"
         imageAlt="CodeSpeak Logo"
         imageCaption="CodeSpeak's logo"
         href="https://devpost.com/software/codespeak"
@@ -154,7 +154,7 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="images/binthereai-thumbnail.png"
+        imageUrl="/portfolio/images/binthereai-thumbnail.png"
         imageAlt="BinThere.ai's Logo"
         imageCaption="BinThere.ai's logo"
         href="https://devpost.com/software/bin-there-ai"
@@ -181,7 +181,7 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="images/lights-on-thumbnail.png"
+        imageUrl="/portfolio/images/lights-on-thumbnail.png"
         imageAlt="Lights On Photo"
         imageCaption="An image of Lights On's landing page"
         href="https://github.com/tobias-livadariu/lights-on"
@@ -207,7 +207,7 @@ export default function PortfolioPanel() {
       />
 
       <ImageTextCaption
-        imageUrl="images/calciumclicker-thumbnail.png"
+        imageUrl="/portfolio/images/calciumclicker-thumbnail.png"
         imageAlt="Calcium Clicker Photo"
         imageCaption="An image of Calcium Clicker's landing page"
         href="https://tobiliv.pythonanywhere.com"
