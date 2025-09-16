@@ -5,6 +5,40 @@ export default function PortfolioPanel() {
   return (
     <div>
       <ImageTextCaption
+        imageUrl="/portfolio/images/codespeak-logo.png"
+        imageAlt="CodeSpeak Logo"
+        imageCaption="CodeSpeak's logo"
+        href="https://devpost.com/software/codespeak"
+        newTab
+        tilt
+      >
+        <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># LangSketch</p>
+        <p className="text:[16px]">## PROJECT DESCRIPTION</p>
+        <p className="italic">
+          "LangSketch is a visual agent builder that leverages Databricks for data processing and Martian rule routing for affordable drag-and-drop agent creation, making agentic workflows accessible for all."
+        </p>
+        <div className="mt-4 bg-campfire-ash border-2 border-campfire px-4 py-3 rounded-sm shadow-[0_0_0_2px_#000]">
+          <p className="font-pressstart text-[11px] text-black text-center tracking-wider">
+            WON BEST USE OF LLM ROUTING WITH MARTIAN — HACK THE NORTH 2025 ($4000 PRIZE)
+          </p>
+        </div>
+        <p className="text-[16px]">## TECHNICAL DETAILS</p>
+        <ul className="list-disc pixel-list pl-5">
+          <li>Built Electron app enabling drag-and-drop design of agentic workflows, compiling them into runnable Python</li>
+          <li>Built backend in FastAPI/LangGraph with pydantic/uvicorn to validate inputs and convert workflows into agents</li>
+          <li>Integrated Martian Deimos router for context-aware model selection, reducing LLM usage costs by up to 60\%</li>
+          <li>Connected to Databricks Delta Lake+Vector Search to support RAG retrieval and real-time workflow analytics</li>
+        </ul>
+      </ImageTextCaption>
+
+      <HorizontalHashedLine
+        color="#f7d8c0"
+        fontSize={18}
+        gap={2}
+        className="mt-6 mb-8 md:mt-8 md:mb-10"
+      />
+
+      <ImageTextCaption
         imageUrl="/portfolio/images/ideanotion-banner.png"
         imageAlt="IdeaNotion's banner"
         imageCaption="The sign of my last employer!"

@@ -37,7 +37,7 @@ export default function ResumePanel() {
            className="pixel-contact-btn justify-center text-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
           Download PDF
         </a>
-        <a href="/resume.pdf" target="_blank" rel="noreferrer"
+        <a href="/portfolio/resume.pdf" target="_blank" rel="noreferrer"
            className="pixel-contact-btn justify-center text-center w-full flex items-center px-4 py-2 font-pixelemu text-[14px] bg-campfire-ash/20 hover:bg-campfire-ash/30 text-campfire">
           Local Fallback
         </a>
