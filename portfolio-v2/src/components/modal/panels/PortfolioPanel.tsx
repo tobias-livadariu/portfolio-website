@@ -5,10 +5,10 @@ export default function PortfolioPanel() {
   return (
     <div>
       <ImageTextCaption
-        imageUrl="/portfolio/images/codespeak-logo.png"
-        imageAlt="CodeSpeak Logo"
-        imageCaption="CodeSpeak's logo"
-        href="https://devpost.com/software/codespeak"
+        imageUrl="/portfolio/images/langsketch-logo.png"
+        imageAlt="LangSketch Logo"
+        imageCaption="LangSketch's logo"
+        href="https://devpost.com/software/langsketch"
         newTab
         tilt
       >
