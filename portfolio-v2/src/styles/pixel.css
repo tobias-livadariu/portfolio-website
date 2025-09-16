@@ -69,22 +69,56 @@
 }
 
 .pixel-list {
-  list-style-type: none;       /* remove default bullets */
+  list-style-type: none;
   padding-left: 0;
   margin: 0;
+  /* Pixel art border frame around entire list */
+  border: 3px solid #000;
+  box-shadow:
+    0 0 0 1px var(--color-campfire) inset,
+    0 0 0 2px #000 inset,
+    0 4px 0 0 rgba(0,0,0,0.3); /* subtle drop shadow */
+  background: #070B14;
 }
 
 .pixel-list li {
-  background: #070B14;         /* same base as modal */
+  position: relative;
+  background: linear-gradient(180deg, #0a0f1a 0%, #070B14 100%); /* subtle gradient for depth */
   color: var(--color-light-gray);
-  margin: 6px 0;
-  padding: 6px 10px;
+  margin: 0;
+  padding: 10px 16px 10px 32px;
   font-family: var(--font-pixantiqua);
-  font-size: 15px;
+  font-size: 14px;
   display: block;
-  box-shadow:
-    0 0 0 2px #000,            /* crisp border */
-    0 0 0 4px var(--color-campfire-ash);
+  
+  /* Pixelated border separators */
+  border-bottom: 1px solid rgba(90, 106, 133, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.05); /* subtle highlight */
+  
+  /* Retro scanline effect */
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 1px,
+      rgba(233, 117, 49, 0.02) 1px,
+      rgba(233, 117, 49, 0.02) 2px
+    );
+}
+
+/* Enhanced pixel bullet with 8-bit styling */
+.pixel-list li::before {
+  content: "■";
+  color: var(--color-campfire);
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-family: monospace; /* ensures consistent pixel rendering */
+  text-shadow: 
+    0 0 2px var(--color-campfire),
+    1px 1px 0 #000; /* pixel shadow for depth */
 }
 
 /* ----------------------------- */
