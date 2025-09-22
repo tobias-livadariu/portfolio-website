@@ -564,9 +564,12 @@ const Starfield = () => {
 
         let resizeTimeoutId: number | null = null;
         let fallbackTimeoutId: number | null = null;
+        let stopDetectionTimeoutId: number | null = null;
         let lastWidth = window.innerWidth;
         let lastHeight = window.innerHeight;
         let lastResizeTime = 0;
+        let lastZoom = window.devicePixelRatio;
+        const RESIZE_STOP_DETECTION_DELAY = 100; // ms to detect when resizing stops
 
         // Detect if we're on mobile based on multiple signals
         function isMobileDevice(): boolean {
@@ -592,10 +595,42 @@ const Starfield = () => {
           }
         }
 
+        function forceResize() {
+          // Clear any pending timeouts
+          if (resizeTimeoutId !== null) {
+            window.clearTimeout(resizeTimeoutId);
+            resizeTimeoutId = null;
+          }
+          if (fallbackTimeoutId !== null) {
+            window.clearTimeout(fallbackTimeoutId);
+            fallbackTimeoutId = null;
+          }
+          if (stopDetectionTimeoutId !== null) {
+            window.clearTimeout(stopDetectionTimeoutId);
+            stopDetectionTimeoutId = null;
+          }
+
+          // Force immediate resize
+          lastWidth = window.innerWidth;
+          lastHeight = window.innerHeight;
+          handleResize();
+        }
+
+        function checkZoomChange() {
+          const currentZoom = window.devicePixelRatio;
+          if (Math.abs(currentZoom - lastZoom) > 0.1) {
+            lastZoom = currentZoom;
+            forceResize();
+          }
+        }
+
         function intelligentResize() {
           const currentWidth = window.innerWidth;
           const currentHeight = window.innerHeight;
           const currentTime = Date.now();
+
+          // Check for zoom changes first
+          checkZoomChange();
 
           // Clear existing timeouts
           if (resizeTimeoutId !== null) {
@@ -605,6 +640,10 @@ const Starfield = () => {
           if (fallbackTimeoutId !== null) {
             window.clearTimeout(fallbackTimeoutId);
             fallbackTimeoutId = null;
+          }
+          if (stopDetectionTimeoutId !== null) {
+            window.clearTimeout(stopDetectionTimeoutId);
+            stopDetectionTimeoutId = null;
           }
 
           // Check if this is a significant enough change to warrant a resize
@@ -635,6 +674,20 @@ const Starfield = () => {
             resizeTimeoutId = null;
           }, delay);
 
+          // Detection for when resizing stops (DevTools responsive resize)
+          stopDetectionTimeoutId = window.setTimeout(() => {
+            const stopWidth = window.innerWidth;
+            const stopHeight = window.innerHeight;
+
+            // If there's been any change since we started, force immediate resize
+            if (stopWidth !== lastWidth || stopHeight !== lastHeight) {
+              lastWidth = stopWidth;
+              lastHeight = stopHeight;
+              handleResize();
+            }
+            stopDetectionTimeoutId = null;
+          }, RESIZE_STOP_DETECTION_DELAY);
+
           // Fallback timer for edge cases (e.g., dev tools, orientation change)
           fallbackTimeoutId = window.setTimeout(() => {
             const fallbackWidth = window.innerWidth;
@@ -653,7 +706,18 @@ const Starfield = () => {
           }, FALLBACK_DELAY);
         }
 
+        // Handle keyboard shortcuts for zoom
+        function handleKeyDown(e: KeyboardEvent) {
+          if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '0')) {
+            // Schedule immediate resize check after zoom
+            setTimeout(checkZoomChange, 100);
+          }
+        }
+
         window.addEventListener('resize', intelligentResize);
+
+        // Add keyboard listener for zoom shortcuts
+        window.addEventListener('keydown', handleKeyDown);
 
         // Also listen to orientationchange for mobile devices
         if (isMobileDevice()) {
@@ -673,6 +737,7 @@ const Starfield = () => {
             app.ticker.remove(animateRef.current);
           }
           window.removeEventListener('resize', intelligentResize);
+          window.removeEventListener('keydown', handleKeyDown);
           if (isMobileDevice()) {
             window.removeEventListener('orientationchange', intelligentResize);
           }
@@ -683,6 +748,10 @@ const Starfield = () => {
           if (fallbackTimeoutId !== null) {
             window.clearTimeout(fallbackTimeoutId);
             fallbackTimeoutId = null;
+          }
+          if (stopDetectionTimeoutId !== null) {
+            window.clearTimeout(stopDetectionTimeoutId);
+            stopDetectionTimeoutId = null;
           }
         };
 
