@@ -17,7 +17,8 @@ export default defineConfig({
       port: 5174,      // Optional: Specify the port explicitly
       allowedHosts: [
            'tobias-livadariu.online',
-           'www.tobias-livadariu.online'
+           'www.tobias-livadariu.online',
+           'rivers-inspection-considerable-voluntary.trycloudflare.com'
       ]
    },
 })
