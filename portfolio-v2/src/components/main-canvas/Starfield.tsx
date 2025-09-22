@@ -328,7 +328,6 @@ const Starfield = () => {
         canvas.style.height = "100vh";
         canvas.style.zIndex = "-1";
         canvas.style.pointerEvents = "none";
-        canvas.style.touchAction = "none";
 
         // Append to body instead of container to avoid React interference
         document.body.appendChild(canvas);
