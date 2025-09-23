@@ -14,10 +14,10 @@ interface ImageTextCaptionProps {
 }
 
 export default function ImageTextCaption(props: PropsWithChildren<ImageTextCaptionProps>) {
-  const { 
-    imageUrl, 
-    imageAlt, 
-    imageCaption, 
+  const {
+    imageUrl,
+    imageAlt,
+    imageCaption,
     children,
     href,
     newTab = true,
@@ -26,16 +26,27 @@ export default function ImageTextCaption(props: PropsWithChildren<ImageTextCapti
     tiltScale = 1.02,
     showBadge = true,
   } = props;
-  
-  const tiltRef = useTilt<HTMLDivElement>({ maxDeg: tiltMaxDeg, scale: tiltScale });
+
+  const { ref: tiltRef, resetTilt } = useTilt<HTMLDivElement>({ maxDeg: tiltMaxDeg, scale: tiltScale });
   const anchorProps = newTab ? { target: "_blank", rel: "noreferrer" } : {};
+
+  // Handle link click - reset tilt for both desktop and mobile
+  const handleLinkClick = () => {
+    resetTilt();
+  };
 
   return (
     <div className="flex flex-col md:flex-row gap-4 items-start">
       <div className="flex flex-col items-center flex-shrink-0">
         {/* IMAGE BLOCK */}
         {href ? (
-          <a href={href} aria-label={imageAlt || 'Open project'} {...anchorProps} className="block">
+          <a
+            href={href}
+            aria-label={imageAlt || 'Open project'}
+            {...anchorProps}
+            className="block"
+            onClick={handleLinkClick}
+          >
             <div
               ref={tilt ? tiltRef : undefined}
               className="pixel-frame pixel-frame-hover tilt-card max-w-[300px] sm:max-w-[400px] md:max-w-none"
