@@ -80,13 +80,13 @@ export default function PortfolioPanel() {
         </p>
         <p className="text-[16px]">## MY CONTRIBUTIONS</p>
         <ul className="list-disc pixel-list pl-5">
-          <li>Developed an AI-powered conversation summarization tool using React, OpenAI API, and a .NET backend,
-          reducing manual review from 6 – 10 mins per chat to less than 40 secs across 4500+ daily conversations</li>
-          <li>Revamped the RAG knowledge base page in React/Redux with a responsive table of contents and data-saving
-          fixes, cutting reported save errors to 0% and speeding workflows for 150+ client dealerships in Canada</li>
+          <li>Developed a full-stack LLM-powered conversation summarization feature with React, OpenAI API, and .NET,
+          reducing manual review time from 6–10 mins per chat to less than 40 secs across 4500+ daily conversations</li>
+          <li>Rebuilt dealership data management system with React/Redux, featuring responsive navigation and improved
+          data-validation, eliminating 100% of save errors and reducing data entry time for 150+ client dealerships</li>
           <li>Built backend controllers in C#/.NET with Azure CosmosDB to persist user settings beyond session storage, saving
           400+ dealership staff 1–2 mins per login across thousands of sessions by eliminating repeated reconfiguration</li>
-          <li>Developed a Markdown editor, adopted by the lead AI developer, enabling 30% faster prompt formatting</li>
+          <li>Developed React/Lexical markdown editor, adopted by lead AI developer, enabling 30% faster prompt formatting</li>
           <li>Resolved 35+ frontend bugs and 4 client support requests, contributing to an 18% drop in reported issues</li>
         </ul>
       </ImageTextCaption>

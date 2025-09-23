@@ -324,8 +324,8 @@ const Starfield = () => {
         canvas.style.position = "fixed";
         canvas.style.top = "0";
         canvas.style.left = "0";
-        canvas.style.width = "100vw";
-        canvas.style.height = "100vh";
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
         canvas.style.zIndex = "-1";
         canvas.style.pointerEvents = "none";
 
@@ -524,15 +524,20 @@ const Starfield = () => {
         // Handle window resize: clear & rebuild based on new area (no incremental add/remove)
         const handleResize = () => {
           if (!app || !mountedRef.current || !rootContainer) return;
-          
+
           // 1. Resize renderer
           app.renderer.resize(window.innerWidth, window.innerHeight);
-          
-          // 2. Keep scale fixed at 1 (no width-based visual scaling)
+
+          // 2. Update canvas CSS dimensions to maintain proper aspect ratio
+          const canvas = app.canvas as HTMLCanvasElement;
+          canvas.style.width = `${window.innerWidth}px`;
+          canvas.style.height = `${window.innerHeight}px`;
+
+          // 3. Keep scale fixed at 1 (no width-based visual scaling)
           const newScale = 1;
           rootContainer.scale.set(newScale);
 
-          // 3. Recompute area & counts with caps
+          // 4. Recompute area & counts with caps
           const newRMaxWorld = getRMaxWorld(app, newScale);
           const { D_STAR: dStar, D_PLANET: dPlanet } = getEffectiveDensities(newScale);
           const rMinPlanetWorld = Math.max(getPlanetExclusionWorld(newScale), 1);
@@ -541,26 +546,220 @@ const Starfield = () => {
           const nextStars = Math.min(MAX_STARS, Math.round(dStar * areaCircleWorld));
           const nextPlanets = Math.min(MAX_PLANETS, Math.round(dPlanet * areaRingWorld));
 
-          // 4. Clear everything and rebuild fresh
+          // 5. Clear everything and rebuild fresh
           clearStars();
           clearPlanets();
           rebuildStars(nextStars, newRMaxWorld);
           rebuildPlanets(nextPlanets, rMinPlanetWorld, newRMaxWorld);
 
-          // 5. Persist refs
+          // 6. Persist refs
           scaleRef.current = newScale;
           rMaxRef.current = newRMaxWorld;
           rMaxPxRef.current = getRMax(app);
         };
 
-        window.addEventListener('resize', handleResize);
+        // === Intelligent Resize System ===
+        // NOTE: THIS INTELLIGENT RESIZE SYSTEM NEEDS TO BE IMPROVED IN THE FUTURE
+        // TODO: MAKE IT LOOK BETTER!!!!!
+        // This is the cause of issues in dynamic resize on devtools,
+        // so if you ever want to fix that, necessary changes would be here
+        // Configuration
+        const DESKTOP_DEBOUNCE_DELAY = 150; // ms - standard desktop debounce
+        const MOBILE_WIDTH_CHANGE_THRESHOLD = 50; // px - minimum width change on mobile
+        const DESKTOP_CHANGE_THRESHOLD = 5; // px - minimum change on desktop
+        const FALLBACK_DELAY = 2000; // ms - catch-all for edge cases
+
+        let resizeTimeoutId: number | null = null;
+        let fallbackTimeoutId: number | null = null;
+        let stopDetectionTimeoutId: number | null = null;
+        let lastWidth = window.innerWidth;
+        let lastHeight = window.innerHeight;
+        let lastResizeTime = 0;
+        let lastZoom = window.devicePixelRatio;
+        const RESIZE_STOP_DETECTION_DELAY = 100; // ms to detect when resizing stops
+
+        // Detect if we're on mobile based on multiple signals
+        function isMobileDevice(): boolean {
+          const userAgent = navigator.userAgent.toLowerCase();
+          const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+          const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+          const isSmallScreen = window.innerWidth <= 1025;
+
+          return isMobileUA || (isTouchDevice && isSmallScreen);
+        }
+
+        function shouldResize(newWidth: number, newHeight: number): boolean {
+          const widthChange = Math.abs(newWidth - lastWidth);
+          const heightChange = Math.abs(newHeight - lastHeight);
+
+          if (isMobileDevice()) {
+            // Mobile: Only resize on significant width changes
+            // Height changes are usually just address bar hide/show
+            return widthChange >= MOBILE_WIDTH_CHANGE_THRESHOLD;
+          } else {
+            // Desktop: Resize on any significant change
+            return widthChange >= DESKTOP_CHANGE_THRESHOLD || heightChange >= DESKTOP_CHANGE_THRESHOLD;
+          }
+        }
+
+        function forceResize() {
+          // Clear any pending timeouts
+          if (resizeTimeoutId !== null) {
+            window.clearTimeout(resizeTimeoutId);
+            resizeTimeoutId = null;
+          }
+          if (fallbackTimeoutId !== null) {
+            window.clearTimeout(fallbackTimeoutId);
+            fallbackTimeoutId = null;
+          }
+          if (stopDetectionTimeoutId !== null) {
+            window.clearTimeout(stopDetectionTimeoutId);
+            stopDetectionTimeoutId = null;
+          }
+
+          // Force immediate resize
+          lastWidth = window.innerWidth;
+          lastHeight = window.innerHeight;
+          handleResize();
+        }
+
+        function checkZoomChange() {
+          const currentZoom = window.devicePixelRatio;
+          if (Math.abs(currentZoom - lastZoom) > 0.1) {
+            lastZoom = currentZoom;
+            forceResize();
+          }
+        }
+
+        function intelligentResize() {
+          const currentWidth = window.innerWidth;
+          const currentHeight = window.innerHeight;
+          const currentTime = Date.now();
+
+          // Check for zoom changes first
+          checkZoomChange();
+
+          // Clear existing timeouts
+          if (resizeTimeoutId !== null) {
+            window.clearTimeout(resizeTimeoutId);
+            resizeTimeoutId = null;
+          }
+          if (fallbackTimeoutId !== null) {
+            window.clearTimeout(fallbackTimeoutId);
+            fallbackTimeoutId = null;
+          }
+          if (stopDetectionTimeoutId !== null) {
+            window.clearTimeout(stopDetectionTimeoutId);
+            stopDetectionTimeoutId = null;
+          }
+
+          // Check if this is a significant enough change to warrant a resize
+          if (!shouldResize(currentWidth, currentHeight)) {
+            return;
+          }
+
+          // Prevent rapid successive calls
+          if (currentTime - lastResizeTime < 50) {
+            return;
+          }
+
+          lastResizeTime = currentTime;
+
+          // Use different delays for mobile vs desktop
+          const delay = isMobileDevice() ? DESKTOP_DEBOUNCE_DELAY * 2 : DESKTOP_DEBOUNCE_DELAY;
+
+          resizeTimeoutId = window.setTimeout(() => {
+            // Double-check the change is still significant
+            const finalWidth = window.innerWidth;
+            const finalHeight = window.innerHeight;
+
+            if (shouldResize(finalWidth, finalHeight)) {
+              lastWidth = finalWidth;
+              lastHeight = finalHeight;
+              handleResize();
+            }
+            resizeTimeoutId = null;
+          }, delay);
+
+          // Detection for when resizing stops (DevTools responsive resize)
+          stopDetectionTimeoutId = window.setTimeout(() => {
+            const stopWidth = window.innerWidth;
+            const stopHeight = window.innerHeight;
+
+            // If there's been any change since we started, force immediate resize
+            if (stopWidth !== lastWidth || stopHeight !== lastHeight) {
+              lastWidth = stopWidth;
+              lastHeight = stopHeight;
+              handleResize();
+            }
+            stopDetectionTimeoutId = null;
+          }, RESIZE_STOP_DETECTION_DELAY);
+
+          // Fallback timer for edge cases (e.g., dev tools, orientation change)
+          fallbackTimeoutId = window.setTimeout(() => {
+            const fallbackWidth = window.innerWidth;
+            const fallbackHeight = window.innerHeight;
+
+            // Only trigger fallback if there's been a substantial change
+            const widthDiff = Math.abs(fallbackWidth - lastWidth);
+            const heightDiff = Math.abs(fallbackHeight - lastHeight);
+
+            if (widthDiff > 100 || heightDiff > 100) {
+              lastWidth = fallbackWidth;
+              lastHeight = fallbackHeight;
+              handleResize();
+            }
+            fallbackTimeoutId = null;
+          }, FALLBACK_DELAY);
+        }
+
+        // Handle keyboard shortcuts for zoom
+        function handleKeyDown(e: KeyboardEvent) {
+          if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '0')) {
+            // Schedule immediate resize check after zoom
+            setTimeout(checkZoomChange, 100);
+          }
+        }
+
+        window.addEventListener('resize', intelligentResize);
+
+        // Add keyboard listener for zoom shortcuts
+        window.addEventListener('keydown', handleKeyDown);
+
+        // Also listen to orientationchange for mobile devices
+        if (isMobileDevice()) {
+          window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+              // Orientation change is definitely a real resize
+              lastWidth = window.innerWidth;
+              lastHeight = window.innerHeight;
+              handleResize();
+            }, 500); // Wait for orientation change to complete
+          });
+        }
 
         // Store cleanup references
         app._cleanup = () => {
           if (animateRef.current) {
             app.ticker.remove(animateRef.current);
           }
-          window.removeEventListener('resize', handleResize);
+          window.removeEventListener('resize', intelligentResize);
+          window.removeEventListener('keydown', handleKeyDown);
+          if (isMobileDevice()) {
+            window.removeEventListener('orientationchange', intelligentResize);
+          }
+          if (resizeTimeoutId !== null) {
+            window.clearTimeout(resizeTimeoutId);
+            resizeTimeoutId = null;
+          }
+          if (fallbackTimeoutId !== null) {
+            window.clearTimeout(fallbackTimeoutId);
+            fallbackTimeoutId = null;
+          }
+          if (stopDetectionTimeoutId !== null) {
+            window.clearTimeout(stopDetectionTimeoutId);
+            stopDetectionTimeoutId = null;
+          }
         };
 
       } catch (error) {
