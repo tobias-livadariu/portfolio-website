@@ -14,7 +14,7 @@ const R_MAX_MARGIN = 0;
 
 // Densities per square pixel (tune to taste)
 const NUM_STARS_PER_UNIT   = 13e-4;   // stars per px^2
-const NUM_PLANETS_PER_UNIT = 3e-5;    // planets per px^2
+const NUM_PLANETS_PER_UNIT = 3.3e-5;    // planets per px^2
 
 // Hard caps (do not exceed these totals)
 const MAX_STARS   = 30000;
