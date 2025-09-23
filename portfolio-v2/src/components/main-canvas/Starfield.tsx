@@ -561,6 +561,8 @@ const Starfield = () => {
         // === Intelligent Resize System ===
         // NOTE: THIS INTELLIGENT RESIZE SYSTEM NEEDS TO BE IMPROVED IN THE FUTURE
         // TODO: MAKE IT LOOK BETTER!!!!!
+        // This is the cause of issues in dynamic resize on devtools,
+        // so if you ever want to fix that, necessary changes would be here
         // Configuration
         const DESKTOP_DEBOUNCE_DELAY = 150; // ms - standard desktop debounce
         const MOBILE_WIDTH_CHANGE_THRESHOLD = 50; // px - minimum width change on mobile
