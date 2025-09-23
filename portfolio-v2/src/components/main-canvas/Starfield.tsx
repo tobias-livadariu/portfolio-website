@@ -324,8 +324,8 @@ const Starfield = () => {
         canvas.style.position = "fixed";
         canvas.style.top = "0";
         canvas.style.left = "0";
-        canvas.style.width = "100vw";
-        canvas.style.height = "100vh";
+        canvas.style.width = `${window.innerWidth}px`;
+        canvas.style.height = `${window.innerHeight}px`;
         canvas.style.zIndex = "-1";
         canvas.style.pointerEvents = "none";
 
@@ -524,15 +524,20 @@ const Starfield = () => {
         // Handle window resize: clear & rebuild based on new area (no incremental add/remove)
         const handleResize = () => {
           if (!app || !mountedRef.current || !rootContainer) return;
-          
+
           // 1. Resize renderer
           app.renderer.resize(window.innerWidth, window.innerHeight);
-          
-          // 2. Keep scale fixed at 1 (no width-based visual scaling)
+
+          // 2. Update canvas CSS dimensions to maintain proper aspect ratio
+          const canvas = app.canvas as HTMLCanvasElement;
+          canvas.style.width = `${window.innerWidth}px`;
+          canvas.style.height = `${window.innerHeight}px`;
+
+          // 3. Keep scale fixed at 1 (no width-based visual scaling)
           const newScale = 1;
           rootContainer.scale.set(newScale);
 
-          // 3. Recompute area & counts with caps
+          // 4. Recompute area & counts with caps
           const newRMaxWorld = getRMaxWorld(app, newScale);
           const { D_STAR: dStar, D_PLANET: dPlanet } = getEffectiveDensities(newScale);
           const rMinPlanetWorld = Math.max(getPlanetExclusionWorld(newScale), 1);
@@ -541,13 +546,13 @@ const Starfield = () => {
           const nextStars = Math.min(MAX_STARS, Math.round(dStar * areaCircleWorld));
           const nextPlanets = Math.min(MAX_PLANETS, Math.round(dPlanet * areaRingWorld));
 
-          // 4. Clear everything and rebuild fresh
+          // 5. Clear everything and rebuild fresh
           clearStars();
           clearPlanets();
           rebuildStars(nextStars, newRMaxWorld);
           rebuildPlanets(nextPlanets, rMinPlanetWorld, newRMaxWorld);
 
-          // 5. Persist refs
+          // 6. Persist refs
           scaleRef.current = newScale;
           rMaxRef.current = newRMaxWorld;
           rMaxPxRef.current = getRMax(app);
