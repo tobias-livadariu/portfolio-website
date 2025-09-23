@@ -26,7 +26,7 @@ export default function SEWebringLinkback() {
           src="/portfolio/images/logo_w.png"
           alt="SE Webring Logo"
           className="
-            w-8 h-8 object-cover img-pixelated
+            w-11 h-auto object-contain img-pixelated
             group-hover:brightness-110
             transition-all duration-200
           "
