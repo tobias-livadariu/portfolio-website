@@ -1,6 +1,5 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTilt } from "./useTilt.ts";
-import { div } from "framer-motion/client";
 
 interface ImageTextCaptionProps {
   imageUrl: string;
