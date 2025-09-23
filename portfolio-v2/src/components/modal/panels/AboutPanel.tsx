@@ -1,4 +1,5 @@
 import ImageTextCaption from "./panel-shared-components/ImageTextCaption";
+import SEWebringLinkback from "../../SEWebringLinkback";
 
 export default function AboutPanel() {
   return (
@@ -6,6 +7,7 @@ export default function AboutPanel() {
       imageUrl="/portfolio/images/me.png"
       imageAlt="Portrait of me!"
       imageCaption="A drawing of my face made by a friend"
+      additionalCaptionContent={<SEWebringLinkback />}
     >
       <p className="mt-2 md:mt-0 text-[20px] font-pressstart"># ABOUT ME</p>
       <p className="text-[16px]">## TOBIAS LIVADARIU</p>

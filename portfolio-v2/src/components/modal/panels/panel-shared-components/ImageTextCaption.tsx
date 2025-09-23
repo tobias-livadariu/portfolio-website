@@ -1,10 +1,12 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import { useTilt } from "./useTilt.ts";
+import { div } from "framer-motion/client";
 
 interface ImageTextCaptionProps {
   imageUrl: string;
   imageAlt: string;
   imageCaption: string;
+  additionalCaptionContent?: ReactNode;
   href?: string;        // click-through link (image becomes the link)
   newTab?: boolean;     // default true
   tilt?: boolean;       // default true
@@ -18,6 +20,7 @@ export default function ImageTextCaption(props: PropsWithChildren<ImageTextCapti
     imageUrl,
     imageAlt,
     imageCaption,
+    additionalCaptionContent,
     children,
     href,
     newTab = true,
@@ -81,6 +84,11 @@ export default function ImageTextCaption(props: PropsWithChildren<ImageTextCapti
         <p className="hidden md:block text-[14px] text-light-gray mt-2 text-center md:text-left">
           {imageCaption}
         </p>
+        {additionalCaptionContent && (
+          <div>
+            {additionalCaptionContent}
+          </div>
+        )}
       </div>
 
       <div className="space-y-4 text-campfire-ash leading-relaxed text-[16px]">
