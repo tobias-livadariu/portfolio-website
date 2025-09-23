@@ -3,6 +3,8 @@ export default function SEWebringLinkback() {
     <a
       href="https://se-webring.xyz/"
       aria-label="SE Webring Linkback"
+      target="_blank"
+      rel="noreferrer"
       className="
         block mt-4 p-3
         bg-black border-2 border-campfire
@@ -29,6 +31,7 @@ export default function SEWebringLinkback() {
             w-11 h-auto object-contain img-pixelated
             group-hover:brightness-110
             transition-all duration-200
+            ms-0
           "
           loading="lazy"
         />

@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from "react";
 import { useTilt } from "./useTilt.ts";
+import { div } from "framer-motion/client";
 
 interface ImageTextCaptionProps {
   imageUrl: string;
@@ -84,7 +85,7 @@ export default function ImageTextCaption(props: PropsWithChildren<ImageTextCapti
           {imageCaption}
         </p>
         {additionalCaptionContent && (
-          <div>
+          <div className="hidden md:block">
             {additionalCaptionContent}
           </div>
         )}
@@ -92,6 +93,13 @@ export default function ImageTextCaption(props: PropsWithChildren<ImageTextCapti
 
       <div className="space-y-4 text-campfire-ash leading-relaxed text-[16px]">
         {children}
+        {additionalCaptionContent && (
+          <div className="flex justify-center">
+            <div className="block md:hidden">
+              {additionalCaptionContent}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
