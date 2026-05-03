@@ -42,8 +42,7 @@ First viewport:
 - The primary scene is the actual portfolio experience, not a landing page.
 - Tobias' name remains anchored to the top-left, with 3D mesh letters.
 - The dot over the `i` in `Tobias` is a small 3D lightbulb mesh.
-- The menu remains compact: `About`, `Resume`, `Portfolio`, `Contact`.
-- Keep `Contact` instead of `Contact me` unless the visual spacing is better with the longer label. The shorter label is cleaner for a 3D menu.
+- The menu remains compact: `About`, `Resume`, `Portfolio`, `Contact Me`.
 - Hover/focus keeps the existing blocky arrows, but they become small extruded mesh arrows.
 - The horizontal separators become instanced beveled/cut-corner cubes, visually between a square and a circle.
 
@@ -62,7 +61,7 @@ Content panels:
 - `About`: short readable bio plus one or two small 3D props.
 - `Resume`: concise experience/skills view with a direct resume PDF link.
 - `Portfolio`: project list with small 2.5D thumbnails, not a huge gallery grid.
-- `Contact`: email/social links with obvious focus states.
+- `Contact Me`: email/social links with obvious focus states.
 
 ## Visual System
 
