@@ -76,6 +76,9 @@ Navigation:
 - Scrolling down moves through `About`, `Resume`, `Portfolio`, and `Contact Me`.
 - Scrolling up moves to the previous section; scrolling up from `About` returns to the homepage.
 - Scrolling down from `Contact Me` should not move sections, but should trigger a subtle bounded "bottom reached" response, such as a small lift/compression/rebound of the active panel.
+- Scroll navigation should not hard-snap on the first wheel/touchpad event. It should feel like an iOS-style drag interaction: wheel/touch deltas accumulate into transition progress, the active section visually moves a little while the user is scrolling, and the section change commits only after the user crosses a tuned distance/velocity threshold within a tuned time window.
+- If the user does not cross the threshold, the section should ease back to its resting position.
+- Thresholds, decay timing, max drag distance, and commit animation duration should be centralized constants because this feel will need tuning.
 - Clicking a menu item jumps directly to that section and uses the lightbulb transition.
 - Clicking outside the active 3D interface closes the section and returns to the homepage.
 
@@ -126,6 +129,7 @@ Planets:
 - Keep startup planet count modest, then lazy-load additional atlases after first paint.
 - Offscreen planets should be culled at the group or instance-activity level, but avoid destroying/recreating objects every resize.
 - In the first version, planets remain decorative. Some users may try to click them, so consider cursor/hover behavior carefully: either make them clearly non-interactive, or add a very small decorative hover response without implying project navigation.
+- Initial decision: planets should have no hover response. Different depths and sizes would make hover affordances confusing, and the first version should communicate that planets are atmospheric rather than navigational.
 - Keep planet/star density and maximum size as centralized constants. The desired feel is between dense cosmic wallpaper and sparse gallery: enough objects to feel alive, but not so many that the planets become visual noise.
 - Repeated planet sprites are acceptable, but selection should be balanced across available types and variants.
 
@@ -158,6 +162,7 @@ Mobile and responsiveness:
 - Build one responsive 3D design for desktop, tablet, and mobile first.
 - Do not create a separate simplified 2.5D mobile experience unless profiling proves the full treatment is too slow or too cramped.
 - Mobile may use lower density constants, lower DPR cap, shorter transition durations, or fewer visible planet instances while preserving the same interaction model.
+- Target 60 FPS where practical, but 30 FPS is the acceptable mobile floor for the first implementation.
 
 ## Planet Asset Strategy
 
@@ -312,18 +317,14 @@ Future agents should follow these rules:
 
 ## Settled Decisions
 
+- Section order remains the v2 order: `About`, `Resume`, `Portfolio`, `Contact Me`.
 - Content panels use hybrid rendering: 3D mesh titles/subtitles and 3D frames, with HTML body text for readability.
 - Navigation supports both menu clicks and scroll progression.
 - Menu clicks use the lightbulb flicker transition.
 - Scroll navigation moves section-to-section and returns to the homepage when scrolling above `About`.
+- Scroll navigation should be smooth, drag-like, and threshold-based rather than immediate snap navigation.
 - `Contact Me` is the final menu label and final scroll section.
-- Planets are decorative for the first implementation.
+- Planets are decorative for the first implementation and should have no hover response.
 - The first mobile implementation should preserve the same 3D design, with performance reductions only where needed.
+- The acceptable mobile performance floor is 30 FPS, while still targeting 60 FPS where practical.
 - Planet/star density should be controlled by easy-to-tune constants.
-
-## Remaining Questions
-
-- What exact section order and copy should ship in v3?
-- Should scroll wheel/touchpad navigation snap one section per gesture, or allow smooth scrubbed movement between sections?
-- Should decorative planets have no hover response, or a subtle response that does not imply they are clickable?
-- What is the first acceptable performance floor on mobile: 60 FPS target, 30 FPS fallback, or reduced animation under load?
