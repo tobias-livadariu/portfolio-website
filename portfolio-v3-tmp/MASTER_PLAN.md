@@ -73,10 +73,13 @@ Navigation:
 - Support both menu clicks and scroll navigation.
 - Homepage/top state shows the name, menu, and orbiting background with no active content panel.
 - Scrolling down from the homepage opens `About`.
+- The homepage is not part of the draggable vertical modal stack. It remains the persistent background scene, so scroll input on the homepage should not move the homepage upward.
+- Homepage-to-`About` scroll should be handled as a reveal/activation of the first modal section over the persistent scene. The background may respond subtly through camera/head-shift or lighting, but it should not look like the entire homepage is being pushed offscreen.
 - Scrolling down moves through `About`, `Resume`, `Portfolio`, and `Contact Me`.
 - Scrolling up moves to the previous section; scrolling up from `About` returns to the homepage.
 - Scrolling down from `Contact Me` should not move sections, but should trigger a subtle bounded "bottom reached" response, such as a small lift/compression/rebound of the active panel.
-- Scroll navigation should not hard-snap on the first wheel/touchpad event. It should feel like an iOS-style drag interaction: wheel/touch deltas accumulate into transition progress, the active section visually moves a little while the user is scrolling, and the section change commits only after the user crosses a tuned distance/velocity threshold within a tuned time window.
+- Section-to-section scroll navigation should not hard-snap on the first wheel/touchpad event. It should feel like an iOS-style drag interaction: wheel/touch deltas accumulate into transition progress, the current modal section visually moves a little while the user is scrolling, and the next/previous modal section can appear from below/above when progress and viewport dimensions allow.
+- The section change commits only after the user crosses a tuned distance/velocity threshold within a tuned time window.
 - If the user does not cross the threshold, the section should ease back to its resting position.
 - Thresholds, decay timing, max drag distance, and commit animation duration should be centralized constants because this feel will need tuning.
 - Clicking a menu item jumps directly to that section and uses the lightbulb transition.
