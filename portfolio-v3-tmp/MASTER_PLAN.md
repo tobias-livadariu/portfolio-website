@@ -19,6 +19,7 @@ Build v3 inside this repository first, as sibling folder `portfolio-v3`. Keep `p
 Recommended stack:
 
 - Vite + React + TypeScript.
+- Scaffold with the plain `TypeScript` React variant, not `TypeScript + React Compiler`, for the first prototype. React Compiler is stable for React 19, but this project's hardest performance work is in Three.js buffers, shaders, textures, and frame-loop discipline. The compiler can be added later after the scene architecture is stable.
 - `@react-three/fiber` as the Three.js renderer.
 - `@react-three/drei` for `Text3D`, asset helpers, loaders, `Preload`, and possibly `Html`.
 - Three.js custom `InstancedMesh` or `InstancedBufferGeometry` for stars, separator dots, arrows, and planet billboards.
@@ -28,6 +29,7 @@ Recommended stack:
 
 Sources checked:
 
+- React Compiler v1.0: https://react.dev/blog/2025/10/07/react-compiler-1
 - Drei `Text3D`: https://drei.docs.pmnd.rs/abstractions/text3d
 - Drei loading progress: https://drei.docs.pmnd.rs/loaders/progress-use-progress
 - R3F performance scaling: https://r3f.docs.pmnd.rs/advanced/scaling-performance
@@ -49,7 +51,8 @@ First viewport:
 Section transitions:
 
 - Clicking a menu item triggers the lightbulb to flicker.
-- The scene drops to near-black for a short beat, then returns with the new section active.
+- The click flicker rhythm should feel roughly like `X O X X O`: blink, pause, blink-blink, pause, then a quick blackout or near-black dim before the selected section appears.
+- Prefer a brief reduction to near-black over a harsh full-black flash unless testing shows full black feels better. The effect should feel like the bulb controls scene visibility, not like a page reload.
 - Use this as the replacement for the v2 bottom modal slide.
 - Respect `prefers-reduced-motion`: skip flicker/blackout and perform a quick crossfade.
 
@@ -57,11 +60,24 @@ Content panels:
 
 - Do not recreate large DOM modals as flat cards.
 - Treat each section as a small 3D exhibit near the top-left menu, using extruded frames, pixel panels, or floating plaques.
-- Use real HTML only where accessibility and text readability matter. If using Drei `Html`, keep it visually integrated with the 3D frame rather than a detached web card.
+- Use a hybrid text approach. Main body copy should be readable HTML text, mounted into/in front of 3D frames. Titles, subtitles, labels, and decorative headings can be 3D mesh text.
+- Avoid long paragraphs as 3D mesh text. It will be harder to read, heavier to render, and harder to make responsive/accessibility-friendly.
+- If using Drei `Html`, keep it visually integrated with the 3D frame rather than a detached web card.
 - `About`: short readable bio plus one or two small 3D props.
 - `Resume`: concise experience/skills view with a direct resume PDF link.
 - `Portfolio`: project list with small 2.5D thumbnails, not a huge gallery grid.
 - `Contact Me`: email/social links with obvious focus states.
+
+Navigation:
+
+- Support both menu clicks and scroll navigation.
+- Homepage/top state shows the name, menu, and orbiting background with no active content panel.
+- Scrolling down from the homepage opens `About`.
+- Scrolling down moves through `About`, `Resume`, `Portfolio`, and `Contact Me`.
+- Scrolling up moves to the previous section; scrolling up from `About` returns to the homepage.
+- Scrolling down from `Contact Me` should not move sections, but should trigger a subtle bounded "bottom reached" response, such as a small lift/compression/rebound of the active panel.
+- Clicking a menu item jumps directly to that section and uses the lightbulb transition.
+- Clicking outside the active 3D interface closes the section and returns to the homepage.
 
 ## Visual System
 
@@ -109,6 +125,9 @@ Planets:
 - For many animated planets, prefer a custom instanced billboard shader with per-instance atlas frame data rather than one mesh/material per planet.
 - Keep startup planet count modest, then lazy-load additional atlases after first paint.
 - Offscreen planets should be culled at the group or instance-activity level, but avoid destroying/recreating objects every resize.
+- In the first version, planets remain decorative. Some users may try to click them, so consider cursor/hover behavior carefully: either make them clearly non-interactive, or add a very small decorative hover response without implying project navigation.
+- Keep planet/star density and maximum size as centralized constants. The desired feel is between dense cosmic wallpaper and sparse gallery: enough objects to feel alive, but not so many that the planets become visual noise.
+- Repeated planet sprites are acceptable, but selection should be balanced across available types and variants.
 
 Distribution:
 
@@ -133,6 +152,12 @@ Resize:
 - Recompute active planet set from deterministic data.
 - Do not clear and rebuild the whole field.
 - Test devtools resize, monitor moves, orientation changes, and device-pixel-ratio changes.
+
+Mobile and responsiveness:
+
+- Build one responsive 3D design for desktop, tablet, and mobile first.
+- Do not create a separate simplified 2.5D mobile experience unless profiling proves the full treatment is too slow or too cramped.
+- Mobile may use lower density constants, lower DPR cap, shorter transition durations, or fewer visible planet instances while preserving the same interaction model.
 
 ## Planet Asset Strategy
 
@@ -238,13 +263,16 @@ Phase 1: technical prototype
 - Render top-left 3D text with `Text3D`.
 - Add pointer-driven camera head-shift.
 - Add basic 3D menu hit targets and hover arrows.
+- Add centralized constants for object density, planet size range, star size range, camera shift intensity, and transition timings.
 
 Phase 2: transition language
 
 - Implement menu state store.
-- Add lightbulb flicker, blackout, and section activation.
+- Add click navigation, scroll navigation, outside-click close behavior, and section bounds handling.
+- Add lightbulb flicker, near-black blackout/dim, and section activation.
 - Add reduced-motion fallback.
-- Build one 3D content panel style and validate readability.
+- Build one hybrid content panel style: 3D frame and mesh heading, HTML body text for readability.
+- Add the bottom-reached rebound animation for scrolling down from `Contact Me`.
 
 Phase 3: starfield
 
@@ -262,7 +290,7 @@ Phase 4: planets
 
 Phase 5: content and polish
 
-- Port About, Resume, Portfolio, and Contact content.
+- Port About, Resume, Portfolio, and Contact Me content.
 - Tune mobile layout.
 - Add accessibility overlays or keyboard raycast support.
 - Profile with production build.
@@ -282,12 +310,20 @@ Future agents should follow these rules:
 - Keep visual UI accessible: keyboard focus, readable text alternatives, and reduced-motion behavior are part of the feature.
 - Avoid unrelated refactors of v1/v2.
 
-## Open Design Questions
+## Settled Decisions
 
-- Should the content panels be mostly 3D mesh text, or 3D frames containing HTML text for readability?
-- Should the site support scrolling through sections, or keep the compact menu as the only section navigation?
-- Should the planets remain mostly decorative, or should some become interactive project/contact affordances?
-- How much mobile support is required for the full 3D treatment versus a simplified 2.5D version?
-- Is the desired planet count closer to "dense cosmic wallpaper" or "sparse gallery of beautiful objects"?
+- Content panels use hybrid rendering: 3D mesh titles/subtitles and 3D frames, with HTML body text for readability.
+- Navigation supports both menu clicks and scroll progression.
+- Menu clicks use the lightbulb flicker transition.
+- Scroll navigation moves section-to-section and returns to the homepage when scrolling above `About`.
+- `Contact Me` is the final menu label and final scroll section.
+- Planets are decorative for the first implementation.
+- The first mobile implementation should preserve the same 3D design, with performance reductions only where needed.
+- Planet/star density should be controlled by easy-to-tune constants.
 
-Current recommendation: keep navigation menu-driven, use 3D frames with readable HTML text for content, keep planets decorative in the first version, and build interactive planets only after performance is proven.
+## Remaining Questions
+
+- What exact section order and copy should ship in v3?
+- Should scroll wheel/touchpad navigation snap one section per gesture, or allow smooth scrubbed movement between sections?
+- Should decorative planets have no hover response, or a subtle response that does not imply they are clickable?
+- What is the first acceptable performance floor on mobile: 60 FPS target, 30 FPS fallback, or reduced animation under load?
