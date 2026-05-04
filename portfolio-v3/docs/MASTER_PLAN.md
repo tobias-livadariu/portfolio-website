@@ -89,6 +89,14 @@ Navigation:
 
 The aesthetic should be blocky, pixel-adjacent, and dimensional, not glossy sci-fi.
 
+V3 should inherit the core `portfolio-v2` palette rather than introducing a new placeholder background/UI palette:
+
+- Background / deep panel base: `#070B14` (`0x070B14` in Three/Pixi numeric form).
+- Primary UI accent / campfire: `#e97531`.
+- Frame and separator ash: `#f7d8c0`.
+- Text and star neutrals: `#ffffff`, `#d3d3d3`, `#a8a8b3`, `#7d7d87`, `#6c6f7a`, `#5a6a85`.
+- Pure black `#000000` remains useful for pixel outlines, occlusion, and hard shadow edges.
+
 - Use low-poly or beveled box geometry for UI objects.
 - Prefer orthographic camera for the top-left UI and background composition. It preserves the pixel/block feel and makes responsive anchoring easier.
 - Use a slight perspective/parallax layer if needed, but keep the camera movement minor.

@@ -1,3 +1,16 @@
+:root {
+  --color-background: #070b14;
+  --color-campfire: #e97531;
+  --color-campfire-ash: #f7d8c0;
+  --color-black: #000000;
+  --color-white: #ffffff;
+  --color-light-gray: #d3d3d3;
+  --color-muted-white: #a8a8b3;
+  --color-soft-gray: #7d7d87;
+  --color-dim-blue-gray: #6c6f7a;
+  --color-faded-blue: #5a6a85;
+}
+
 html,
 body,
 #root {
