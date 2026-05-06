@@ -1,5 +1,5 @@
 import { useThree } from "@react-three/fiber";
-import type { Vec3 } from "../types/geometry";
+import type { Vec3 } from "../../types/geometry";
 
 interface Props {
   marginX: number;
