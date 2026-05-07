@@ -1,3 +1,5 @@
+@import "./fonts.css";
+
 :root {
   --color-background: #070b14;
   --color-campfire: #e97531;
@@ -11,6 +13,16 @@
   --color-faded-blue: #5a6a85;
   --color-light-warm: #f7d8c0;
   --color-light-emissive: #e97531;
+
+  --font-pix-antiqua: "PixAntiqua", monospace;
+  --font-pixel-emulator: "Pixel Emulator", monospace;
+  --font-press-start-2p: "Press Start 2P", monospace;
+}
+
+html {
+  font-family: var(--font-pix-antiqua);
+  color: var(--color-campfire);
+  background: var(--color-background);
 }
 
 html,
