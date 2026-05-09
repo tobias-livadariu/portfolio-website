@@ -1,6 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { PrimaryLighting } from "./lighting/PrimaryLighting";
 import { COLOR_PALETTE_STR } from "../theme/colors";
+import MainMenu from "./ui3d/MainMenu";
 
 export default function PortfolioCanvas() {
   return (
@@ -12,6 +13,7 @@ export default function PortfolioCanvas() {
     >
       <color attach="background" args={[COLOR_PALETTE_STR.background]} />
       <PrimaryLighting />
+      <MainMenu />
     </Canvas>
   );
 }
