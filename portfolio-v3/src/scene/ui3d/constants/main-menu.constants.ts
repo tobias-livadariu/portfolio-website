@@ -1,3 +1,5 @@
+import { COLOR_PALETTE_STR } from "../../../theme/colors";
+
 export const TITLE_TEXT = {
   intro: "Hey, I'm",
   firstName: "Tobias",
@@ -42,8 +44,12 @@ export const TEXT_GEOMETRY = {
 } as const;
 
 export const TEXT_MATERIAL = {
-  titleEmissiveIntensity: 0.35,
-  titleRoughness: 0.9,
-  navItemEmissiveIntensity: 0.35,
-  navItemRoughness: 0.9,
-};
+  frontColor: COLOR_PALETTE_STR.campfire,
+  frontEmissive: COLOR_PALETTE_STR.campfire,
+  frontEmissiveIntensity: 0.28,
+  frontRoughness: 0.88,
+  sideColor: COLOR_PALETTE_STR.campfireDark,
+  sideEmissive: COLOR_PALETTE_STR.black,
+  sideEmissiveIntensity: 0,
+  sideRoughness: 0.95,
+} as const;

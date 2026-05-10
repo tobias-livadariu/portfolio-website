@@ -1,6 +1,7 @@
 export const COLOR_PALETTE_STR = {
   background: "#070B14",
   campfire: "#e97531",
+  campfireDark: "#7a351d",
   campfireAsh: "#f7d8c0",
   black: "#000000",
   white: "#ffffff",

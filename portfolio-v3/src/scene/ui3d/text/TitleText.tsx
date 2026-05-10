@@ -1,7 +1,6 @@
 import { Text3D } from "@react-three/drei";
 import type { ReadonlyVec3 } from "../../../types/geometry";
 import { THREE_FONTS } from "../../../theme/fonts";
-import { COLOR_PALETTE_STR } from "../../../theme/colors";
 import { TEXT_GEOMETRY, TEXT_MATERIAL } from "../constants/main-menu.constants";
 
 interface Props {
@@ -26,10 +25,18 @@ export default function TitleText(props: Props) {
     >
       {children}
       <meshStandardMaterial
-        color={COLOR_PALETTE_STR.campfire}
-        emissive={COLOR_PALETTE_STR.campfire}
-        emissiveIntensity={TEXT_MATERIAL.titleEmissiveIntensity}
-        roughness={TEXT_MATERIAL.titleRoughness}
+        attach="material-0"
+        color={TEXT_MATERIAL.frontColor}
+        emissive={TEXT_MATERIAL.frontEmissive}
+        emissiveIntensity={TEXT_MATERIAL.frontEmissiveIntensity}
+        roughness={TEXT_MATERIAL.frontRoughness}
+      />
+      <meshStandardMaterial
+        attach="material-1"
+        color={TEXT_MATERIAL.sideColor}
+        emissive={TEXT_MATERIAL.sideEmissive}
+        emissiveIntensity={TEXT_MATERIAL.sideEmissiveIntensity}
+        roughness={TEXT_MATERIAL.sideRoughness}
       />
     </Text3D>
   );
