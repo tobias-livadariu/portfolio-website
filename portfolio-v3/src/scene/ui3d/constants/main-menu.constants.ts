@@ -46,10 +46,10 @@ export const TEXT_GEOMETRY = {
 export const TEXT_MATERIAL = {
   frontColor: COLOR_PALETTE_STR.campfire,
   frontEmissive: COLOR_PALETTE_STR.campfire,
-  frontEmissiveIntensity: 0.28,
-  frontRoughness: 0.88,
+  frontEmissiveIntensity: 0.34,
+  frontRoughness: 0.9,
   sideColor: COLOR_PALETTE_STR.campfireDark,
-  sideEmissive: COLOR_PALETTE_STR.black,
-  sideEmissiveIntensity: 0,
+  sideEmissive: COLOR_PALETTE_STR.campfireDark,
+  sideEmissiveIntensity: 0.8,
   sideRoughness: 0.95,
 } as const;
