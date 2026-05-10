@@ -34,8 +34,15 @@ export const LAYOUT = {
 export const TEXT_GEOMETRY = {
   introSize: 0.255,
   nameSize: 0.315,
-  menuSize: 0.33,
+  navItemSize: 0.33,
   height: 0.025,
   bevelSize: 0.002,
   bevelThickness: 0.003,
 } as const;
+
+export const TEXT_MATERIAL = {
+  titleEmissiveIntensity: 0.35,
+  titleRoughness: 0.9,
+  navItemEmissiveIntensity: 0.35,
+  navItemRoughness: 0.9,
+};
