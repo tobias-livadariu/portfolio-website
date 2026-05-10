@@ -19,6 +19,10 @@ export default function TitleText(props: Props) {
       font={THREE_FONTS.pressStart2p}
       size={size}
       height={TEXT_GEOMETRY.height}
+      bevelEnabled
+      bevelSize={TEXT_GEOMETRY.bevelSize}
+      bevelThickness={TEXT_GEOMETRY.bevelThickness}
+      bevelSegments={1}
     >
       {children}
       <meshStandardMaterial
