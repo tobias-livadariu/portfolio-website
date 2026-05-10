@@ -14,17 +14,28 @@ export const NAV_ITEMS = [
 export const LAYOUT = {
   marginX: 0.12,
   marginY: 0.16,
-  titleLineGap: 0.24,
-  menuTopGap: 0.16,
-  menuItemGap: 0.3,
-  separatorGap: 0.08,
+  introOffset: [0, 0, 0],
+  firstNameOffset: [0, -0.255, 0],
+  lastNameOffset: [0, -0.57, 0],
+  upperSeperatorStartOffset: [0, -0.885, 0],
+  upperSeperatorEndOffset: [2.32, -0.885, 0],
+  navItemOffsets: [
+    [0, -0.925, 0],
+    [0, -1.255, 0],
+    [0, -1.585, 0],
+    [0, -1.915, 0],
+  ],
+  lowerSeperatorStartOffset: [0, 2.245, 0],
+  lowerSeperatorEndOffset: [2.32, 2.245, 0],
+  seperatorSegmentSize: 0.01,
+  seperatorSegmentCount: 116,
 } as const;
 
 export const TEXT_GEOMETRY = {
-  introSize: 0.17,
-  nameSize: 0.21,
-  menuSize: 0.22,
-  depth: 0.025,
+  introSize: 0.255,
+  nameSize: 0.315,
+  menuSize: 0.33,
+  height: 0.025,
   bevelSize: 0.002,
   bevelThickness: 0.003,
 } as const;

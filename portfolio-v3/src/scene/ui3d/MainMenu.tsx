@@ -13,7 +13,7 @@ export default function MainMenu() {
 
   return (
     <group position={topLeftPosition}>
-      <Title />
+      <Title offset={[0, 0, 0]} />
       <HorizontalDottedLine />
       <Nav />
       <HorizontalDottedLine />
