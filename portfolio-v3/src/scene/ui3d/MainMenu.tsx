@@ -12,7 +12,7 @@ export default function MainMenu() {
   });
 
   return (
-    <group position={topLeftPosition}>
+    <group position={topLeftPosition} rotation={LAYOUT.mainMenuRotation}>
       <Title offset={[0, 0, 0]} />
       <HorizontalDottedLine />
       <Nav />

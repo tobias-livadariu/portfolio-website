@@ -12,6 +12,7 @@ export const NAV_ITEMS = [
 ] as const;
 
 export const LAYOUT = {
+  mainMenuRotation: [0, -0.07, 0],
   marginX: 0.12,
   marginY: 0.16,
   introOffset: [0, 0, 0],
@@ -35,7 +36,7 @@ export const TEXT_GEOMETRY = {
   introSize: 0.255,
   nameSize: 0.315,
   navItemSize: 0.33,
-  height: 0.025,
+  height: 0.4,
   bevelSize: 0.002,
   bevelThickness: 0.003,
 } as const;
