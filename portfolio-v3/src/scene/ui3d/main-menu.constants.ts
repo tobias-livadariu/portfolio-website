@@ -14,33 +14,50 @@ export const NAV_ITEMS = [
 ] as const;
 
 export const LAYOUT = {
-  mainMenuRotation: [0, -0.07, 0],
-  marginX: 0.12,
-  marginY: 0.16,
+  z: 0,
+  mainMenuRotation: [0, -0.22, 0],
+  marginX: 0.28,
+  marginY: 0.42,
   introOffset: [0, 0, 0],
-  firstNameOffset: [0, -0.255, 0],
-  lastNameOffset: [0, -0.57, 0],
-  upperSeparatorStartOffset: [0, -0.885, 0],
-  upperSeparatorEndOffset: [2.32, -0.885, 0],
+  firstNameOffset: [0, -0.2, 0],
+  lastNameOffset: [0, -0.43, 0],
+  upperSeparatorStartOffset: [0, -0.68, 0],
+  upperSeparatorEndOffset: [1.78, -0.68, 0],
   navItemOffsets: [
-    [0, -0.925, 0],
-    [0, -1.255, 0],
-    [0, -1.585, 0],
-    [0, -1.915, 0],
+    [0, -0.82, 0],
+    [0, -1.04, 0],
+    [0, -1.26, 0],
+    [0, -1.48, 0],
   ],
-  lowerSeparatorStartOffset: [0, 2.245, 0],
-  lowerSeparatorEndOffset: [2.32, 2.245, 0],
-  separatorSegmentSize: 0.01,
-  separatorSegmentCount: 116,
+  lowerSeparatorStartOffset: [0, -1.72, 0],
+  lowerSeparatorEndOffset: [1.78, -1.72, 0],
+  separatorSegmentSize: [0.018, 0.018, 0.045],
+  separatorSegmentCount: 48,
+  navArrowOffsetX: 0.08,
+  navTextOffsetX: 0.22,
+  navRightArrowOffsetX: 1.52,
+} as const;
+
+export const RESPONSIVE_SCALE = {
+  referenceWidth: 1440,
+  min: 0.54,
+  max: 1,
 } as const;
 
 export const TEXT_GEOMETRY = {
-  introSize: 0.255,
-  nameSize: 0.315,
-  navItemSize: 0.33,
-  height: 0.4,
+  introSize: 0.095,
+  nameSize: 0.135,
+  navItemSize: 0.12,
+  height: 0.045,
   bevelSize: 0.002,
   bevelThickness: 0.003,
+} as const;
+
+export const ARROW_GEOMETRY = {
+  blockSize: 0.045,
+  depth: 0.045,
+  color: COLOR_PALETTE_STR.campfireAsh,
+  emissiveIntensity: 0.2,
 } as const;
 
 export const TEXT_MATERIAL = {

@@ -1,13 +1,13 @@
 import { Canvas } from "@react-three/fiber";
 import { PrimaryLighting } from "./lighting/PrimaryLighting";
 import { COLOR_PALETTE_STR } from "../theme/colors";
-import { CAMERA_PROPS } from "./canvas.constants";
+import { CAMERA_PROPS, CANVAS_DPR } from "./canvas.constants";
 import MainMenu from "./ui3d/MainMenu";
 
 export default function PortfolioCanvas() {
   return (
     <Canvas
-      dpr={[1, 1.5]}
+      dpr={CANVAS_DPR}
       frameloop="always"
       camera={{
         position: CAMERA_PROPS.position,
