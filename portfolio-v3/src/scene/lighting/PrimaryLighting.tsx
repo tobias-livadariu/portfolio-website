@@ -2,7 +2,7 @@ import useTopLeftPosition from "../hooks/useTopLeftPosition";
 import { COLOR_PALETTE_STR } from "../../theme/colors";
 
 export function PrimaryLighting() {
-  const topLeftPosition = useTopLeftPosition({ marginX: 0, marginY: 0, z: 10 });
+  const topLeftPosition = useTopLeftPosition({ marginX: 0, marginY: 0, z: 2 });
 
   return (
     <>

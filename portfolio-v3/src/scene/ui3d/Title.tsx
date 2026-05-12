@@ -1,9 +1,5 @@
 import type { ReadonlyVec3 } from "../../types/geometry";
-import {
-  TITLE_TEXT,
-  LAYOUT,
-  TEXT_GEOMETRY,
-} from "./constants/main-menu.constants";
+import { TITLE_TEXT, LAYOUT, TEXT_GEOMETRY } from "./main-menu.constants";
 import TitleText from "./text/TitleText";
 
 interface Props {

@@ -17,6 +17,7 @@ export const COLOR_PALETTE_STR = {
 export const COLOR_PALETTE_NUM = {
   background: 0x070b14,
   campfire: 0xe97531,
+  campfireDark: 0x7a351d,
   campfireAsh: 0xf7d8c0,
   black: 0x000000,
   white: 0xffffff,

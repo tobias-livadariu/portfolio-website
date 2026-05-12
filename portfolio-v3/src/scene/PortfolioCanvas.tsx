@@ -1,15 +1,20 @@
 import { Canvas } from "@react-three/fiber";
 import { PrimaryLighting } from "./lighting/PrimaryLighting";
 import { COLOR_PALETTE_STR } from "../theme/colors";
+import { CAMERA_PROPS } from "./canvas.constants";
 import MainMenu from "./ui3d/MainMenu";
 
 export default function PortfolioCanvas() {
   return (
     <Canvas
-      orthographic
       dpr={[1, 1.5]}
       frameloop="always"
-      camera={{ position: [0, 0, 100], zoom: 100, near: 0.1, far: 1000 }}
+      camera={{
+        position: CAMERA_PROPS.position,
+        fov: CAMERA_PROPS.fov,
+        near: CAMERA_PROPS.near,
+        far: CAMERA_PROPS.far,
+      }}
     >
       <color attach="background" args={[COLOR_PALETTE_STR.background]} />
       <PrimaryLighting />

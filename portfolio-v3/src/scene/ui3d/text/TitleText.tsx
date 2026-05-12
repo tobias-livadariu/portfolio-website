@@ -1,7 +1,7 @@
 import { Text3D } from "@react-three/drei";
 import type { ReadonlyVec3 } from "../../../types/geometry";
 import { THREE_FONTS } from "../../../theme/fonts";
-import { TEXT_GEOMETRY, TEXT_MATERIAL } from "../constants/main-menu.constants";
+import { TEXT_GEOMETRY, TEXT_MATERIAL } from "../main-menu.constants";
 
 interface Props {
   offset: ReadonlyVec3;
@@ -22,6 +22,7 @@ export default function TitleText(props: Props) {
       bevelSize={TEXT_GEOMETRY.bevelSize}
       bevelThickness={TEXT_GEOMETRY.bevelThickness}
       bevelSegments={1}
+      curveSegments={1}
     >
       {children}
       <meshStandardMaterial
@@ -30,6 +31,7 @@ export default function TitleText(props: Props) {
         emissive={TEXT_MATERIAL.frontEmissive}
         emissiveIntensity={TEXT_MATERIAL.frontEmissiveIntensity}
         roughness={TEXT_MATERIAL.frontRoughness}
+        metalness={TEXT_MATERIAL.metalness}
       />
       <meshStandardMaterial
         attach="material-1"
@@ -37,6 +39,7 @@ export default function TitleText(props: Props) {
         emissive={TEXT_MATERIAL.sideEmissive}
         emissiveIntensity={TEXT_MATERIAL.sideEmissiveIntensity}
         roughness={TEXT_MATERIAL.sideRoughness}
+        metalness={TEXT_MATERIAL.metalness}
       />
     </Text3D>
   );

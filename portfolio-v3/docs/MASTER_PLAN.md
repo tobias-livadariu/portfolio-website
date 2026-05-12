@@ -1,6 +1,6 @@
 # Portfolio V3 Master Plan
 
-This document is the working implementation plan for the next portfolio. It preserves the soul of `portfolio-v2`: Tobias in the top-left, a compact interactive menu, dotted separators, blocky arrows, and an orbiting pixel-space background. V3 should make that scene feel physically present: 3D mesh text, a small camera head-shift, 3D separators/arrows, a lightbulb dot over the `i`, and a performant 2.5D space field.
+This document is the working implementation plan for the next portfolio. It preserves the soul of `portfolio-v2`: Tobias in the top-left, a compact interactive menu, dotted separators, blocky arrows, and an orbiting pixel-space background. V3 should make that scene feel physically present: 3D mesh text, a perspective camera, a small camera head-shift, 3D separators/arrows, a lightbulb dot over the `i`, and a performant dimensional space field.
 
 ## Current V2 Baseline
 
@@ -23,6 +23,7 @@ Recommended stack:
 - `@react-three/fiber` as the Three.js renderer.
 - `@react-three/drei` for `Text3D`, asset helpers, loaders, `Preload`, and possibly `Html`.
 - Three.js custom `InstancedMesh` or `InstancedBufferGeometry` for stars, separator dots, arrows, and planet billboards.
+- Use a perspective camera as the primary camera. The top-left interface remains anchored through camera-plane math rather than an orthographic projection.
 - Zustand or a small React context for active section/menu state.
 - Tailwind is optional. Use it for DOM overlays and accessibility hit targets if it remains lightweight.
 - Avoid a server requirement for the portfolio. Prefer static generation and static hosting unless a future feature truly needs dynamic data.
@@ -65,7 +66,7 @@ Content panels:
 - If using Drei `Html`, keep it visually integrated with the 3D frame rather than a detached web card.
 - `About`: short readable bio plus one or two small 3D props.
 - `Resume`: concise experience/skills view with a direct resume PDF link.
-- `Portfolio`: project list with small 2.5D thumbnails, not a huge gallery grid.
+- `Portfolio`: project list with small dimensional thumbnails, not a huge gallery grid.
 - `Contact Me`: email/social links with obvious focus states.
 
 Navigation:
@@ -98,10 +99,10 @@ V3 should inherit the core `portfolio-v2` palette rather than introducing a new 
 - Pure black `#000000` remains useful for pixel outlines, occlusion, and hard shadow edges.
 
 - Use low-poly or beveled box geometry for UI objects.
-- Prefer orthographic camera for the top-left UI and background composition. It preserves the pixel/block feel and makes responsive anchoring easier.
-- Use a slight perspective/parallax layer if needed, but keep the camera movement minor.
+- Use a perspective camera for the primary scene. The design should lean into real depth and perspective rather than reproducing `portfolio-v2` as a flatter orthographic UI.
+- Keep the top-left identity stable by computing the visible camera plane at the menu/content depth and anchoring objects relative to that plane.
 - Camera head-shift should be subtle: pointer movement maps to a small camera position/rotation offset, eased over time.
-- The planet sprites remain 2D pixel assets on billboarded planes. This is intentional 2.5D, not a compromise.
+- The planet sprites remain pixel assets on billboarded planes, but their size and apparent depth should come from actual perspective placement in the scene rather than manually faked distance scaling.
 - Add depth using soft shadows, rim lighting, ambient light, and a small drop-shadow plane/glow behind planet billboards.
 
 Lighting:
@@ -117,7 +118,7 @@ Use one shared Three canvas. Avoid a separate Pixi layer.
 
 Coordinate model:
 
-- Define a stable world origin corresponding to the top-left focal point.
+- Define a stable world origin/focal region corresponding to the top-left interface and use camera-plane math to keep it responsive under perspective projection.
 - Keep all orbital objects in polar data: `{ radius, theta0, angularSpeed, z, size, seed, assetId }`.
 - On each frame, compute `theta = theta0 + time * angularSpeed`.
 - For responsive layouts, update camera projection and focal origin mapping, not the entire object dataset.
@@ -135,6 +136,7 @@ Planets:
 
 - Do not use GIF files directly. Use PNG/WebP/AVIF spritesheets or texture atlases.
 - Use billboarded planes that face the camera.
+- Place planets at meaningful world-space Z depths so perspective naturally changes their apparent size and motion relationship to the camera.
 - Group planets by atlas/material to reduce draw calls.
 - For many animated planets, prefer a custom instanced billboard shader with per-instance atlas frame data rather than one mesh/material per planet.
 - Keep startup planet count modest, then lazy-load additional atlases after first paint.
@@ -171,7 +173,7 @@ Resize:
 Mobile and responsiveness:
 
 - Build one responsive 3D design for desktop, tablet, and mobile first.
-- Do not create a separate simplified 2.5D mobile experience unless profiling proves the full treatment is too slow or too cramped.
+- Do not create a separate simplified mobile experience unless profiling proves the full treatment is too slow or too cramped.
 - Mobile may use lower density constants, lower DPR cap, shorter transition durations, or fewer visible planet instances while preserving the same interaction model.
 - Target 60 FPS where practical, but 30 FPS is the acceptable mobile floor for the first implementation.
 
@@ -275,7 +277,7 @@ portfolio-v3/
 Phase 1: technical prototype
 
 - Scaffold Vite + React + TypeScript + R3F + Drei.
-- Create the single canvas, orthographic camera, ambient light, and lightbulb light.
+- Create the single canvas, perspective camera, ambient light, and lightbulb light.
 - Render top-left 3D text with `Text3D`.
 - Add pointer-driven camera head-shift.
 - Add basic 3D menu hit targets and hover arrows.
@@ -328,6 +330,7 @@ Future agents should follow these rules:
 
 ## Settled Decisions
 
+- V3 uses a perspective camera as the primary scene camera. Top-left anchoring is handled through camera-plane math, not by returning to an orthographic UI projection.
 - Section order remains the v2 order: `About`, `Resume`, `Portfolio`, `Contact Me`.
 - Content panels use hybrid rendering: 3D mesh titles/subtitles and 3D frames, with HTML body text for readability.
 - Navigation supports both menu clicks and scroll progression.
