@@ -70,7 +70,7 @@ const LAYOUT_MARGINS = {
   introToFirstName: 0.232,
   firstNameToLastName: 0.21,
   lastNameToUpperSeparator: 0.0775,
-  upperSeparatorToFirstNavItem: 0.163,
+  upperSeparatorToFirstNavItem: 0.18,
   navItemGap: 0.195,
   lastNavItemToLowerSeparator: 0.163,
 } as const;
@@ -132,11 +132,11 @@ export const MENU_ANIMATION = {
     introToFirstName: 0.008,
     firstNameToLastName: 0.008,
     lastNameToUpperSeparator: 0.01225,
-    upperSeparatorToFirstNavItem: 0.015,
+    upperSeparatorToFirstNavItem: 0.012,
     navItem1ToNavItem2: 0.014,
     navItem2ToNavItem3: 0.014,
     navItem3ToNavItem4: 0.014,
-    lastNavItemToLowerSeparator: 0.018,
+    lastNavItemToLowerSeparator: 0.02628,
   },
   // Added/subtracted from LAYOUT.mainMenuRotation[1]. This uses the same master
   // oscillator as the vertical motion, so the twist and accordion motion feel
