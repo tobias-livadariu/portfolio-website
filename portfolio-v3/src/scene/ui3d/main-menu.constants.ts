@@ -67,10 +67,10 @@ export const TEXT_GEOMETRY = {
 const LAYOUT_MARGINS = {
   introToFirstName: 0.232,
   firstNameToLastName: 0.21,
-  lastNameToUpperSeparator: 0.1,
-  upperSeparatorToFirstNavItem: 0.14,
-  navItemGap: 0.22,
-  lastNavItemToLowerSeparator: 0.24,
+  lastNameToUpperSeparator: 0.0775,
+  upperSeparatorToFirstNavItem: 0.163,
+  navItemGap: 0.195,
+  lastNavItemToLowerSeparator: 0.163,
 } as const;
 
 function nextY(currentY: number, margin: number) {
