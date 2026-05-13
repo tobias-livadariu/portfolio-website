@@ -18,9 +18,10 @@ export const LAYOUT = {
   mainMenuRotation: [0, -0.22, 0],
   marginX: 0.28,
   marginY: 0.42,
-  introOffset: [0, 0, 0],
-  firstNameOffset: [0, -0.2, 0],
-  lastNameOffset: [0, -0.43, 0],
+  contentCenterX: 0.89,
+  introOffset: [0.89, 0, 0],
+  firstNameOffset: [0.89, -0.2, 0],
+  lastNameOffset: [0.89, -0.43, 0],
   upperSeparatorStartOffset: [0, -0.68, 0],
   upperSeparatorEndOffset: [1.78, -0.68, 0],
   navItemOffsets: [
@@ -33,9 +34,8 @@ export const LAYOUT = {
   lowerSeparatorEndOffset: [1.78, -1.72, 0],
   separatorSegmentSize: [0.018, 0.018, 0.045],
   separatorSegmentCount: 48,
-  navArrowOffsetX: 0.08,
-  navTextOffsetX: 0.22,
-  navRightArrowOffsetX: 1.52,
+  navTextCenterX: 0.89,
+  navArrowGap: 0.055,
 } as const;
 
 export const RESPONSIVE_SCALE = {
@@ -55,6 +55,7 @@ export const TEXT_GEOMETRY = {
 
 export const ARROW_GEOMETRY = {
   blockSize: 0.045,
+  columnCount: 8,
   depth: 0.045,
   color: COLOR_PALETTE_STR.campfireAsh,
   emissiveIntensity: 0.2,
