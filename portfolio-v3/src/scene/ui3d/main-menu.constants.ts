@@ -126,8 +126,8 @@ export const MENU_ANIMATION = {
   verticalMarginAmplitudes: {
     introToFirstName: 0.008,
     firstNameToLastName: 0.008,
-    lastNameToUpperSeparator: 0.012,
-    upperSeparatorToFirstNavItem: 0.018,
+    lastNameToUpperSeparator: 0.01225,
+    upperSeparatorToFirstNavItem: 0.015,
     navItem1ToNavItem2: 0.014,
     navItem2ToNavItem3: 0.014,
     navItem3ToNavItem4: 0.014,
