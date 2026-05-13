@@ -139,10 +139,11 @@ function interpolateRotation(
 
 export function getAnimatedMainMenuRotation(
   elapsedSeconds: number,
+  troughRotation: ReadonlyVec3,
   peakRotation: ReadonlyVec3,
 ) {
   return interpolateRotation(
-    LAYOUT.mainMenuRotation,
+    troughRotation,
     peakRotation,
     getTroughToPeakProgress(elapsedSeconds),
   );
@@ -171,6 +172,7 @@ export function useAnimatedMenuPosition(
 
 export function useAnimatedMainMenuRotation(
   objectRef: RefObject<Object3D | null>,
+  troughRotation: ReadonlyVec3,
   peakRotation: ReadonlyVec3,
 ) {
   useFrame(({ clock }) => {
@@ -182,6 +184,7 @@ export function useAnimatedMainMenuRotation(
 
     const animatedRotation = getAnimatedMainMenuRotation(
       clock.getElapsedTime(),
+      troughRotation,
       peakRotation,
     );
 

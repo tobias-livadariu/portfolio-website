@@ -13,6 +13,10 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function lerp(start: number, end: number, progress: number) {
+  return start + (end - start) * progress;
+}
+
 export default function MainMenu() {
   const menuRef = useRef<Group>(null);
   const { camera, size } = useThree();
@@ -21,6 +25,28 @@ export default function MainMenu() {
     RESPONSIVE_SCALE.min,
     RESPONSIVE_SCALE.max,
   );
+  const viewportWidthRatio = clamp(
+    size.width / RESPONSIVE_SCALE.referenceWidth,
+    0,
+    1,
+  );
+  const troughRotationScaleProgress = clamp(
+    (viewportWidthRatio - RESPONSIVE_SCALE.minTroughRotationWidthRatio) /
+      (RESPONSIVE_SCALE.referenceScale -
+        RESPONSIVE_SCALE.minTroughRotationWidthRatio),
+    0,
+    1,
+  );
+  const troughRotationScale = lerp(
+    RESPONSIVE_SCALE.minTroughRotationScale,
+    RESPONSIVE_SCALE.maxTroughRotationScale,
+    troughRotationScaleProgress,
+  );
+  const troughRotation = [
+    LAYOUT.mainMenuRotation[0] * troughRotationScale,
+    LAYOUT.mainMenuRotation[1] * troughRotationScale,
+    LAYOUT.mainMenuRotation[2] * troughRotationScale,
+  ] as const;
 
   const topLeftPosition = useTopLeftPosition({
     marginX: LAYOUT.marginX * scale,
@@ -37,13 +63,17 @@ export default function MainMenu() {
     camera.position,
   );
 
-  useAnimatedMainMenuRotation(menuRef, cameraFacingPeakRotation);
+  useAnimatedMainMenuRotation(
+    menuRef,
+    troughRotation,
+    cameraFacingPeakRotation,
+  );
 
   return (
     <group
       ref={menuRef}
       position={topLeftPosition}
-      rotation={LAYOUT.mainMenuRotation}
+      rotation={troughRotation}
       scale={scale}
     >
       <Title offset={[0, 0, 0]} />

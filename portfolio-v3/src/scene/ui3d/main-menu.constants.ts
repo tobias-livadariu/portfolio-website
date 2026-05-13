@@ -238,6 +238,15 @@ export const LAYOUT = {
 // min, which keeps it readable on narrow screens.
 export const RESPONSIVE_SCALE = {
   referenceWidth: 1440,
+  referenceScale: 1,
   min: 0.83,
   max: 1.15,
+  // Viewport-width ratio where trough rotation reaches minTroughRotationScale.
+  // For example, 0.26 means widths around 26% of referenceWidth use the maximum
+  // mobile trough exaggeration.
+  minTroughRotationWidthRatio: 0.26,
+  // Rotation multiplier used at minTroughRotationWidthRatio and below.
+  minTroughRotationScale: 2,
+  // Rotation multiplier used once the viewport reaches referenceWidth.
+  maxTroughRotationScale: 1,
 } as const;
