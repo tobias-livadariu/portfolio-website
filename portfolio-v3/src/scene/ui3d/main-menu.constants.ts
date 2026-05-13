@@ -120,6 +120,11 @@ export const MENU_ANIMATION = {
   // Larger values create a more obvious accordion/tension wave; smaller values
   // make the stack move more like one rigid object.
   verticalPropagationDelaySeconds: 0.055,
+  // Uniform vertical spacing multipliers. The first value scales the static
+  // LAYOUT_MARGINS center-line gaps; the second value scales the animated
+  // verticalMarginAmplitudes. Use this to preserve all ratios while changing
+  // either the resting menu height or the accordion intensity.
+  verticalMarginScales: [1.05, 1.25],
   // Maximum signed change for each center-line gap. Positive oscillator values
   // expand the gap; negative values compress it. These keys intentionally match
   // LAYOUT_MARGINS so each resting gap has a matching animated amplitude.
@@ -149,7 +154,7 @@ export const MENU_ANIMATION = {
 } as const;
 
 function nextY(currentY: number, margin: number) {
-  return currentY - margin;
+  return currentY - margin * MENU_ANIMATION.verticalMarginScales[0];
 }
 
 const introY = 0;

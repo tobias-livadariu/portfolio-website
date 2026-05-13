@@ -5,14 +5,22 @@ import type { ReadonlyVec3 } from "../../../types/geometry";
 import { LAYOUT, MENU_ANIMATION } from "../main-menu.constants";
 
 const VERTICAL_MARGIN_AMPLITUDES = [
-  MENU_ANIMATION.verticalMarginAmplitudes.introToFirstName,
-  MENU_ANIMATION.verticalMarginAmplitudes.firstNameToLastName,
-  MENU_ANIMATION.verticalMarginAmplitudes.lastNameToUpperSeparator,
-  MENU_ANIMATION.verticalMarginAmplitudes.upperSeparatorToFirstNavItem,
-  MENU_ANIMATION.verticalMarginAmplitudes.navItem1ToNavItem2,
-  MENU_ANIMATION.verticalMarginAmplitudes.navItem2ToNavItem3,
-  MENU_ANIMATION.verticalMarginAmplitudes.navItem3ToNavItem4,
-  MENU_ANIMATION.verticalMarginAmplitudes.lastNavItemToLowerSeparator,
+  MENU_ANIMATION.verticalMarginAmplitudes.introToFirstName *
+    MENU_ANIMATION.verticalMarginScales[1],
+  MENU_ANIMATION.verticalMarginAmplitudes.firstNameToLastName *
+    MENU_ANIMATION.verticalMarginScales[1],
+  MENU_ANIMATION.verticalMarginAmplitudes.lastNameToUpperSeparator *
+    MENU_ANIMATION.verticalMarginScales[1],
+  MENU_ANIMATION.verticalMarginAmplitudes.upperSeparatorToFirstNavItem *
+    MENU_ANIMATION.verticalMarginScales[1],
+  MENU_ANIMATION.verticalMarginAmplitudes.navItem1ToNavItem2 *
+    MENU_ANIMATION.verticalMarginScales[1],
+  MENU_ANIMATION.verticalMarginAmplitudes.navItem2ToNavItem3 *
+    MENU_ANIMATION.verticalMarginScales[1],
+  MENU_ANIMATION.verticalMarginAmplitudes.navItem3ToNavItem4 *
+    MENU_ANIMATION.verticalMarginScales[1],
+  MENU_ANIMATION.verticalMarginAmplitudes.lastNavItemToLowerSeparator *
+    MENU_ANIMATION.verticalMarginScales[1],
 ] as const;
 
 function clamp(value: number, min: number, max: number) {
