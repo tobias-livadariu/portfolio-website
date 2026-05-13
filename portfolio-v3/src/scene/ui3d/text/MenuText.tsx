@@ -20,23 +20,29 @@ interface Props {
 export default function MenuText(props: Props) {
   const { offset, size, children, isHovered = false, onBoundsChange } = props;
   const frontColor = isHovered
-    ? TEXT_MATERIAL.hoverColor
+    ? TEXT_MATERIAL.hoveredFrontColor
     : TEXT_MATERIAL.frontColor;
   const sideColor = isHovered
-    ? TEXT_MATERIAL.hoverColor
+    ? TEXT_MATERIAL.hoveredSideColor
     : TEXT_MATERIAL.sideColor;
   const frontEmissive = isHovered
-    ? TEXT_MATERIAL.hoverEmissive
+    ? TEXT_MATERIAL.hoveredFrontEmissive
     : TEXT_MATERIAL.frontEmissive;
   const sideEmissive = isHovered
-    ? TEXT_MATERIAL.hoverEmissive
+    ? TEXT_MATERIAL.hoveredSideEmissive
     : TEXT_MATERIAL.sideEmissive;
   const frontEmissiveIntensity = isHovered
-    ? TEXT_MATERIAL.hoverEmissiveIntensity
+    ? TEXT_MATERIAL.hoveredFrontEmissiveIntensity
     : TEXT_MATERIAL.frontEmissiveIntensity;
   const sideEmissiveIntensity = isHovered
-    ? TEXT_MATERIAL.hoverEmissiveIntensity
+    ? TEXT_MATERIAL.hoveredSideEmissiveIntensity
     : TEXT_MATERIAL.sideEmissiveIntensity;
+  const frontRoughness = isHovered
+    ? TEXT_MATERIAL.hoveredFrontRoughness
+    : TEXT_MATERIAL.frontRoughness;
+  const sideRoughness = isHovered
+    ? TEXT_MATERIAL.hoveredSideRoughness
+    : TEXT_MATERIAL.sideRoughness;
 
   return (
     <Center
@@ -63,7 +69,7 @@ export default function MenuText(props: Props) {
           color={frontColor}
           emissive={frontEmissive}
           emissiveIntensity={frontEmissiveIntensity}
-          roughness={TEXT_MATERIAL.frontRoughness}
+          roughness={frontRoughness}
           metalness={TEXT_MATERIAL.metalness}
         />
         <meshStandardMaterial
@@ -71,7 +77,7 @@ export default function MenuText(props: Props) {
           color={sideColor}
           emissive={sideEmissive}
           emissiveIntensity={sideEmissiveIntensity}
-          roughness={TEXT_MATERIAL.sideRoughness}
+          roughness={sideRoughness}
           metalness={TEXT_MATERIAL.metalness}
         />
       </Text3D>

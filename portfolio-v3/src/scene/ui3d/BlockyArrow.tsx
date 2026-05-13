@@ -1,5 +1,5 @@
 import type { ReadonlyVec3 } from "../../types/geometry";
-import { ARROW_GEOMETRY } from "./main-menu.constants";
+import { ARROW_GEOMETRY, TEXT_MATERIAL } from "./main-menu.constants";
 
 interface Props {
   offset: ReadonlyVec3;
@@ -37,6 +37,38 @@ const ARROW_BLOCKS = [
   [3, -3, 0],
 ] as const;
 
+// BoxGeometry creates six material groups: +x, -x, +y, -y, +z, -z.
+// The menu camera sees the +z face as the arrow front, while the remaining
+// faces should use the same darker side material as hovered Text3D extrusion.
+const BOX_FRONT_MATERIAL_INDEX = 4;
+const BOX_SIDE_MATERIAL_INDICES = [0, 1, 2, 3, 5] as const;
+
+function ArrowFrontMaterial() {
+  return (
+    <meshStandardMaterial
+      attach={`material-${BOX_FRONT_MATERIAL_INDEX}`}
+      color={TEXT_MATERIAL.hoveredFrontColor}
+      emissive={TEXT_MATERIAL.hoveredFrontEmissive}
+      emissiveIntensity={TEXT_MATERIAL.hoveredFrontEmissiveIntensity}
+      roughness={TEXT_MATERIAL.hoveredFrontRoughness}
+      metalness={TEXT_MATERIAL.metalness}
+    />
+  );
+}
+
+function ArrowSideMaterial(props: { materialIndex: number }) {
+  return (
+    <meshStandardMaterial
+      attach={`material-${props.materialIndex}`}
+      color={TEXT_MATERIAL.hoveredSideColor}
+      emissive={TEXT_MATERIAL.hoveredSideEmissive}
+      emissiveIntensity={TEXT_MATERIAL.hoveredSideEmissiveIntensity}
+      roughness={TEXT_MATERIAL.hoveredSideRoughness}
+      metalness={TEXT_MATERIAL.metalness}
+    />
+  );
+}
+
 export default function BlockyArrow(props: Props) {
   const { offset, flipped = false } = props;
   const direction = flipped ? -1 : 1;
@@ -60,12 +92,13 @@ export default function BlockyArrow(props: Props) {
               ARROW_GEOMETRY.depth,
             ]}
           />
-          <meshStandardMaterial
-            color={ARROW_GEOMETRY.color}
-            emissive={ARROW_GEOMETRY.color}
-            emissiveIntensity={ARROW_GEOMETRY.emissiveIntensity}
-            roughness={0.92}
-          />
+          <ArrowFrontMaterial />
+          {BOX_SIDE_MATERIAL_INDICES.map((materialIndex) => (
+            <ArrowSideMaterial
+              key={materialIndex}
+              materialIndex={materialIndex}
+            />
+          ))}
         </mesh>
       ))}
     </group>

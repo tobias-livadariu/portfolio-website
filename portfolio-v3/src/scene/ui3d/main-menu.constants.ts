@@ -34,8 +34,6 @@ export const ARROW_GEOMETRY = {
   depth: 0.045,
   leftArrowMargin: 0.0635,
   rightArrowMargin: 0.042,
-  color: COLOR_PALETTE_STR.campfireAsh,
-  emissiveIntensity: 0.2,
 } as const;
 
 // Shared material settings for title and nav text. The front material is the
@@ -50,9 +48,14 @@ export const TEXT_MATERIAL = {
   sideEmissive: COLOR_PALETTE_STR.campfireDark,
   sideEmissiveIntensity: 0.8,
   sideRoughness: 0.95,
-  hoverColor: COLOR_PALETTE_STR.campfireAsh,
-  hoverEmissive: COLOR_PALETTE_STR.campfireAsh,
-  hoverEmissiveIntensity: 0.2,
+  hoveredFrontColor: COLOR_PALETTE_STR.campfireAsh,
+  hoveredFrontEmissive: COLOR_PALETTE_STR.campfireAsh,
+  hoveredFrontEmissiveIntensity: 0.14,
+  hoveredFrontRoughness: 0.9,
+  hoveredSideColor: COLOR_PALETTE_STR.campfireAshDark,
+  hoveredSideEmissive: COLOR_PALETTE_STR.campfireAshDark,
+  hoveredSideEmissiveIntensity: 0.32,
+  hoveredSideRoughness: 0.95,
   metalness: 0,
 } as const;
 
@@ -60,7 +63,7 @@ export const TEXT_MATERIAL = {
 // Text3D glyphs are awkward to hit directly; this box gives every row a stable
 // clickable area while remaining visually hidden.
 export const NAV_HITBOX = {
-  paddingX: 0.04,
+  paddingX: 0.01,
   paddingY: 0.035,
   depth: 0.08,
 } as const;
