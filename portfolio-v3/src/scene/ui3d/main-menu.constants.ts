@@ -24,13 +24,50 @@ const LAYOUT_WIDTH = {
   centerX: 0.89,
 } as const;
 
+// Geometry and material values for the block-built nav arrows. columnCount must
+// match the arrow pattern width in BlockyArrow so offsets use the visual center.
+export const ARROW_GEOMETRY = {
+  blockSize: 0.018,
+  columnCount: 8,
+  depth: 0.045,
+  color: COLOR_PALETTE_STR.campfireAsh,
+  emissiveIntensity: 0.2,
+} as const;
+
+// Shared material settings for title and nav text. The front material is the
+// brighter face color; the side material is darker/emissive so extrusion reads
+// as dimensional instead of flat.
+export const TEXT_MATERIAL = {
+  frontColor: COLOR_PALETTE_STR.campfire,
+  frontEmissive: COLOR_PALETTE_STR.campfire,
+  frontEmissiveIntensity: 0.34,
+  frontRoughness: 0.9,
+  sideColor: COLOR_PALETTE_STR.campfireDark,
+  sideEmissive: COLOR_PALETTE_STR.campfireDark,
+  sideEmissiveIntensity: 0.8,
+  sideRoughness: 0.95,
+  metalness: 0,
+} as const;
+
+// Geometry dimensions for all 3D text meshes. Size controls glyph height in
+// world units, height controls extrusion depth, and bevel values create the
+// small blocky side highlight without rounding the pixel forms too much.
+export const TEXT_GEOMETRY = {
+  introSize: 0.11,
+  nameSize: 0.135,
+  navItemSize: 0.12,
+  height: 0.045,
+  bevelSize: 0.002,
+  bevelThickness: 0.003,
+} as const;
+
 // Vertical spacing model for the menu. Each value is the downward distance from
 // one element's center line to the next element's center line. Adjusting one gap
 // automatically pushes every following offset down/up when LAYOUT is computed.
 const LAYOUT_MARGINS = {
-  introToFirstName: 0.25,
-  firstNameToLastName: 0.23,
-  lastNameToUpperSeparator: 0.25,
+  introToFirstName: 0.232,
+  firstNameToLastName: 0.21,
+  lastNameToUpperSeparator: 0.1,
   upperSeparatorToFirstNavItem: 0.14,
   navItemGap: 0.22,
   lastNavItemToLowerSeparator: 0.24,
@@ -123,41 +160,4 @@ export const RESPONSIVE_SCALE = {
   referenceWidth: 1440,
   min: 0.54,
   max: 1,
-} as const;
-
-// Geometry dimensions for all 3D text meshes. Size controls glyph height in
-// world units, height controls extrusion depth, and bevel values create the
-// small blocky side highlight without rounding the pixel forms too much.
-export const TEXT_GEOMETRY = {
-  introSize: 0.095,
-  nameSize: 0.135,
-  navItemSize: 0.12,
-  height: 0.045,
-  bevelSize: 0.002,
-  bevelThickness: 0.003,
-} as const;
-
-// Geometry and material values for the block-built nav arrows. columnCount must
-// match the arrow pattern width in BlockyArrow so offsets use the visual center.
-export const ARROW_GEOMETRY = {
-  blockSize: 0.045,
-  columnCount: 8,
-  depth: 0.045,
-  color: COLOR_PALETTE_STR.campfireAsh,
-  emissiveIntensity: 0.2,
-} as const;
-
-// Shared material settings for title and nav text. The front material is the
-// brighter face color; the side material is darker/emissive so extrusion reads
-// as dimensional instead of flat.
-export const TEXT_MATERIAL = {
-  frontColor: COLOR_PALETTE_STR.campfire,
-  frontEmissive: COLOR_PALETTE_STR.campfire,
-  frontEmissiveIntensity: 0.34,
-  frontRoughness: 0.9,
-  sideColor: COLOR_PALETTE_STR.campfireDark,
-  sideEmissive: COLOR_PALETTE_STR.campfireDark,
-  sideEmissiveIntensity: 0.8,
-  sideRoughness: 0.95,
-  metalness: 0,
 } as const;
