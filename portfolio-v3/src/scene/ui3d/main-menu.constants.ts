@@ -141,7 +141,7 @@ export const MENU_ANIMATION = {
   // Added/subtracted from LAYOUT.mainMenuRotation[1]. This uses the same master
   // oscillator as the vertical motion, so the twist and accordion motion feel
   // like one hanging object rather than separate effects.
-  rotationAmplitudeY: 0.035,
+  rotationAmplitudeY: 0.0425,
   // Maximum one-direction Y pull for individual separator cubes. The separator
   // wave uses a 0 -> 1 -> 0 signal, so the dots are straight at rest and only
   // bend toward this signed value during the pull. Negative bends upward;
@@ -181,7 +181,7 @@ export const LAYOUT = {
   z: 0,
   // Base rotation for the whole menu. The negative Y value lets the extruded
   // text and boxes reveal their 3D sides instead of looking flat.
-  mainMenuRotation: [0, -0.05, 0],
+  mainMenuRotation: [0, -0.0425, 0],
   // Top-left inset from the camera's visible bounds before responsive scaling.
   // Larger values push the menu farther down/right from the viewport edge.
   marginX: 0.12,
