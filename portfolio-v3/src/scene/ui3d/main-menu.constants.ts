@@ -16,6 +16,49 @@ export const NAV_ITEMS = [
   { key: "contactMe", label: "Contact Me" },
 ] as const;
 
+// Horizontal bounds for the separator rows. Keeping this separate from vertical
+// spacing means you can widen/narrow the menu without touching row positions.
+const LAYOUT_WIDTH = {
+  leftX: 0,
+  rightX: 1.78,
+  centerX: 0.89,
+} as const;
+
+// Vertical spacing model for the menu. Each value is the downward distance from
+// one element's center line to the next element's center line. Adjusting one gap
+// automatically pushes every following offset down/up when LAYOUT is computed.
+const LAYOUT_MARGINS = {
+  introToFirstName: 0.25,
+  firstNameToLastName: 0.23,
+  lastNameToUpperSeparator: 0.25,
+  upperSeparatorToFirstNavItem: 0.14,
+  navItemGap: 0.22,
+  lastNavItemToLowerSeparator: 0.24,
+} as const;
+
+function nextY(currentY: number, margin: number) {
+  return currentY - margin;
+}
+
+const introY = 0;
+const firstNameY = nextY(introY, LAYOUT_MARGINS.introToFirstName);
+const lastNameY = nextY(firstNameY, LAYOUT_MARGINS.firstNameToLastName);
+const upperSeparatorY = nextY(
+  lastNameY,
+  LAYOUT_MARGINS.lastNameToUpperSeparator,
+);
+const firstNavItemY = nextY(
+  upperSeparatorY,
+  LAYOUT_MARGINS.upperSeparatorToFirstNavItem,
+);
+const secondNavItemY = nextY(firstNavItemY, LAYOUT_MARGINS.navItemGap);
+const thirdNavItemY = nextY(secondNavItemY, LAYOUT_MARGINS.navItemGap);
+const fourthNavItemY = nextY(thirdNavItemY, LAYOUT_MARGINS.navItemGap);
+const lowerSeparatorY = nextY(
+  fourthNavItemY,
+  LAYOUT_MARGINS.lastNavItemToLowerSeparator,
+);
+
 // World-space layout for the complete 3D menu. These values are authored in the
 // menu group's local coordinate system, then MainMenu anchors and scales the
 // entire group relative to the camera's top-left visible plane.
@@ -32,26 +75,26 @@ export const LAYOUT = {
   marginY: 0.42,
   // Shared horizontal center line for title and nav text. Separators span from
   // x=0 to x=1.78, so 0.89 is the visual center of the menu column.
-  contentCenterX: 0.89,
+  contentCenterX: LAYOUT_WIDTH.centerX,
   // Title line origins. TitleText horizontally centers each Text3D mesh around
   // these x positions, so text length changes do not require manual offsets.
-  introOffset: [0.89, 0, 0],
-  firstNameOffset: [0.89, -0.2, 0],
-  lastNameOffset: [0.89, -0.43, 0],
+  introOffset: [LAYOUT_WIDTH.centerX, introY, 0],
+  firstNameOffset: [LAYOUT_WIDTH.centerX, firstNameY, 0],
+  lastNameOffset: [LAYOUT_WIDTH.centerX, lastNameY, 0],
   // Separator endpoints. The dotted-line component interpolates every dot's
   // center between these points, so all dot centers sit on one straight line.
-  upperSeparatorStartOffset: [0, -0.68, 0],
-  upperSeparatorEndOffset: [1.78, -0.68, 0],
+  upperSeparatorStartOffset: [LAYOUT_WIDTH.leftX, upperSeparatorY, 0],
+  upperSeparatorEndOffset: [LAYOUT_WIDTH.rightX, upperSeparatorY, 0],
   // Row origins for the nav entries. Each row then measures its own text bounds
   // and positions arrows around that measured text.
   navItemOffsets: [
-    [0, -0.82, 0],
-    [0, -1.04, 0],
-    [0, -1.26, 0],
-    [0, -1.48, 0],
+    [LAYOUT_WIDTH.leftX, firstNavItemY, 0],
+    [LAYOUT_WIDTH.leftX, secondNavItemY, 0],
+    [LAYOUT_WIDTH.leftX, thirdNavItemY, 0],
+    [LAYOUT_WIDTH.leftX, fourthNavItemY, 0],
   ],
-  lowerSeparatorStartOffset: [0, -1.72, 0],
-  lowerSeparatorEndOffset: [1.78, -1.72, 0],
+  lowerSeparatorStartOffset: [LAYOUT_WIDTH.leftX, lowerSeparatorY, 0],
+  lowerSeparatorEndOffset: [LAYOUT_WIDTH.rightX, lowerSeparatorY, 0],
   // Smallest cube size at the far left and right ends of each separator.
   separatorMinSegmentSize: 0.007,
   // Largest cube size used through the middle plateau of each separator.
@@ -67,7 +110,7 @@ export const LAYOUT = {
   separatorGrowthPower: 0.42,
   // Horizontal center for nav labels. MenuText reports real Text3D bounds, and
   // NavItem places arrows around those measured bounds.
-  navTextCenterX: 0.89,
+  navTextCenterX: LAYOUT_WIDTH.centerX,
   // Empty space between measured text edges and arrow edges. This is the only
   // subjective arrow spacing knob; text width itself is measured automatically.
   navArrowGap: 0.055,
