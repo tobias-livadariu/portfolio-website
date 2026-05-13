@@ -110,8 +110,8 @@ export const LAYOUT = {
   mainMenuRotation: [0, -0.05, 0],
   // Top-left inset from the camera's visible bounds before responsive scaling.
   // Larger values push the menu farther down/right from the viewport edge.
-  marginX: 0.28,
-  marginY: 0.42,
+  marginX: 0.12,
+  marginY: 0.32,
   // Shared horizontal center line for title and nav text. Separators span from
   // x=0 to x=1.78, so 0.89 is the visual center of the menu column.
   contentCenterX: LAYOUT_WIDTH.centerX,
