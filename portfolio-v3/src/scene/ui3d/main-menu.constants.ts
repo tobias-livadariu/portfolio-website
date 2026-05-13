@@ -30,6 +30,8 @@ export const ARROW_GEOMETRY = {
   blockSize: 0.018,
   columnCount: 8,
   depth: 0.045,
+  leftArrowMargin: 0.0635,
+  rightArrowMargin: 0.042,
   color: COLOR_PALETTE_STR.campfireAsh,
   emissiveIntensity: 0.2,
 } as const;
@@ -105,7 +107,7 @@ export const LAYOUT = {
   z: 0,
   // Base rotation for the whole menu. The negative Y value lets the extruded
   // text and boxes reveal their 3D sides instead of looking flat.
-  mainMenuRotation: [0, -0.22, 0],
+  mainMenuRotation: [0, -0.05, 0],
   // Top-left inset from the camera's visible bounds before responsive scaling.
   // Larger values push the menu farther down/right from the viewport edge.
   marginX: 0.28,
@@ -148,9 +150,6 @@ export const LAYOUT = {
   // Horizontal center for nav labels. MenuText reports real Text3D bounds, and
   // NavItem places arrows around those measured bounds.
   navTextCenterX: LAYOUT_WIDTH.centerX,
-  // Empty space between measured text edges and arrow edges. This is the only
-  // subjective arrow spacing knob; text width itself is measured automatically.
-  navArrowGap: 0.055,
 } as const;
 
 // Width-based scale for the whole menu group. At referenceWidth and above the

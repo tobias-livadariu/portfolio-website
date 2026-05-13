@@ -17,13 +17,13 @@ export default function NavItem(props: Props) {
   const leftArrowX = textBounds
     ? LAYOUT.navTextCenterX -
       textBounds.width / 2 -
-      LAYOUT.navArrowGap -
+      ARROW_GEOMETRY.leftArrowMargin -
       arrowWidth / 2
     : LAYOUT.navTextCenterX;
   const rightArrowX = textBounds
     ? LAYOUT.navTextCenterX +
       textBounds.width / 2 +
-      LAYOUT.navArrowGap +
+      ARROW_GEOMETRY.rightArrowMargin +
       arrowWidth / 2
     : LAYOUT.navTextCenterX;
 
