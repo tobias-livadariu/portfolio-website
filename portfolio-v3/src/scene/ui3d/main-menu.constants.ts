@@ -238,6 +238,6 @@ export const LAYOUT = {
 // min, which keeps it readable on narrow screens.
 export const RESPONSIVE_SCALE = {
   referenceWidth: 1440,
-  min: 0.54,
-  max: 1,
+  min: 0.83,
+  max: 1.15,
 } as const;
