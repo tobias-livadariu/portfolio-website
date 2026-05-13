@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { Group } from "three";
 import useTopLeftPosition from "../hooks/useTopLeftPosition";
+import { CAMERA_PROPS } from "../canvas.constants";
 import { LAYOUT, RESPONSIVE_SCALE } from "./main-menu.constants";
 import { useAnimatedMainMenuRotation } from "./hooks/useMainMenuAnimation";
 import getCameraFacingRotation from "./utils/getCameraFacingRotation";
@@ -19,7 +20,7 @@ function lerp(start: number, end: number, progress: number) {
 
 export default function MainMenu() {
   const menuRef = useRef<Group>(null);
-  const { camera, size } = useThree();
+  const { size } = useThree();
   const scale = clamp(
     size.width / RESPONSIVE_SCALE.referenceWidth,
     RESPONSIVE_SCALE.min,
@@ -49,6 +50,7 @@ export default function MainMenu() {
   ] as const;
 
   const topLeftPosition = useTopLeftPosition({
+    cameraPosition: CAMERA_PROPS.position,
     marginX: LAYOUT.marginX * scale,
     marginY: LAYOUT.marginY * scale,
     z: LAYOUT.z,
@@ -60,7 +62,7 @@ export default function MainMenu() {
   ] as const;
   const cameraFacingPeakRotation = getCameraFacingRotation(
     rotationFocusPosition,
-    camera.position,
+    CAMERA_PROPS.position,
   );
 
   useAnimatedMainMenuRotation(
