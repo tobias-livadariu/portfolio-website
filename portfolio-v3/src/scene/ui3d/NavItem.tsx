@@ -1,16 +1,20 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ReadonlyVec3 } from "../../types/geometry";
+import type { Group } from "three";
 import BlockyArrow from "./BlockyArrow";
 import { ARROW_GEOMETRY, LAYOUT, TEXT_GEOMETRY } from "./main-menu.constants";
+import { useAnimatedMenuPosition } from "./hooks/useMainMenuAnimation";
 import MenuText, { type TextBounds } from "./text/MenuText";
 
 interface Props {
   label: string;
   offset: ReadonlyVec3;
+  animationIndex: number;
 }
 
 export default function NavItem(props: Props) {
-  const { label, offset } = props;
+  const { label, offset, animationIndex } = props;
+  const groupRef = useRef<Group>(null);
   const [textBounds, setTextBounds] = useState<TextBounds | null>(null);
   const arrowWidth = ARROW_GEOMETRY.columnCount * ARROW_GEOMETRY.blockSize;
   const textCenterY = textBounds ? -textBounds.centerY : 0;
@@ -42,8 +46,10 @@ export default function NavItem(props: Props) {
     });
   }, []);
 
+  useAnimatedMenuPosition(groupRef, offset, animationIndex);
+
   return (
-    <group position={offset}>
+    <group ref={groupRef} position={offset}>
       {textBounds && <BlockyArrow offset={[leftArrowX, 0, 0]} flipped />}
       <MenuText
         offset={[LAYOUT.navTextCenterX, textCenterY, 0]}

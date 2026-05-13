@@ -75,6 +75,79 @@ const LAYOUT_MARGINS = {
   lastNavItemToLowerSeparator: 0.163,
 } as const;
 
+// Stable animation indices for every vertically stacked menu element. These are
+// used by the animation hook to decide how many spring-like gaps are above an
+// element and therefore how much accumulated Y movement that element receives.
+export const MENU_ELEMENT_INDEX = {
+  intro: 0,
+  firstName: 1,
+  lastName: 2,
+  upperSeparator: 3,
+  about: 4,
+  resume: 5,
+  portfolio: 6,
+  contactMe: 7,
+  lowerSeparator: 8,
+} as const;
+
+// Periodic idle animation for the menu. The math uses a sine wave, which is the
+// idealized motion of a Hooke's-law spring: it starts slow, speeds up around the
+// middle, slows at the far end, and repeats smoothly. The static LAYOUT values
+// remain the resting pose; these values only add motion around that pose.
+export const MENU_ANIMATION = {
+  // Master switch for the menu idle motion. Set false when tuning the resting
+  // layout so the animated offsets do not influence what you see.
+  enabled: true,
+  // Seconds for one full out-and-back oscillation. Larger values feel slower
+  // and heavier; smaller values feel more energetic.
+  periodSeconds: 6.8,
+  // Radians in one full sine-wave cycle. This usually should not change; it is
+  // exposed here so the oscillator math has no hidden numeric constants.
+  fullTurnRadians: Math.PI * 2,
+  // The normalized animation range used by clamp/easing math. These usually
+  // stay 0 and 1 because they mean "not started" and "fully active".
+  normalizedMin: 0,
+  normalizedMax: 1,
+  // Fades the animation in after page load so the first rendered pose is still
+  // the exact static layout. Larger values make the motion appear more gently.
+  startupFadeSeconds: 1.2,
+  // Startup easing uses progress * progress * (a - b * progress). With a=3 and
+  // b=2 it starts gently, reaches full strength smoothly, and avoids a sudden
+  // jump when the idle motion first appears.
+  startupEaseA: 3,
+  startupEaseB: 2,
+  // Delay added per gap as the vertical pull travels upward from the bottom.
+  // Larger values create a more obvious accordion/tension wave; smaller values
+  // make the stack move more like one rigid object.
+  verticalPropagationDelaySeconds: 0.055,
+  // Maximum signed change for each center-line gap. Positive oscillator values
+  // expand the gap; negative values compress it. These keys intentionally match
+  // LAYOUT_MARGINS so each resting gap has a matching animated amplitude.
+  verticalMarginAmplitudes: {
+    introToFirstName: 0.008,
+    firstNameToLastName: 0.008,
+    lastNameToUpperSeparator: 0.012,
+    upperSeparatorToFirstNavItem: 0.018,
+    navItem1ToNavItem2: 0.014,
+    navItem2ToNavItem3: 0.014,
+    navItem3ToNavItem4: 0.014,
+    lastNavItemToLowerSeparator: 0.018,
+  },
+  // Added/subtracted from LAYOUT.mainMenuRotation[1]. This uses the same master
+  // oscillator as the vertical motion, so the twist and accordion motion feel
+  // like one hanging object rather than separate effects.
+  rotationAmplitudeY: 0.035,
+  // Extra Y movement for individual separator cubes. This sits on top of the
+  // whole-separator vertical motion and creates the local wave through the dots.
+  separatorWaveAmplitude: 0.012,
+  // Total center-to-edge delay for separator dots. The middle dot has no extra
+  // delay; the far left/right dots receive this full delay.
+  separatorWavePropagationDelaySeconds: 0.16,
+  // Progress value for the center of a dotted separator. Dots measure distance
+  // from this point so the wave starts in the middle and travels outward.
+  separatorWaveCenterProgress: 0.5,
+} as const;
+
 function nextY(currentY: number, margin: number) {
   return currentY - margin;
 }
@@ -124,6 +197,9 @@ export const LAYOUT = {
   // center between these points, so all dot centers sit on one straight line.
   upperSeparatorStartOffset: [LAYOUT_WIDTH.leftX, upperSeparatorY, 0],
   upperSeparatorEndOffset: [LAYOUT_WIDTH.rightX, upperSeparatorY, 0],
+  // Animation index used by the separator component to receive the same
+  // accordion Y motion as the rest of the vertically stacked menu.
+  upperSeparatorAnimationIndex: MENU_ELEMENT_INDEX.upperSeparator,
   // Row origins for the nav entries. Each row then measures its own text bounds
   // and positions arrows around that measured text.
   navItemOffsets: [
@@ -134,6 +210,7 @@ export const LAYOUT = {
   ],
   lowerSeparatorStartOffset: [LAYOUT_WIDTH.leftX, lowerSeparatorY, 0],
   lowerSeparatorEndOffset: [LAYOUT_WIDTH.rightX, lowerSeparatorY, 0],
+  lowerSeparatorAnimationIndex: MENU_ELEMENT_INDEX.lowerSeparator,
   // Smallest cube size at the far left and right ends of each separator.
   separatorMinSegmentSize: 0.007,
   // Largest cube size used through the middle plateau of each separator.
