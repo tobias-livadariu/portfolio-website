@@ -14,6 +14,7 @@ export default function Nav() {
       {NAV_ITEMS.map((item, index) => (
         <NavItem
           key={item.key}
+          navKey={item.key}
           label={item.label}
           offset={LAYOUT.navItemOffsets[index]}
           animationIndex={NAV_ANIMATION_INDICES[index]}

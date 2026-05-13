@@ -13,11 +13,30 @@ interface Props {
   offset: ReadonlyVec3;
   size: number;
   children: string;
+  isHovered?: boolean;
   onBoundsChange?: (bounds: TextBounds) => void;
 }
 
 export default function MenuText(props: Props) {
-  const { offset, size, children, onBoundsChange } = props;
+  const { offset, size, children, isHovered = false, onBoundsChange } = props;
+  const frontColor = isHovered
+    ? TEXT_MATERIAL.hoverColor
+    : TEXT_MATERIAL.frontColor;
+  const sideColor = isHovered
+    ? TEXT_MATERIAL.hoverColor
+    : TEXT_MATERIAL.sideColor;
+  const frontEmissive = isHovered
+    ? TEXT_MATERIAL.hoverEmissive
+    : TEXT_MATERIAL.frontEmissive;
+  const sideEmissive = isHovered
+    ? TEXT_MATERIAL.hoverEmissive
+    : TEXT_MATERIAL.sideEmissive;
+  const frontEmissiveIntensity = isHovered
+    ? TEXT_MATERIAL.hoverEmissiveIntensity
+    : TEXT_MATERIAL.frontEmissiveIntensity;
+  const sideEmissiveIntensity = isHovered
+    ? TEXT_MATERIAL.hoverEmissiveIntensity
+    : TEXT_MATERIAL.sideEmissiveIntensity;
 
   return (
     <Center
@@ -41,17 +60,17 @@ export default function MenuText(props: Props) {
         {children}
         <meshStandardMaterial
           attach="material-0"
-          color={TEXT_MATERIAL.frontColor}
-          emissive={TEXT_MATERIAL.frontEmissive}
-          emissiveIntensity={TEXT_MATERIAL.frontEmissiveIntensity}
+          color={frontColor}
+          emissive={frontEmissive}
+          emissiveIntensity={frontEmissiveIntensity}
           roughness={TEXT_MATERIAL.frontRoughness}
           metalness={TEXT_MATERIAL.metalness}
         />
         <meshStandardMaterial
           attach="material-1"
-          color={TEXT_MATERIAL.sideColor}
-          emissive={TEXT_MATERIAL.sideEmissive}
-          emissiveIntensity={TEXT_MATERIAL.sideEmissiveIntensity}
+          color={sideColor}
+          emissive={sideEmissive}
+          emissiveIntensity={sideEmissiveIntensity}
           roughness={TEXT_MATERIAL.sideRoughness}
           metalness={TEXT_MATERIAL.metalness}
         />

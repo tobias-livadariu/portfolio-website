@@ -24,11 +24,13 @@ const LAYOUT_WIDTH = {
   centerX: 0.89,
 } as const;
 
-// Geometry and material values for the block-built nav arrows. columnCount must
-// match the arrow pattern width in BlockyArrow so offsets use the visual center.
+// Geometry and material values for the block-built nav arrows. columnCount and
+// rowCount must match the BlockyArrow pattern so arrow offsets and hitboxes use
+// the actual visual center/size.
 export const ARROW_GEOMETRY = {
   blockSize: 0.018,
   columnCount: 8,
+  rowCount: 7,
   depth: 0.045,
   leftArrowMargin: 0.0635,
   rightArrowMargin: 0.042,
@@ -48,7 +50,19 @@ export const TEXT_MATERIAL = {
   sideEmissive: COLOR_PALETTE_STR.campfireDark,
   sideEmissiveIntensity: 0.8,
   sideRoughness: 0.95,
+  hoverColor: COLOR_PALETTE_STR.campfireAsh,
+  hoverEmissive: COLOR_PALETTE_STR.campfireAsh,
+  hoverEmissiveIntensity: 0.2,
   metalness: 0,
+} as const;
+
+// Invisible pointer target around each nav row. R3F events are raycast-based, so
+// Text3D glyphs are awkward to hit directly; this box gives every row a stable
+// clickable area while remaining visually hidden.
+export const NAV_HITBOX = {
+  paddingX: 0.04,
+  paddingY: 0.035,
+  depth: 0.08,
 } as const;
 
 // Geometry dimensions for all 3D text meshes. Size controls glyph height in
