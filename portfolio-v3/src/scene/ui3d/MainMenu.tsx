@@ -4,6 +4,7 @@ import type { Group } from "three";
 import useTopLeftPosition from "../hooks/useTopLeftPosition";
 import { LAYOUT, RESPONSIVE_SCALE } from "./main-menu.constants";
 import { useAnimatedMainMenuRotation } from "./hooks/useMainMenuAnimation";
+import getCameraFacingRotation from "./utils/getCameraFacingRotation";
 import Title from "./Title.tsx";
 import HorizontalDottedLine from "./HorizontalDottedLine.tsx";
 import Nav from "./Nav.tsx";
@@ -14,7 +15,7 @@ function clamp(value: number, min: number, max: number) {
 
 export default function MainMenu() {
   const menuRef = useRef<Group>(null);
-  const { size } = useThree();
+  const { camera, size } = useThree();
   const scale = clamp(
     size.width / RESPONSIVE_SCALE.referenceWidth,
     RESPONSIVE_SCALE.min,
@@ -26,8 +27,17 @@ export default function MainMenu() {
     marginY: LAYOUT.marginY * scale,
     z: LAYOUT.z,
   });
+  const rotationFocusPosition = [
+    topLeftPosition[0] + LAYOUT.rotationFocusOffset[0] * scale,
+    topLeftPosition[1] + LAYOUT.rotationFocusOffset[1] * scale,
+    topLeftPosition[2] + LAYOUT.rotationFocusOffset[2] * scale,
+  ] as const;
+  const cameraFacingPeakRotation = getCameraFacingRotation(
+    rotationFocusPosition,
+    camera.position,
+  );
 
-  useAnimatedMainMenuRotation(menuRef);
+  useAnimatedMainMenuRotation(menuRef, cameraFacingPeakRotation);
 
   return (
     <group

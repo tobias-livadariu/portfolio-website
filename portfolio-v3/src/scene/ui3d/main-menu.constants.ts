@@ -138,10 +138,6 @@ export const MENU_ANIMATION = {
     navItem3ToNavItem4: 0.014,
     lastNavItemToLowerSeparator: 0.02628,
   },
-  // Added/subtracted from LAYOUT.mainMenuRotation[1]. This uses the same master
-  // oscillator as the vertical motion, so the twist and accordion motion feel
-  // like one hanging object rather than separate effects.
-  rotationAmplitudeY: 0.0425,
   // Maximum one-direction Y pull for individual separator cubes. The separator
   // wave uses a 0 -> 1 -> 0 signal, so the dots are straight at rest and only
   // bend toward this signed value during the pull. Negative bends upward;
@@ -179,9 +175,16 @@ export const LAYOUT = {
   // Depth plane where the menu lives. This is passed to useTopLeftPosition, so
   // changing it also changes the visible world size used for top-left anchoring.
   z: 0,
-  // Base rotation for the whole menu. The negative Y value lets the extruded
-  // text and boxes reveal their 3D sides instead of looking flat.
-  mainMenuRotation: [0, -0.0425, 0],
+  // Trough rotation for the whole menu. The animation starts here and
+  // interpolates toward a computed camera-facing peak rotation.
+  mainMenuRotation: [0, -0.085, 0],
+  // Local point used when computing the camera-facing peak rotation. This aims
+  // the menu's visual center at the camera rather than the top-left anchor.
+  rotationFocusOffset: [
+    LAYOUT_WIDTH.centerX,
+    (introY + lowerSeparatorY) / 2,
+    0,
+  ],
   // Top-left inset from the camera's visible bounds before responsive scaling.
   // Larger values push the menu farther down/right from the viewport edge.
   marginX: 0.12,

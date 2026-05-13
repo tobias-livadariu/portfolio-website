@@ -53,11 +53,21 @@ function getSpringSignal(elapsedSeconds: number, delaySeconds = 0) {
   const activeSeconds = Math.max(0, elapsedSeconds - delaySeconds);
   const angularFrequency =
     MENU_ANIMATION.fullTurnRadians / MENU_ANIMATION.periodSeconds;
+  const rawSignal = -Math.cos(activeSeconds * angularFrequency);
 
   return (
-    Math.sin(activeSeconds * angularFrequency) *
-    getStartupEnvelope(elapsedSeconds)
+    -MENU_ANIMATION.normalizedMax +
+    (rawSignal + MENU_ANIMATION.normalizedMax) *
+      getStartupEnvelope(elapsedSeconds)
   );
+}
+
+function getTroughToPeakProgress(elapsedSeconds: number) {
+  if (!MENU_ANIMATION.enabled) {
+    return MENU_ANIMATION.normalizedMin;
+  }
+
+  return (getSpringSignal(elapsedSeconds) + MENU_ANIMATION.normalizedMax) / 2;
 }
 
 export function getAnimatedMenuYOffset(
@@ -86,10 +96,8 @@ export function getAnimatedSeparatorDotYOffset(
 ) {
   const sizeProgress = getSeparatorSegmentSizeProgress(progress);
   const amplitude = MENU_ANIMATION.separatorWaveAmplitude * sizeProgress;
-  const sharedSpringSignal = getSpringSignal(elapsedSeconds);
-  const oneWayPull = (sharedSpringSignal + MENU_ANIMATION.normalizedMax) / 2;
 
-  return amplitude * oneWayPull;
+  return amplitude * getTroughToPeakProgress(elapsedSeconds);
 }
 
 export function getSeparatorSegmentSizeProgress(progress: number) {
@@ -117,10 +125,26 @@ export function getSeparatorSegmentSize(progress: number) {
   );
 }
 
-export function getAnimatedMainMenuRotationY(elapsedSeconds: number) {
-  return (
-    LAYOUT.mainMenuRotation[1] +
-    MENU_ANIMATION.rotationAmplitudeY * getSpringSignal(elapsedSeconds)
+function interpolateRotation(
+  troughRotation: ReadonlyVec3,
+  peakRotation: ReadonlyVec3,
+  progress: number,
+): ReadonlyVec3 {
+  return [
+    troughRotation[0] + (peakRotation[0] - troughRotation[0]) * progress,
+    troughRotation[1] + (peakRotation[1] - troughRotation[1]) * progress,
+    troughRotation[2] + (peakRotation[2] - troughRotation[2]) * progress,
+  ];
+}
+
+export function getAnimatedMainMenuRotation(
+  elapsedSeconds: number,
+  peakRotation: ReadonlyVec3,
+) {
+  return interpolateRotation(
+    LAYOUT.mainMenuRotation,
+    peakRotation,
+    getTroughToPeakProgress(elapsedSeconds),
   );
 }
 
@@ -147,6 +171,7 @@ export function useAnimatedMenuPosition(
 
 export function useAnimatedMainMenuRotation(
   objectRef: RefObject<Object3D | null>,
+  peakRotation: ReadonlyVec3,
 ) {
   useFrame(({ clock }) => {
     const object = objectRef.current;
@@ -155,10 +180,15 @@ export function useAnimatedMainMenuRotation(
       return;
     }
 
+    const animatedRotation = getAnimatedMainMenuRotation(
+      clock.getElapsedTime(),
+      peakRotation,
+    );
+
     object.rotation.set(
-      LAYOUT.mainMenuRotation[0],
-      getAnimatedMainMenuRotationY(clock.getElapsedTime()),
-      LAYOUT.mainMenuRotation[2],
+      animatedRotation[0],
+      animatedRotation[1],
+      animatedRotation[2],
     );
   });
 }
