@@ -17,8 +17,8 @@ export const CAMERA_PROPS = {
 
 // Cursor-driven camera head-shift. R3F pointer coordinates are normalized so
 // the canvas center is [0, 0], left/right are roughly -1/+1 on x, and
-// bottom/top are roughly -1/+1 on y. The maxOffset values convert that full
-// screen-edge pointer delta into small world-unit camera movement.
+// bottom/top are roughly -1/+1 on y. Mouse pointers can drive this continuously;
+// touch/pen pointers only drive it while pressed, then return to center.
 export const CAMERA_POINTER_SHIFT = {
   // Master switch for the pointer camera movement.
   enabled: true,
