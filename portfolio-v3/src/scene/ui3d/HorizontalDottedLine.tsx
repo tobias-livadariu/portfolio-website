@@ -7,25 +7,13 @@ import { LAYOUT } from "./main-menu.constants";
 import {
   getAnimatedMenuYOffset,
   getAnimatedSeparatorDotYOffset,
+  getSeparatorSegmentSize,
 } from "./hooks/useMainMenuAnimation";
 
 interface Props {
   startOffset: ReadonlyVec3;
   endOffset: ReadonlyVec3;
   animationIndex: number;
-}
-
-function getSeparatorSegmentSize(progress: number) {
-  const edgeDistance = Math.min(progress, 1 - progress);
-  const growthRange = (1 - LAYOUT.separatorPlateauRatio) / 2;
-  const growthProgress = Math.min(1, edgeDistance / growthRange);
-  const easedProgress = Math.pow(growthProgress, LAYOUT.separatorGrowthPower);
-
-  return (
-    LAYOUT.separatorMinSegmentSize +
-    (LAYOUT.separatorMaxSegmentSize - LAYOUT.separatorMinSegmentSize) *
-      easedProgress
-  );
 }
 
 export default function HorizontalDottedLine(props: Props) {

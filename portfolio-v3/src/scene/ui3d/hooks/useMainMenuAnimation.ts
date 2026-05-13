@@ -84,15 +84,36 @@ export function getAnimatedSeparatorDotYOffset(
   progress: number,
   elapsedSeconds: number,
 ) {
-  const centerDistance =
-    Math.abs(progress - MENU_ANIMATION.separatorWaveCenterProgress) /
-    MENU_ANIMATION.separatorWaveCenterProgress;
-  const delaySeconds =
-    centerDistance * MENU_ANIMATION.separatorWavePropagationDelaySeconds;
+  const sizeProgress = getSeparatorSegmentSizeProgress(progress);
+  const amplitude = MENU_ANIMATION.separatorWaveAmplitude * sizeProgress;
+  const sharedSpringSignal = getSpringSignal(elapsedSeconds);
+  const oneWayPull = (sharedSpringSignal + MENU_ANIMATION.normalizedMax) / 2;
+
+  return amplitude * oneWayPull;
+}
+
+export function getSeparatorSegmentSizeProgress(progress: number) {
+  const edgeDistance = Math.min(
+    progress,
+    MENU_ANIMATION.normalizedMax - progress,
+  );
+  const growthRange =
+    (MENU_ANIMATION.normalizedMax - LAYOUT.separatorPlateauRatio) / 2;
+  const growthProgress = Math.min(
+    MENU_ANIMATION.normalizedMax,
+    edgeDistance / growthRange,
+  );
+
+  return Math.pow(growthProgress, LAYOUT.separatorGrowthPower);
+}
+
+export function getSeparatorSegmentSize(progress: number) {
+  const sizeProgress = getSeparatorSegmentSizeProgress(progress);
 
   return (
-    MENU_ANIMATION.separatorWaveAmplitude *
-    getSpringSignal(elapsedSeconds, delaySeconds)
+    LAYOUT.separatorMinSegmentSize +
+    (LAYOUT.separatorMaxSegmentSize - LAYOUT.separatorMinSegmentSize) *
+      sizeProgress
   );
 }
 

@@ -142,15 +142,11 @@ export const MENU_ANIMATION = {
   // oscillator as the vertical motion, so the twist and accordion motion feel
   // like one hanging object rather than separate effects.
   rotationAmplitudeY: 0.035,
-  // Extra Y movement for individual separator cubes. This sits on top of the
-  // whole-separator vertical motion and creates the local wave through the dots.
-  separatorWaveAmplitude: 0.012,
-  // Total center-to-edge delay for separator dots. The middle dot has no extra
-  // delay; the far left/right dots receive this full delay.
-  separatorWavePropagationDelaySeconds: 0.16,
-  // Progress value for the center of a dotted separator. Dots measure distance
-  // from this point so the wave starts in the middle and travels outward.
-  separatorWaveCenterProgress: 0.5,
+  // Maximum one-direction Y pull for individual separator cubes. The separator
+  // wave uses a 0 -> 1 -> 0 signal, so the dots are straight at rest and only
+  // bend toward this signed value during the pull. Negative bends upward;
+  // positive bends downward in local menu coordinates.
+  separatorWaveAmplitude: -0.025,
 } as const;
 
 function nextY(currentY: number, margin: number) {
