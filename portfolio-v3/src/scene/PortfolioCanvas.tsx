@@ -11,6 +11,7 @@ export default function PortfolioCanvas() {
   return (
     <Canvas
       dpr={CANVAS_DPR}
+      flat
       frameloop="always"
       camera={{
         position: CAMERA_PROPS.position,

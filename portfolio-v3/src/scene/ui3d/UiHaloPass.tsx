@@ -24,7 +24,6 @@ import {
 } from "three/examples/jsm/postprocessing/Pass.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UI_HALO } from "./main-menu.constants";
 
 type RenderableObject = Object3D & {
@@ -42,6 +41,7 @@ interface RenderableSnapshot {
 function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
   return new ShaderMaterial({
     uniforms: {
+      backgroundColor: new Uniform(new Color(UI_HALO.backgroundColor)),
       expandedMaskEnd: new Uniform(UI_HALO.expandedMaskEnd),
       expandedMaskStart: new Uniform(UI_HALO.expandedMaskStart),
       haloColor: new Uniform(new Color(UI_HALO.color)),
@@ -66,6 +66,7 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
       #define MAX_SAMPLE_RADIUS ${UI_HALO.maxSampleRadiusPx}
 
       uniform vec3 haloColor;
+      uniform vec3 backgroundColor;
       uniform sampler2D inputTexture;
       uniform sampler2D maskTexture;
       uniform float expandedMaskEnd;
@@ -80,6 +81,7 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
 
       void main() {
         vec4 sceneColor = texture2D(inputTexture, vUv);
+        sceneColor.rgb = mix(backgroundColor, sceneColor.rgb, sceneColor.a);
         float center = texture2D(maskTexture, vUv).r;
         float neighbor = 0.0;
 
@@ -201,6 +203,44 @@ function restoreSceneState(snapshots: RenderableSnapshot[]) {
   snapshots.length = 0;
 }
 
+class UiSceneRenderPass extends Pass {
+  private readonly clearSceneColor = new Color(UI_HALO.sceneClearColor);
+  private readonly clearColor = new Color();
+  private readonly renderCamera: Camera;
+  private readonly renderScene: Scene;
+
+  constructor(renderScene: Scene, renderCamera: Camera) {
+    super();
+
+    this.clear = true;
+    this.needsSwap = false;
+    this.renderScene = renderScene;
+    this.renderCamera = renderCamera;
+  }
+
+  override render(
+    renderer: WebGLRenderer,
+    writeBuffer: WebGLRenderTarget,
+    readBuffer: WebGLRenderTarget,
+  ) {
+    const previousBackground = this.renderScene.background;
+    const previousClearAlpha = renderer.getClearAlpha();
+
+    renderer.getClearColor(this.clearColor);
+    renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
+    renderer.setClearColor(this.clearSceneColor, UI_HALO.sceneClearAlpha);
+    this.renderScene.background = null;
+
+    try {
+      renderer.clear(true, true, true);
+      renderer.render(this.renderScene, this.renderCamera);
+    } finally {
+      this.renderScene.background = previousBackground;
+      renderer.setClearColor(this.clearColor, previousClearAlpha);
+    }
+  }
+}
+
 class UiHaloCompositePass extends Pass {
   private readonly clearColor = new Color();
   private readonly haloMaterial: ShaderMaterial;
@@ -264,9 +304,11 @@ class UiHaloCompositePass extends Pass {
     readBuffer: WebGLRenderTarget,
   ) {
     const targetSet = new Set(this.selectedObjects);
+    const previousBackground = this.renderScene.background;
     const previousClearAlpha = renderer.getClearAlpha();
 
     renderer.getClearColor(this.clearColor);
+    this.renderScene.background = null;
 
     applyMaskSceneState(
       this.renderScene,
@@ -282,6 +324,7 @@ class UiHaloCompositePass extends Pass {
       renderer.render(this.renderScene, this.renderCamera);
     } finally {
       restoreSceneState(this.snapshots);
+      this.renderScene.background = previousBackground;
       renderer.setClearColor(this.clearColor, previousClearAlpha);
     }
 
@@ -322,10 +365,11 @@ export default function UiHaloPass() {
     const selectedObjects = maskTargetsRef.current;
     const composer = new EffectComposer(gl);
     const haloPass = new UiHaloCompositePass(scene, camera, selectedObjects);
+    const outputPass = new OutputPass();
 
-    composer.addPass(new RenderPass(scene, camera));
+    composer.addPass(new UiSceneRenderPass(scene, camera));
     composer.addPass(haloPass);
-    composer.addPass(new OutputPass());
+    composer.addPass(outputPass);
 
     composerRef.current = composer;
     haloPassRef.current = haloPass;
@@ -336,6 +380,7 @@ export default function UiHaloPass() {
       haloPassRef.current = null;
       composer.dispose();
       haloPass.dispose();
+      outputPass.dispose();
     };
   }, [camera, gl, scene]);
 
