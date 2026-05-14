@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import type { Mesh, MeshBasicMaterial } from "three";
 import { Vector3 } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
+import { CAMERA_PROPS } from "../canvas.constants";
 import getCameraFacingRotation from "../ui3d/utils/getCameraFacingRotation";
 import {
   PLANETS,
@@ -14,6 +15,7 @@ import {
   getOrbitCenter,
   getOrbitalPosition,
   getVisibleBoundsAtZ,
+  getVisibleBoundsAtZForPosition,
   isInsideBounds,
   lerp,
   mulberry32,
@@ -125,23 +127,30 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
     }
 
     const elapsedSeconds = clock.getElapsedTime();
-    const bounds = getVisibleBoundsAtZ(
+    const referenceBounds = getVisibleBoundsAtZForPosition(
+      camera,
+      size,
+      planet.z,
+      CAMERA_PROPS.position,
+      PLANETS.visibilityBuffer,
+    );
+    const visibleBounds = getVisibleBoundsAtZ(
       camera,
       size,
       planet.z,
       PLANETS.visibilityBuffer,
     );
-    const fieldRadius = getFieldRadius(bounds);
+    const fieldRadius = getFieldRadius(referenceBounds);
     const orbitCenter = getOrbitCenter(
       planet.orbitWellIndex,
-      bounds,
+      referenceBounds,
       fieldRadius,
     );
     const orbitRadius = planet.orbitRadiusRatio * fieldRadius;
     const angle = planet.angle + elapsedSeconds * planet.angularSpeed;
     getOrbitalPosition(orbitCenter, orbitRadius, angle, planet.z, position);
 
-    const isVisible = isInsideBounds(position, bounds, planetRadius);
+    const isVisible = isInsideBounds(position, visibleBounds, planetRadius);
 
     mesh.visible = isVisible;
     if (!isVisible) {

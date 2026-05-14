@@ -64,20 +64,36 @@ export function getVisibleBoundsAtZ(
   z: number,
   buffer: number = STARFIELD_BOUNDS.edgeBuffer,
 ): VisibleBounds {
+  return getVisibleBoundsAtZForPosition(
+    camera,
+    canvasSize,
+    z,
+    [camera.position.x, camera.position.y, camera.position.z],
+    buffer,
+  );
+}
+
+export function getVisibleBoundsAtZForPosition(
+  camera: Camera,
+  canvasSize: { width: number; height: number },
+  z: number,
+  cameraPosition: ReadonlyVec3,
+  buffer: number = STARFIELD_BOUNDS.edgeBuffer,
+): VisibleBounds {
   let visibleHeight = 0;
   let visibleWidth = 0;
 
   if (camera instanceof PerspectiveCamera) {
-    const distance = Math.abs(camera.position.z - z);
+    const distance = Math.abs(cameraPosition[2] - z);
     visibleHeight = 2 * Math.tan((camera.fov * Math.PI) / 360) * distance;
     visibleWidth = visibleHeight * (canvasSize.width / canvasSize.height);
   }
 
   return {
-    bottom: camera.position.y - visibleHeight / 2 - buffer,
-    left: camera.position.x - visibleWidth / 2 - buffer,
-    right: camera.position.x + visibleWidth / 2 + buffer,
-    top: camera.position.y + visibleHeight / 2 + buffer,
+    bottom: cameraPosition[1] - visibleHeight / 2 - buffer,
+    left: cameraPosition[0] - visibleWidth / 2 - buffer,
+    right: cameraPosition[0] + visibleWidth / 2 + buffer,
+    top: cameraPosition[1] + visibleHeight / 2 + buffer,
   };
 }
 

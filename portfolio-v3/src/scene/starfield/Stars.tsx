@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Color, InstancedMesh, Object3D, Vector3 } from "three";
+import { CAMERA_PROPS } from "../canvas.constants";
 import {
   STAR_COLORS,
   STARFIELD_DEPTH,
@@ -12,6 +13,7 @@ import {
   getOrbitCenter,
   getOrbitalPosition,
   getVisibleBoundsAtZ,
+  getVisibleBoundsAtZForPosition,
   isInsideBounds,
   lerp,
   mulberry32,
@@ -110,18 +112,29 @@ export default function Stars() {
     const bucketCounts = STARS.emissiveIntensity.buckets.map(() => 0);
 
     for (const star of stars) {
-      const bounds = getVisibleBoundsAtZ(camera, size, star.z);
-      const fieldRadius = getFieldRadius(bounds);
+      const referenceBounds = getVisibleBoundsAtZForPosition(
+        camera,
+        size,
+        star.z,
+        CAMERA_PROPS.position,
+      );
+      const fieldRadius = getFieldRadius(referenceBounds);
       const orbitCenter = getOrbitCenter(
         star.orbitWellIndex,
-        bounds,
+        referenceBounds,
         fieldRadius,
       );
       const orbitRadius = star.orbitRadiusRatio * fieldRadius;
       const angle = star.angle + elapsedSeconds * star.angularSpeed;
       getOrbitalPosition(orbitCenter, orbitRadius, angle, star.z, position);
 
-      if (!isInsideBounds(position, bounds, star.size)) {
+      if (
+        !isInsideBounds(
+          position,
+          getVisibleBoundsAtZ(camera, size, star.z),
+          star.size,
+        )
+      ) {
         continue;
       }
 

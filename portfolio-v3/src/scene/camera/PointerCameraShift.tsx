@@ -105,7 +105,7 @@ export default function PointerCameraShift() {
       delta,
     );
     camera.updateMatrixWorld();
-  });
+  }, -1);
 
   return null;
 }
