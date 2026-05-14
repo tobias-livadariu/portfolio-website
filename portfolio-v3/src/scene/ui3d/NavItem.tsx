@@ -8,6 +8,7 @@ import {
   LAYOUT,
   NAV_HITBOX,
   TEXT_GEOMETRY,
+  UI_HALO,
 } from "./main-menu.constants";
 import { useAnimatedMenuPosition } from "./hooks/useMainMenuAnimation";
 import MenuText, { type TextBounds } from "./text/MenuText";
@@ -84,7 +85,10 @@ export default function NavItem(props: Props) {
       }}
     >
       {hitboxBounds && (
-        <mesh position={[hitboxBounds.centerX, 0, TEXT_GEOMETRY.height / 2]}>
+        <mesh
+          position={[hitboxBounds.centerX, 0, TEXT_GEOMETRY.height / 2]}
+          userData={{ [UI_HALO.skipUserDataKey]: true }}
+        >
           <boxGeometry
             args={[hitboxBounds.width, hitboxBounds.height, NAV_HITBOX.depth]}
           />

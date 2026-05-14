@@ -59,6 +59,34 @@ export const TEXT_MATERIAL = {
   metalness: 0,
 } as const;
 
+// Screen-space readability halo for the 3D UI. It renders the filled UI shape
+// into a mask, expands that mask outward in pixel space, then composites a very
+// dark warm ember color behind the text/separators. This is darker than both
+// the normal orange side material and the pale ash hover colors, so it reads as
+// occlusion rather than another extrusion face, but it is warmer than the
+// blue-black background so it still belongs with the campfire palette.
+// `solidMask*` controls how far the halo is allowed to creep into antialiased
+// glyph edges: higher values reduce visible gaps when bright planets sit
+// directly behind text.
+export const UI_HALO = {
+  rootName: "ui-halo-root",
+  skipUserDataKey: "skipUiHalo",
+  color: COLOR_PALETTE_STR.emberShadow,
+  radiusPx: 4,
+  opacity: 1,
+  resolutionScale: 1,
+  multisampleCount: 4,
+  maxSampleRadiusPx: 8,
+  expandedMaskStart: 0.01,
+  expandedMaskEnd: 0.24,
+  solidMaskStart: 0.9,
+  solidMaskEnd: 0.995,
+  outputAlpha: 1,
+  maskColor: COLOR_PALETTE_STR.white,
+  maskClearColor: COLOR_PALETTE_STR.black,
+  maskClearAlpha: 0,
+} as const;
+
 // Invisible pointer target around each nav row. R3F events are raycast-based, so
 // Text3D glyphs are awkward to hit directly; this box gives every row a stable
 // clickable area while remaining visually hidden.

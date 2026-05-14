@@ -4,6 +4,7 @@ import { COLOR_PALETTE_STR } from "../theme/colors";
 import { CAMERA_PROPS, CANVAS_DPR } from "./canvas.constants";
 import PointerCameraShift from "./camera/PointerCameraShift";
 import Starfield from "./starfield/Starfield";
+import UiHaloPass from "./ui3d/UiHaloPass";
 import MainMenu from "./ui3d/MainMenu";
 
 export default function PortfolioCanvas() {
@@ -23,6 +24,7 @@ export default function PortfolioCanvas() {
       <PrimaryLighting />
       <Starfield />
       <MainMenu />
+      <UiHaloPass />
     </Canvas>
   );
 }

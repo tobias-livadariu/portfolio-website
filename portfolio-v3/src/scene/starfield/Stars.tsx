@@ -101,7 +101,7 @@ function createVirtualStars(): VirtualStar[] {
 
 export default function Stars() {
   const meshRefs = useRef<(InstancedMesh | null)[]>([]);
-  const stars = useMemo(createVirtualStars, []);
+  const stars = useMemo(() => createVirtualStars(), []);
   const dummy = useMemo(() => new Object3D(), []);
   const color = useMemo(() => new Color(), []);
   const position = useMemo(() => new Vector3(), []);

@@ -3,7 +3,7 @@ import { useThree } from "@react-three/fiber";
 import type { Group } from "three";
 import useTopLeftPosition from "../hooks/useTopLeftPosition";
 import { CAMERA_PROPS } from "../canvas.constants";
-import { LAYOUT, RESPONSIVE_SCALE } from "./main-menu.constants";
+import { LAYOUT, RESPONSIVE_SCALE, UI_HALO } from "./main-menu.constants";
 import { useAnimatedMainMenuRotation } from "./hooks/useMainMenuAnimation";
 import getCameraFacingRotation from "./utils/getCameraFacingRotation";
 import Title from "./Title.tsx";
@@ -74,6 +74,7 @@ export default function MainMenu() {
   return (
     <group
       ref={menuRef}
+      name={UI_HALO.rootName}
       position={topLeftPosition}
       rotation={troughRotation}
       scale={scale}

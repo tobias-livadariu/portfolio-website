@@ -202,7 +202,7 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
 }
 
 export default function Planets() {
-  const planets = useMemo(createVirtualPlanets, []);
+  const planets = useMemo(() => createVirtualPlanets(), []);
   const loadedAtlasesRef = useRef<PlanetAtlas[]>([]);
   const [loadedAtlases, setLoadedAtlases] = useState<PlanetAtlas[]>([]);
   const atlasMap = useMemo(
