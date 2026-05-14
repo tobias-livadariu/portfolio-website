@@ -89,8 +89,8 @@ function createVirtualStars(): VirtualStar[] {
         STARS.size.max,
       ),
       z: lerp(
-        STARFIELD_DEPTH.nearestZ,
-        STARFIELD_DEPTH.farthestZ,
+        STARFIELD_DEPTH.stars.nearestZ,
+        STARFIELD_DEPTH.stars.farthestZ,
         depthProgress,
       ),
     };
@@ -107,16 +107,20 @@ export default function Stars() {
 
   useFrame(({ clock }) => {
     const elapsedSeconds = clock.getElapsedTime();
-    const fieldRadius = getFieldRadius(camera, size);
     const bucketCounts = STARS.emissiveIntensity.buckets.map(() => 0);
 
     for (const star of stars) {
-      const orbitCenter = getOrbitCenter(star.orbitWellIndex, fieldRadius);
+      const bounds = getVisibleBoundsAtZ(camera, size, star.z);
+      const fieldRadius = getFieldRadius(bounds);
+      const orbitCenter = getOrbitCenter(
+        star.orbitWellIndex,
+        bounds,
+        fieldRadius,
+      );
       const orbitRadius = star.orbitRadiusRatio * fieldRadius;
       const angle = star.angle + elapsedSeconds * star.angularSpeed;
       getOrbitalPosition(orbitCenter, orbitRadius, angle, star.z, position);
 
-      const bounds = getVisibleBoundsAtZ(camera, size, star.z);
       if (!isInsideBounds(position, bounds, star.size)) {
         continue;
       }
@@ -160,6 +164,7 @@ export default function Stars() {
           }}
           args={[undefined, undefined, STARS.virtualCount]}
           frustumCulled={false}
+          renderOrder={0}
         >
           <boxGeometry args={[1, 1, 1]} />
           <meshStandardMaterial

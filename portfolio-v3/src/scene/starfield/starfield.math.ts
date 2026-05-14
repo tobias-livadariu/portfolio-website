@@ -1,11 +1,7 @@
 import type { Camera } from "three";
 import { PerspectiveCamera, Vector3 } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
-import {
-  STARFIELD_BOUNDS,
-  STARFIELD_DEPTH,
-  STARFIELD_ORBIT_WELLS,
-} from "./starfield.constants";
+import { STARFIELD_BOUNDS, STARFIELD_ORBIT_WELLS } from "./starfield.constants";
 
 export interface VisibleBounds {
   bottom: number;
@@ -66,7 +62,7 @@ export function getVisibleBoundsAtZ(
   camera: Camera,
   canvasSize: { width: number; height: number },
   z: number,
-  buffer = STARFIELD_BOUNDS.edgeBuffer,
+  buffer: number = STARFIELD_BOUNDS.edgeBuffer,
 ): VisibleBounds {
   let visibleHeight = 0;
   let visibleWidth = 0;
@@ -85,16 +81,7 @@ export function getVisibleBoundsAtZ(
   };
 }
 
-export function getFieldRadius(
-  camera: Camera,
-  canvasSize: { width: number; height: number },
-) {
-  const bounds = getVisibleBoundsAtZ(
-    camera,
-    canvasSize,
-    STARFIELD_DEPTH.farthestZ,
-    STARFIELD_BOUNDS.edgeBuffer,
-  );
+export function getFieldRadius(bounds: VisibleBounds) {
   const width = bounds.right - bounds.left;
   const height = bounds.top - bounds.bottom;
   return (
@@ -104,10 +91,41 @@ export function getFieldRadius(
 
 export function getOrbitCenter(
   orbitWellIndex: number,
+  bounds: VisibleBounds,
   fieldRadius: number,
 ): ReadonlyVec3 {
   const well = STARFIELD_ORBIT_WELLS[orbitWellIndex];
-  return [well.x * fieldRadius, well.y * fieldRadius, 0];
+  const offset = well.distance * fieldRadius;
+
+  if (well.side === "left") {
+    return [
+      bounds.left - offset,
+      lerp(bounds.bottom, bounds.top, well.position),
+      0,
+    ];
+  }
+
+  if (well.side === "right") {
+    return [
+      bounds.right + offset,
+      lerp(bounds.bottom, bounds.top, well.position),
+      0,
+    ];
+  }
+
+  if (well.side === "top") {
+    return [
+      lerp(bounds.left, bounds.right, well.position),
+      bounds.top + offset,
+      0,
+    ];
+  }
+
+  return [
+    lerp(bounds.left, bounds.right, well.position),
+    bounds.bottom - offset,
+    0,
+  ];
 }
 
 export function getOrbitalPosition(

@@ -85,8 +85,8 @@ function createVirtualPlanets(): VirtualPlanet[] {
         PLANETS.sizeScale.max,
       ),
       z: lerp(
-        STARFIELD_DEPTH.nearestZ,
-        STARFIELD_DEPTH.farthestZ,
+        STARFIELD_DEPTH.planets.nearestZ,
+        STARFIELD_DEPTH.planets.farthestZ,
         depthProgress,
       ),
     };
@@ -102,7 +102,6 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const position = useMemo(() => new Vector3(), []);
-  const projectedPosition = useMemo(() => new Vector3(), []);
   const { camera, size } = useThree();
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetWidth =
@@ -126,23 +125,23 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
     }
 
     const elapsedSeconds = clock.getElapsedTime();
-    const fieldRadius = getFieldRadius(camera, size);
-    const orbitCenter = getOrbitCenter(planet.orbitWellIndex, fieldRadius);
+    const bounds = getVisibleBoundsAtZ(
+      camera,
+      size,
+      planet.z,
+      PLANETS.visibilityBuffer,
+    );
+    const fieldRadius = getFieldRadius(bounds);
+    const orbitCenter = getOrbitCenter(
+      planet.orbitWellIndex,
+      bounds,
+      fieldRadius,
+    );
     const orbitRadius = planet.orbitRadiusRatio * fieldRadius;
     const angle = planet.angle + elapsedSeconds * planet.angularSpeed;
     getOrbitalPosition(orbitCenter, orbitRadius, angle, planet.z, position);
 
-    projectedPosition.copy(position).project(camera);
-    const isProtectedByMenu =
-      projectedPosition.x < PLANETS.protectedTopLeftNdc.maxX &&
-      projectedPosition.y > PLANETS.protectedTopLeftNdc.minY;
-    const isVisible =
-      !isProtectedByMenu &&
-      isInsideBounds(
-        position,
-        getVisibleBoundsAtZ(camera, size, planet.z),
-        planetRadius,
-      );
+    const isVisible = isInsideBounds(position, bounds, planetRadius);
 
     mesh.visible = isVisible;
     if (!isVisible) {
@@ -178,7 +177,7 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
   });
 
   return (
-    <mesh ref={meshRef} frustumCulled={false}>
+    <mesh ref={meshRef} frustumCulled={false} renderOrder={1}>
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial
         ref={materialRef}
