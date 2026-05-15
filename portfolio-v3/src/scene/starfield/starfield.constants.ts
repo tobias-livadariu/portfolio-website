@@ -133,4 +133,12 @@ export const PLANETS = {
     min: 2,
     max: 9,
   },
+  rotation: {
+    // The spritesheets are painted as if the light comes from the upper-left
+    // corner. In local plane coordinates that direction is 135 degrees.
+    illuminatedDirectionRadians: (Math.PI * 3) / 4,
+    // Higher values make sprites align to the gravity-field light direction
+    // faster. Keep this gentle so highlights do not appear to spin.
+    damping: 4.5,
+  },
 } as const;

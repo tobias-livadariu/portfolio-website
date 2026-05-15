@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Mesh, MeshBasicMaterial } from "three";
-import { Vector3 } from "three";
+import { Quaternion, Vector3 } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
 import { CAMERA_PROPS } from "../canvas.constants";
 import getCameraFacingRotation from "../ui3d/utils/getCameraFacingRotation";
@@ -13,6 +13,7 @@ import {
 import {
   getFieldRadius,
   getOrbitCenter,
+  getOrbitWellFieldDirection,
   getOrbitalPosition,
   getVisibleBoundsAtZ,
   getVisibleBoundsAtZForPosition,
@@ -27,6 +28,28 @@ import {
   loadPlanetAtlases,
   type PlanetAtlas,
 } from "./planet-atlas";
+
+const FULL_TURN_RADIANS = Math.PI * 2;
+
+function normalizeRadians(radians: number) {
+  return (
+    ((((radians + Math.PI) % FULL_TURN_RADIANS) + FULL_TURN_RADIANS) %
+      FULL_TURN_RADIANS) -
+    Math.PI
+  );
+}
+
+function dampRadians(
+  current: number,
+  target: number,
+  damping: number,
+  deltaSeconds: number,
+) {
+  const delta = normalizeRadians(target - current);
+  const progress = 1 - Math.exp(-damping * deltaSeconds);
+
+  return normalizeRadians(current + delta * progress);
+}
 
 interface VirtualPlanet {
   angle: number;
@@ -103,7 +126,11 @@ interface PlanetSpriteProps {
 function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
+  const spriteRotationRef = useRef<number | null>(null);
+  const inverseFacingQuaternion = useMemo(() => new Quaternion(), []);
+  const localLightDirection = useMemo(() => new Vector3(), []);
   const position = useMemo(() => new Vector3(), []);
+  const worldLightDirection = useMemo(() => new Vector3(), []);
   const { camera, size } = useThree();
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetWidth =
@@ -154,6 +181,7 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
 
     mesh.visible = isVisible;
     if (!isVisible) {
+      spriteRotationRef.current = null;
       return;
     }
 
@@ -178,6 +206,32 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
       [camera.position.x, camera.position.y, camera.position.z],
     );
     mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+
+    getOrbitWellFieldDirection(
+      position,
+      referenceBounds,
+      fieldRadius,
+      worldLightDirection,
+    );
+    localLightDirection.copy(worldLightDirection).applyQuaternion(
+      inverseFacingQuaternion.copy(mesh.quaternion).invert(),
+    );
+
+    const targetSpriteRotation =
+      Math.atan2(localLightDirection.y, localLightDirection.x) -
+      PLANETS.rotation.illuminatedDirectionRadians;
+    const spriteRotation =
+      spriteRotationRef.current === null
+        ? normalizeRadians(targetSpriteRotation)
+        : dampRadians(
+            spriteRotationRef.current,
+            targetSpriteRotation,
+            PLANETS.rotation.damping,
+            delta,
+          );
+
+    spriteRotationRef.current = spriteRotation;
+    mesh.rotateZ(spriteRotation);
 
     material.opacity = Math.min(
       1,

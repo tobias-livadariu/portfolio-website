@@ -159,6 +159,53 @@ export function getOrbitalPosition(
   return target;
 }
 
+export function getOrbitWellFieldDirection(
+  position: Vector3,
+  bounds: VisibleBounds,
+  fieldRadius: number,
+  target: Vector3,
+) {
+  target.set(0, 0, 0);
+
+  for (const well of STARFIELD_ORBIT_WELLS) {
+    const offset = well.distance * fieldRadius;
+    let centerX: number;
+    let centerY: number;
+
+    if (well.side === "left") {
+      centerX = bounds.left - offset;
+      centerY = lerp(bounds.bottom, bounds.top, well.position);
+    } else if (well.side === "right") {
+      centerX = bounds.right + offset;
+      centerY = lerp(bounds.bottom, bounds.top, well.position);
+    } else if (well.side === "top") {
+      centerX = lerp(bounds.left, bounds.right, well.position);
+      centerY = bounds.top + offset;
+    } else {
+      centerX = lerp(bounds.left, bounds.right, well.position);
+      centerY = bounds.bottom - offset;
+    }
+
+    const dx = centerX - position.x;
+    const dy = centerY - position.y;
+    const distanceSquared = dx * dx + dy * dy;
+    const distance = Math.sqrt(distanceSquared);
+    const influence =
+      well.weight / Math.max(distanceSquared * distance, Number.EPSILON);
+
+    target.x += dx * influence;
+    target.y += dy * influence;
+  }
+
+  if (target.lengthSq() <= Number.EPSILON) {
+    target.set(0, 1, 0);
+  } else {
+    target.normalize();
+  }
+
+  return target;
+}
+
 export function isInsideBounds(
   position: Vector3,
   bounds: VisibleBounds,
