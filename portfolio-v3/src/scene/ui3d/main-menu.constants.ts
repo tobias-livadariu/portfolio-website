@@ -67,6 +67,9 @@ export const TEXT_MATERIAL = {
 export const UI_HALO = {
   rootName: "ui-halo-root",
   skipUserDataKey: "skipUiHalo",
+  // Optional per-renderable scale for the source radius. Separator dots use it
+  // so tiny cubes do not receive the same halo radius as the largest cubes.
+  radiusScaleUserDataKey: "uiHaloRadiusScale",
   color: COLOR_PALETTE_STR.emberShadow,
   backgroundColor: COLOR_PALETTE_STR.background,
   // Halo thickness in screen pixels; this should not scale with menu size.
@@ -85,6 +88,8 @@ export const UI_HALO = {
   expandedMaskStart: 0.01,
   expandedMaskEnd: 0.24,
   outputAlpha: 1,
+  // The red channel carries mask coverage. The mask pass overwrites green with
+  // each object's radius scale so the composite shader can vary dilation.
   maskColor: COLOR_PALETTE_STR.white,
   maskClearColor: COLOR_PALETTE_STR.black,
   maskClearAlpha: 0,

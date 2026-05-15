@@ -3,7 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import type { Mesh } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
 import { COLOR_PALETTE_STR } from "../../theme/colors";
-import { LAYOUT } from "./main-menu.constants";
+import { LAYOUT, UI_HALO } from "./main-menu.constants";
 import {
   getAnimatedMenuYOffset,
   getAnimatedSeparatorDotYOffset,
@@ -51,6 +51,7 @@ export default function HorizontalDottedLine(props: Props) {
         const y = startOffset[1] + (endOffset[1] - startOffset[1]) * progress;
         const z = startOffset[2] + (endOffset[2] - startOffset[2]) * progress;
         const segmentSize = getSeparatorSegmentSize(progress);
+        const haloRadiusScale = segmentSize / LAYOUT.separatorMaxSegmentSize;
 
         return (
           <mesh
@@ -59,6 +60,9 @@ export default function HorizontalDottedLine(props: Props) {
               segmentRefs.current[index] = segment;
             }}
             position={[x, y, z]}
+            userData={{
+              [UI_HALO.radiusScaleUserDataKey]: haloRadiusScale,
+            }}
           >
             <boxGeometry args={[segmentSize, segmentSize, segmentSize]} />
             <meshStandardMaterial

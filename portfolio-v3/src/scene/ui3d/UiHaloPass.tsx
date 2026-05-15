@@ -39,6 +39,8 @@ interface RenderableSnapshot {
   visible: boolean;
 }
 
+type MaskMaterialGetter = (object: Object3D) => MeshBasicMaterial;
+
 function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
   return new ShaderMaterial({
     uniforms: {
@@ -89,8 +91,20 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
 
             if (distanceFromCenter > 0.0 && distanceFromCenter <= radiusPx) {
               vec2 sampleUv = vUv + pixelOffset * texelSize;
-              float sampleMask = texture2D(maskTexture, sampleUv).r;
-              neighbor = max(neighbor, sampleMask);
+              vec4 sampleValue = texture2D(maskTexture, sampleUv);
+              float sampleMask = sampleValue.r;
+
+              if (sampleMask > 0.0) {
+                float radiusScale = clamp(
+                  sampleValue.g / max(sampleMask, 0.0001),
+                  0.0,
+                  1.0
+                );
+
+                if (distanceFromCenter <= radiusPx * radiusScale) {
+                  neighbor = max(neighbor, sampleMask);
+                }
+              }
             }
           }
         }
@@ -162,7 +176,7 @@ function collectMaskTargets(root: Object3D, targets: Object3D[]) {
 function applyMaskSceneState(
   scene: Object3D,
   targets: Set<Object3D>,
-  maskMaterial: MeshBasicMaterial,
+  getMaskMaterial: MaskMaterialGetter,
   snapshots: RenderableSnapshot[],
 ) {
   snapshots.length = 0;
@@ -180,7 +194,7 @@ function applyMaskSceneState(
 
     if (targets.has(object)) {
       object.visible = true;
-      object.material = maskMaterial;
+      object.material = getMaskMaterial(object);
     } else {
       object.visible = false;
     }
@@ -272,7 +286,7 @@ class UiSceneRenderPass extends Pass {
 class UiHaloCompositePass extends Pass {
   private readonly clearColor = new Color();
   private readonly haloMaterial: ShaderMaterial;
-  private readonly maskMaterial: MeshBasicMaterial;
+  private readonly maskMaterials = new Map<number, MeshBasicMaterial>();
   private readonly maskTarget: WebGLRenderTarget;
   private readonly quad: FullScreenQuad;
   private readonly renderCamera: Camera;
@@ -297,13 +311,6 @@ class UiHaloCompositePass extends Pass {
       minFilter: LinearFilter,
       samples: UI_HALO.multisampleCount,
       stencilBuffer: false,
-    });
-    this.maskMaterial = new MeshBasicMaterial({
-      color: UI_HALO.maskColor,
-      depthTest: true,
-      depthWrite: true,
-      side: DoubleSide,
-      toneMapped: false,
     });
     this.haloMaterial = createHaloMaterial(this.maskTarget.texture);
     this.quad = new FullScreenQuad(this.haloMaterial);
@@ -341,7 +348,7 @@ class UiHaloCompositePass extends Pass {
     applyMaskSceneState(
       this.renderScene,
       targetSet,
-      this.maskMaterial,
+      this.getMaskMaterial,
       this.snapshots,
     );
 
@@ -376,6 +383,40 @@ class UiHaloCompositePass extends Pass {
     this.renderUiOverlay(renderer, targetSet);
   }
 
+  private getMaskMaterial = (object: Object3D) => {
+    const radiusScale = this.getHaloRadiusScale(object);
+    const cachedMaterial = this.maskMaterials.get(radiusScale);
+
+    if (cachedMaterial) {
+      return cachedMaterial;
+    }
+
+    const maskColor = new Color(UI_HALO.maskColor);
+    maskColor.g = radiusScale;
+
+    const material = new MeshBasicMaterial({
+      color: maskColor,
+      depthTest: true,
+      depthWrite: true,
+      side: DoubleSide,
+      toneMapped: false,
+    });
+
+    this.maskMaterials.set(radiusScale, material);
+
+    return material;
+  };
+
+  private getHaloRadiusScale(object: Object3D) {
+    const radiusScale = object.userData[UI_HALO.radiusScaleUserDataKey];
+
+    if (typeof radiusScale !== "number" || !Number.isFinite(radiusScale)) {
+      return 1;
+    }
+
+    return Math.min(1, Math.max(0, radiusScale));
+  }
+
   private renderUiOverlay(
     renderer: WebGLRenderer,
     visibleTargets: Set<Object3D>,
@@ -404,7 +445,10 @@ class UiHaloCompositePass extends Pass {
   override dispose() {
     this.quad.dispose();
     this.haloMaterial.dispose();
-    this.maskMaterial.dispose();
+    this.maskMaterials.forEach((material) => {
+      material.dispose();
+    });
+    this.maskMaterials.clear();
     this.maskTarget.dispose();
   }
 }
