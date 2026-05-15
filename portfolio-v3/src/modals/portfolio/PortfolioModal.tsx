@@ -12,22 +12,31 @@ import shopifySummary from "./shopify-summary.md?raw";
 
 const rootRows = [
   {
+    name: "work/",
+    type: "dir",
+    size: "-",
+    date: "May 14 21:18",
+  },
+  {
+    name: "personal/",
+    type: "dir",
+    size: "-",
+    date: "May 14 21:19",
+  },
+] as const;
+
+const workRows = [
+  {
     name: "shopify/",
     type: "dir",
-    size: "192",
-    date: "May 14 21:18",
+    size: "-",
+    date: "Apr 30 18:22",
   },
   {
     name: "idea-notion/",
     type: "dir",
-    size: "224",
-    date: "May 14 21:19",
-  },
-  {
-    name: "projects/",
-    type: "dir",
-    size: "256",
-    date: "May 14 21:20",
+    size: "-",
+    date: "Aug 29 18:10",
   },
 ] as const;
 
@@ -35,25 +44,25 @@ const shopifyRows = [
   {
     name: "marketing-analytics/",
     type: "dir",
-    size: "224",
+    size: "-",
     date: "Apr 30 18:22",
   },
   {
     name: "data-correctness/",
     type: "dir",
-    size: "192",
+    size: "-",
     date: "Apr 26 15:40",
   },
   {
     name: "internal-tools/",
     type: "dir",
-    size: "160",
+    size: "-",
     date: "Apr 18 09:35",
   },
   {
     name: "summary.md",
     type: "file",
-    size: "2.2K",
+    size: "2.2k",
     date: "May 14 22:10",
   },
 ] as const;
@@ -62,24 +71,24 @@ const ideaNotionRows = [
   {
     name: "dealerai/",
     type: "dir",
-    size: "256",
+    size: "-",
     date: "Aug 29 18:10",
   },
   {
     name: "food-banks-canada/",
     type: "dir",
-    size: "224",
+    size: "-",
     date: "Aug 28 17:42",
   },
   {
     name: "summary.md",
     type: "file",
-    size: "2.0K",
+    size: "2.0k",
     date: "May 14 22:12",
   },
 ] as const;
 
-const projectRows = [
+const personalRows = [
   {
     name: "portfolio-website -> github.com/tobias-livadariu/portfolio-website",
     href: "https://github.com/tobias-livadariu/portfolio-website",
@@ -139,11 +148,16 @@ export default function PortfolioModal() {
         context={PORTFOLIO_TERMINAL_CONTEXT}
         commands={[
           {
-            command: "ls -al",
+            command: "ls -l",
             output: <LsOutput rows={rootRows} />,
           },
           {
-            command: "cd shopify && ls -al",
+            command: "cd work && ls -l",
+            output: <LsOutput rows={workRows} />,
+          },
+          {
+            command: "cd shopify && ls -l",
+            context: { directory: "repos/my-portfolio/work" },
             output: <LsOutput rows={shopifyRows} />,
           },
           {
@@ -154,7 +168,7 @@ export default function PortfolioModal() {
             ),
           },
           {
-            command: "cd ../idea-notion && ls -al",
+            command: "cd ../idea-notion && ls -l",
             context: { directory: "repos/my-portfolio/shopify" },
             output: <LsOutput rows={ideaNotionRows} />,
           },
@@ -166,9 +180,9 @@ export default function PortfolioModal() {
             ),
           },
           {
-            command: "cd ../projects && ls -al",
+            command: "cd ../../personal && ls -l",
             context: { directory: "repos/my-portfolio/idea-notion" },
-            output: <LsOutput rows={projectRows} />,
+            output: <LsOutput rows={personalRows} />,
           },
         ]}
       />

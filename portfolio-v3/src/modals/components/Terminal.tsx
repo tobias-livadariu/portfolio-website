@@ -13,7 +13,6 @@ interface Props {
 
 interface LsRow {
   date: string;
-  group?: string;
   href?: string;
   name: string;
   permissions?: string;
@@ -30,14 +29,60 @@ function getGitTokenClass(token: GitStateToken) {
   return `modal-git-state modal-git-state-${token}`;
 }
 
+function getPromptDirectory(directory: string) {
+  const segments = directory.split("/").filter(Boolean);
+  const visibleSegments =
+    segments[0] === "repos" ? segments.slice(1) : segments.slice();
+
+  if (visibleSegments.length <= 2) {
+    return visibleSegments.join("/");
+  }
+
+  return visibleSegments.slice(-2).join("/");
+}
+
+function getPermissionClassName(character: string) {
+  if (character === ".") {
+    return "dot";
+  }
+
+  if (character === "-") {
+    return "dash";
+  }
+
+  if (character === "@") {
+    return "attr";
+  }
+
+  return character;
+}
+
+function Permissions({ value }: { value: string }) {
+  return (
+    <span className="modal-ls-perms">
+      {Array.from(value).map((character, index) => (
+        <span
+          className={`modal-ls-perm modal-ls-perm-${getPermissionClassName(
+            character,
+          )}`}
+          key={index}
+        >
+          {character}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function PromptContext({ context }: { context: TerminalContext }) {
   const branch = context.branch ?? "main";
   const gitState = context.gitState ?? [];
+  const directory = getPromptDirectory(context.directory);
 
   return (
     <div className="modal-terminal-prompt">
       <span className="modal-prompt-at">@</span>
-      <span className="modal-prompt-dir">{context.directory}</span>
+      <span className="modal-prompt-dir">{directory}</span>
       <span className="modal-prompt-separator"> | </span>
       <span className="modal-prompt-branch">{branch}</span>
       {gitState.length > 0 && <span> </span>}
@@ -82,13 +127,14 @@ export function LsOutput({ rows }: LsOutputProps) {
 
         return (
           <div className="modal-ls-row" key={row.name} role="listitem">
-            <span className="modal-ls-perms">
-              {row.permissions ??
-                (row.type === "dir" ? "drwxr-xr-x" : "-rw-r--r--")}
-            </span>
-            <span>{row.user ?? "tobi"}</span>
-            <span>{row.group ?? "staff"}</span>
+            <Permissions
+              value={
+                row.permissions ??
+                (row.type === "dir" ? "drwxr-xr-x@" : ".rw-r--r--@")
+              }
+            />
             <span className="modal-ls-size">{row.size ?? "128"}</span>
+            <span className="modal-ls-user">{row.user ?? "tobias"}</span>
             <span>{row.date}</span>
             <span
               className={`modal-ls-name modal-ls-name-${row.type ?? "file"}`}
@@ -111,7 +157,9 @@ export default function Terminal({ commands, context }: Props) {
     <div className="modal-terminal" aria-label="terminal transcript">
       <div className="modal-terminal-topbar">
         <span>zsh</span>
-        <span className="modal-terminal-topbar-path">{context.directory}</span>
+        <span className="modal-terminal-topbar-path">
+          {getPromptDirectory(context.directory)}
+        </span>
         <span>
           {MODAL_SECTIONS.find((section) =>
             context.directory.toLowerCase().includes(section.shortLabel),

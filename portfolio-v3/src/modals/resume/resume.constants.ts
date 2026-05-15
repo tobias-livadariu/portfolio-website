@@ -35,4 +35,3 @@ export const RESUME_SPRITE = {
 } as const;
 
 export const RESUME_DRIVE_ID = "1J4pOm1PnVdsCDL9Tp-9v2_JQKk7rNE_m";
-export const RESUME_CACHE_BUSTER = "?v=2025-09-10";

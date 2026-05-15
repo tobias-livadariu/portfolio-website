@@ -13,22 +13,27 @@ test("modal stack opens from scroll and supports section navigation", async ({
   const dialog = page.getByRole("dialog", {
     name: "Portfolio section panels",
   });
-  await expect(dialog).toBeVisible();
-  await expect(page.getByText("File: about.modal")).toBeVisible();
-  await expect(page.getByText("whoami")).toBeVisible();
+  const activePanel = page.locator('.modal-panel[data-active="true"]');
 
+  await expect(dialog).toBeVisible();
+  await expect(activePanel).toContainText("File: about.modal");
+  await expect(activePanel).toContainText("whoami");
+
+  await page.waitForTimeout(600);
   await page.keyboard.press("PageDown");
-  await expect(page.getByText("File: resume.modal")).toBeVisible();
+  await expect(activePanel).toContainText("File: resume.modal");
   await expect(page.getByRole("link", { name: "DOWNLOAD PDF" })).toBeVisible();
 
   await page.getByRole("button", { name: "PORTFOLIO" }).click();
-  await expect(page.getByText("File: portfolio.modal")).toBeVisible();
+  await expect(activePanel).toContainText("File: portfolio.modal");
+  await expect(activePanel).toContainText("cd work && ls -l");
+  await expect(activePanel).toContainText("cd ../../personal && ls -l");
   await expect(
-    page.getByRole("link", { name: "portfolio-website" }),
+    page.getByRole("link", { name: /portfolio-website/ }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: "CONTACT ME" }).click();
-  await expect(page.getByText("File: contact.modal")).toBeVisible();
+  await expect(activePanel).toContainText("File: contact.modal");
   await expect(
     page.getByRole("link", { name: "tlivadar@uwaterloo.ca" }),
   ).toBeVisible();

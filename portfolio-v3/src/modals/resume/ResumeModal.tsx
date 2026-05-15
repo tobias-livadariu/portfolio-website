@@ -3,27 +3,30 @@ import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
 import {
   RESUME_ASCII_TITLE,
-  RESUME_CACHE_BUSTER,
   RESUME_DIVIDER,
   RESUME_DRIVE_ID,
   RESUME_SPRITE,
   RESUME_TERMINAL_CONTEXT,
 } from "./resume.constants";
 
-const PREVIEW_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/preview${RESUME_CACHE_BUSTER}`;
+const PREVIEW_SRC = publicPath(
+  "/resume.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
+);
 const OPEN_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/view`;
 const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${RESUME_DRIVE_ID}`;
 
 function ResumeViewer() {
   return (
     <div className="modal-resume-viewer">
-      <iframe
-        allow="autoplay"
-        className="modal-resume-frame"
-        loading="lazy"
-        src={PREVIEW_SRC}
-        title="Tobias Livadariu resume preview"
-      />
+      <div className="modal-resume-document">
+        <iframe
+          allow="autoplay"
+          className="modal-resume-frame"
+          loading="lazy"
+          src={PREVIEW_SRC}
+          title="Tobias Livadariu resume preview"
+        />
+      </div>
       <div className="modal-action-row">
         <a href={OPEN_SRC} rel="noreferrer" target="_blank">
           [ OPEN IN GOOGLE DRIVE ]
