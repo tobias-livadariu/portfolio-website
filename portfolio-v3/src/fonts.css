@@ -1,4 +1,21 @@
 @font-face {
+  font-family: "Iosevka Term Web";
+  font-display: swap;
+  font-weight: 400;
+  font-style: normal;
+  src: url("/fonts/iosevka-term/WOFF2/IosevkaTerm-Regular.woff2")
+    format("woff2");
+}
+
+@font-face {
+  font-family: "Iosevka Term Web";
+  font-display: swap;
+  font-weight: 700;
+  font-style: normal;
+  src: url("/fonts/iosevka-term/WOFF2/IosevkaTerm-Bold.woff2") format("woff2");
+}
+
+@font-face {
   font-family: "PixAntiqua";
   font-weight: 400;
   font-display: swap;

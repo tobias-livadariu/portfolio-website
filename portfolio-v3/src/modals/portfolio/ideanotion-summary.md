@@ -1,0 +1,9 @@
+# summary.md
+
+IdeaNotion was my first software internship and the place where I learned how much product detail lives between a ticket and a real user.
+
+Most of my work was on DealerAI, a portal used by more than 150 dealerships and 400 staff. I built a conversation summarization feature that reduced manual chat review from 6 to 10 minutes to under 40 seconds across 4,500+ daily conversations. I also built session-backed user settings, rebuilt admin-table flows, fixed frontend bugs, and replaced plain prompt fields with a Lexical markdown editor adopted by the lead AI developer.
+
+I also worked on Food Banks Canada projects. On the public website, I built ACF content blocks and updated 20+ bilingual pages against Figma designs. On The Exchange admin portal, I migrated C#/.NET controllers, endpoints, DTOs, and React data tables into a newer structure using EF Core and RTK Query.
+
+That internship made me better at production judgment. I had to work inside existing systems, keep designers and client needs in mind, and ship fixes that made daily workflows faster for real people.

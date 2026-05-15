@@ -2,6 +2,8 @@ import { useCallback, useRef, useState } from "react";
 import { useCursor } from "@react-three/drei";
 import type { ReadonlyVec3 } from "../../types/geometry";
 import type { Group } from "three";
+import { useModalController } from "../../modals/modal-context-core";
+import type { ModalSectionKey } from "../../modals/modal.types";
 import BlockyArrow from "./BlockyArrow";
 import {
   ARROW_GEOMETRY,
@@ -14,7 +16,7 @@ import { useAnimatedMenuPosition } from "./hooks/useMainMenuAnimation";
 import MenuText, { type TextBounds } from "./text/MenuText";
 
 interface Props {
-  navKey: string;
+  navKey: ModalSectionKey;
   label: string;
   offset: ReadonlyVec3;
   animationIndex: number;
@@ -23,6 +25,7 @@ interface Props {
 export default function NavItem(props: Props) {
   const { navKey, label, offset, animationIndex } = props;
   const groupRef = useRef<Group>(null);
+  const { openSection } = useModalController();
   const [isHovered, setIsHovered] = useState(false);
   const [textBounds, setTextBounds] = useState<TextBounds | null>(null);
   const arrowWidth = ARROW_GEOMETRY.columnCount * ARROW_GEOMETRY.blockSize;
@@ -73,7 +76,7 @@ export default function NavItem(props: Props) {
       position={offset}
       onClick={(event) => {
         event.stopPropagation();
-        console.log(`clicked ${navKey}!`);
+        openSection(navKey);
       }}
       onPointerOver={(event) => {
         event.stopPropagation();

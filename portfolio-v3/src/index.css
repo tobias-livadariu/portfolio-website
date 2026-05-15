@@ -20,6 +20,27 @@
   --font-pix-antiqua: "PixAntiqua", monospace;
   --font-pixel-emulator: "Pixel Emulator", monospace;
   --font-press-start-2p: "Press Start 2P", monospace;
+  --font-iosevka-term: "Iosevka Term Web", "Iosevka Term", monospace;
+
+  --dragon-bg: #181616;
+  --dragon-bg-dim: #121111;
+  --dragon-bg-alt: #1f1d1d;
+  --dragon-bg-float: #211f1f;
+  --dragon-bg-highlight: #2a2626;
+  --dragon-bg-visual: #393433;
+  --dragon-black: #0d0c0c;
+  --dragon-fg: #c5c9c5;
+  --dragon-fg-bright: #dcd7ba;
+  --dragon-fg-dim: #a6a69c;
+  --dragon-comment: #727169;
+  --dragon-border: #2a2626;
+  --dragon-border-bright: #393433;
+  --dragon-pink: #fb7da7;
+  --dragon-mint: #76c5a4;
+  --dragon-yellow: #e3cf65;
+  --dragon-orange: #fdad5d;
+  --dragon-lavender: #af98e6;
+  --dragon-cyan: #51c7da;
 }
 
 html {
