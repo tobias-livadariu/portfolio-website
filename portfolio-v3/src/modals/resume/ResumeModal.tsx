@@ -26,6 +26,7 @@ function ResumeViewer() {
           src={PREVIEW_SRC}
           title="Tobias Livadariu resume preview"
         />
+        <div className="modal-resume-wheel-layer" aria-hidden="true" />
       </div>
       <div className="modal-action-row">
         <a href={OPEN_SRC} rel="noreferrer" target="_blank">

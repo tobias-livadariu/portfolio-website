@@ -6,6 +6,8 @@ export interface ModalContextValue {
   activeSection: ModalSectionKey | null;
   close: () => void;
   dragOffsetPx: number;
+  isOpening: boolean;
+  isScrollInteracting: boolean;
   openSection: (section: ModalSectionKey) => void;
 }
 

@@ -14,12 +14,19 @@ export const MODAL_SECTIONS = [
 export const MODAL_SECTION_KEYS = MODAL_SECTIONS.map(({ key }) => key);
 
 export const MODAL_NAVIGATION = {
-  dragThresholdPx: 150,
-  maxDragPx: 220,
-  releaseDelayMs: 130,
-  commitCooldownMs: 520,
-  bottomBouncePx: 72,
-  touchThresholdPx: 95,
+  homeOpenThresholdPx: 520,
+  panelSwitchThresholdPx: 430,
+  touchSwitchThresholdPx: 150,
+  maxWheelDeltaPx: 96,
+  maxTouchDeltaPx: 72,
+  minWheelEventsBeforeCommit: 3,
+  boundaryGateMs: 420,
+  maxDragPx: 132,
+  bottomBouncePx: 68,
+  releaseDelayMs: 180,
+  gestureQuietMs: 520,
+  inertiaQuietMs: 220,
+  openAnimationMs: 460,
 } as const;
 
 export const DRAGON_LUCY = {

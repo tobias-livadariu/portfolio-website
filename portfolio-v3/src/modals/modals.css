@@ -76,6 +76,7 @@
   bottom: 3vh;
   left: var(--modal-edge-gap);
   outline: none;
+  overscroll-behavior: none;
   transform-style: preserve-3d;
 }
 
@@ -100,6 +101,16 @@
 
 .modal-panel[data-active="false"] {
   pointer-events: none;
+}
+
+.modal-stage[data-scroll-interacting="true"] .modal-panel {
+  transition:
+    opacity 120ms linear,
+    transform 90ms linear;
+}
+
+.modal-stage[data-opening="true"] .modal-panel[data-active="true"] {
+  animation: modal-panel-rise-in 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .modal-panel-frame {
@@ -134,6 +145,7 @@
   min-height: 0;
   flex: 1;
   overflow: auto;
+  overscroll-behavior-y: contain;
   padding: clamp(1rem, 2vw, 1.75rem);
   scrollbar-color: var(--dragon-bg-visual) var(--dragon-bg-dim);
   scrollbar-width: thin;
@@ -479,6 +491,7 @@
 }
 
 .modal-resume-document {
+  position: relative;
   width: min(100%, 72rem);
   aspect-ratio: 8.5 / 11;
   margin: 0 auto;
@@ -493,6 +506,29 @@
   height: 100%;
   border: 0;
   background: var(--color-white);
+  pointer-events: none;
+}
+
+.modal-resume-wheel-layer {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+@keyframes modal-panel-rise-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 105%, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(
+      0,
+      calc((var(--modal-panel-offset) * 105%) + var(--modal-drag-px)),
+      0
+    );
+  }
 }
 
 .modal-action-row {

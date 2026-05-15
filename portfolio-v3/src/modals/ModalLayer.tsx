@@ -18,8 +18,15 @@ const SECTION_COMPONENTS: Record<ModalSectionKey, () => ReactElement> = {
 };
 
 export default function ModalLayer() {
-  const { activeIndex, activeSection, close, dragOffsetPx, openSection } =
-    useModalController();
+  const {
+    activeIndex,
+    activeSection,
+    close,
+    dragOffsetPx,
+    isOpening,
+    isScrollInteracting,
+    openSection,
+  } = useModalController();
   const stageRef = useRef<HTMLDivElement>(null);
   const isOpen = activeSection !== null;
   const sections = useMemo(() => MODAL_SECTIONS, []);
@@ -60,6 +67,8 @@ export default function ModalLayer() {
               aria-label="Portfolio section panels"
               aria-modal="true"
               className="modal-stage"
+              data-opening={isOpening}
+              data-scroll-interacting={isScrollInteracting}
               ref={stageRef}
               role="dialog"
               style={
