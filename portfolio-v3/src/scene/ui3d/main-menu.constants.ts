@@ -59,35 +59,38 @@ export const TEXT_MATERIAL = {
   metalness: 0,
 } as const;
 
-// Screen-space readability halo for the 3D UI. It renders the filled UI shape
-// into a mask, expands that mask outward in pixel space, then composites a very
-// dark warm ember color behind the text/separators. This is darker than both
-// the normal orange side material and the pale ash hover colors, so it reads as
-// occlusion rather than another extrusion face, but it is warmer than the
-// blue-black background so it still belongs with the campfire palette.
-// `solidMask*` controls how far the halo is allowed to creep into antialiased
-// glyph edges: higher values reduce visible gaps when bright planets sit
-// directly behind text.
+// Screen-space readability halo for the 3D UI. The postprocess pass renders the
+// moving scene without this root, builds a UI-only mask, expands that mask in
+// pixel space, composites a dark ember matte, then draws the real UI on top.
+// This keeps the glyph edge owned by the real Text3D render instead of by a
+// thresholded mask cutout.
 export const UI_HALO = {
   rootName: "ui-halo-root",
   skipUserDataKey: "skipUiHalo",
   color: COLOR_PALETTE_STR.emberShadow,
   backgroundColor: COLOR_PALETTE_STR.background,
+  // Halo thickness in screen pixels; this should not scale with menu size.
   radiusPx: 4,
+  // Strength of the matte color over the expanded mask.
   opacity: 1,
   sceneClearColor: COLOR_PALETTE_STR.background,
   sceneClearAlpha: 1,
+  // Lower values are cheaper and softer/blockier; higher values are sharper.
   resolutionScale: 1,
+  // MSAA samples for the UI mask render target.
   multisampleCount: 4,
+  // Compile-time shader loop cap. Keep this >= radiusPx * resolutionScale.
   maxSampleRadiusPx: 8,
+  // Softness of the expanded halo edge.
   expandedMaskStart: 0.01,
   expandedMaskEnd: 0.24,
-  solidMaskStart: 0.9,
-  solidMaskEnd: 0.995,
   outputAlpha: 1,
   maskColor: COLOR_PALETTE_STR.white,
   maskClearColor: COLOR_PALETTE_STR.black,
   maskClearAlpha: 0,
+  // Smooths postprocess composite edges before OutputPass; disable for raw
+  // halo diagnostics or perf comparisons.
+  smaaEnabled: true,
 } as const;
 
 // Invisible pointer target around each nav row. R3F events are raycast-based, so

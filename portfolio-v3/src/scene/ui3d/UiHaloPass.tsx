@@ -24,6 +24,7 @@ import {
 } from "three/examples/jsm/postprocessing/Pass.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { UI_HALO } from "./main-menu.constants";
 
 type RenderableObject = Object3D & {
@@ -50,8 +51,6 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
       opacity: new Uniform(UI_HALO.opacity),
       outputAlpha: new Uniform(UI_HALO.outputAlpha),
       radiusPx: new Uniform(UI_HALO.radiusPx),
-      solidMaskEnd: new Uniform(UI_HALO.solidMaskEnd),
-      solidMaskStart: new Uniform(UI_HALO.solidMaskStart),
       texelSize: new Uniform(new Vector2(1, 1)),
     },
     vertexShader: `
@@ -74,8 +73,6 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
       uniform float opacity;
       uniform float outputAlpha;
       uniform float radiusPx;
-      uniform float solidMaskEnd;
-      uniform float solidMaskStart;
       uniform vec2 texelSize;
       varying vec2 vUv;
 
@@ -103,8 +100,7 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
           expandedMaskEnd,
           max(neighbor, center)
         );
-        float solidUi = smoothstep(solidMaskStart, solidMaskEnd, center);
-        float halo = expandedMask * (1.0 - solidUi) * opacity;
+        float halo = expandedMask * opacity;
 
         gl_FragColor = vec4(mix(sceneColor.rgb, haloColor, halo), outputAlpha);
       }
@@ -191,6 +187,28 @@ function applyMaskSceneState(
   });
 }
 
+function applyVisibilitySceneState(
+  scene: Object3D,
+  visibleTargets: Set<Object3D>,
+  snapshots: RenderableSnapshot[],
+) {
+  snapshots.length = 0;
+
+  scene.traverse((object) => {
+    if (!isRenderableObject(object)) {
+      return;
+    }
+
+    snapshots.push({
+      material: object.material,
+      object,
+      visible: object.visible,
+    });
+
+    object.visible = visibleTargets.has(object);
+  });
+}
+
 function restoreSceneState(snapshots: RenderableSnapshot[]) {
   snapshots.forEach(({ material, object, visible }) => {
     object.visible = visible;
@@ -225,6 +243,8 @@ class UiSceneRenderPass extends Pass {
   ) {
     const previousBackground = this.renderScene.background;
     const previousClearAlpha = renderer.getClearAlpha();
+    const uiRoot = this.renderScene.getObjectByName(UI_HALO.rootName);
+    const previousRootVisible = uiRoot?.visible;
 
     renderer.getClearColor(this.clearColor);
     renderer.setRenderTarget(this.renderToScreen ? null : readBuffer);
@@ -232,9 +252,17 @@ class UiSceneRenderPass extends Pass {
     this.renderScene.background = null;
 
     try {
+      if (uiRoot) {
+        uiRoot.visible = false;
+      }
+
       renderer.clear(true, true, true);
       renderer.render(this.renderScene, this.renderCamera);
     } finally {
+      if (uiRoot && previousRootVisible !== undefined) {
+        uiRoot.visible = previousRootVisible;
+      }
+
       this.renderScene.background = previousBackground;
       renderer.setClearColor(this.clearColor, previousClearAlpha);
     }
@@ -345,6 +373,32 @@ class UiHaloCompositePass extends Pass {
     }
 
     this.quad.render(renderer);
+    this.renderUiOverlay(renderer, targetSet);
+  }
+
+  private renderUiOverlay(
+    renderer: WebGLRenderer,
+    visibleTargets: Set<Object3D>,
+  ) {
+    const previousAutoClear = renderer.autoClear;
+    const previousBackground = this.renderScene.background;
+
+    renderer.clearDepth();
+    renderer.autoClear = false;
+    this.renderScene.background = null;
+    applyVisibilitySceneState(
+      this.renderScene,
+      visibleTargets,
+      this.snapshots,
+    );
+
+    try {
+      renderer.render(this.renderScene, this.renderCamera);
+    } finally {
+      restoreSceneState(this.snapshots);
+      this.renderScene.background = previousBackground;
+      renderer.autoClear = previousAutoClear;
+    }
   }
 
   override dispose() {
@@ -365,10 +419,14 @@ export default function UiHaloPass() {
     const selectedObjects = maskTargetsRef.current;
     const composer = new EffectComposer(gl);
     const haloPass = new UiHaloCompositePass(scene, camera, selectedObjects);
+    const smaaPass = UI_HALO.smaaEnabled ? new SMAAPass() : null;
     const outputPass = new OutputPass();
 
     composer.addPass(new UiSceneRenderPass(scene, camera));
     composer.addPass(haloPass);
+    if (smaaPass) {
+      composer.addPass(smaaPass);
+    }
     composer.addPass(outputPass);
 
     composerRef.current = composer;
@@ -380,6 +438,7 @@ export default function UiHaloPass() {
       haloPassRef.current = null;
       composer.dispose();
       haloPass.dispose();
+      smaaPass?.dispose();
       outputPass.dispose();
     };
   }, [camera, gl, scene]);
