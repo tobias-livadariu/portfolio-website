@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import type {
-  CSSProperties,
-  ReactElement,
-  WheelEvent as ReactWheelEvent,
-} from "react";
+import type { CSSProperties, ReactElement } from "react";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
 import ModalAssetPreloader from "./components/ModalAssetPreloader";
@@ -40,6 +36,14 @@ function normalizeWheelDelta(event: WheelEvent) {
 
 function getRevealDistancePx() {
   return window.innerHeight * (1 + MODAL_SCROLL.homeOffsetVh / 100);
+}
+
+function getMaxScrollTop(element: HTMLElement) {
+  return Math.max(0, element.scrollHeight - element.clientHeight);
+}
+
+function clampScrollTop(element: HTMLElement, scrollTop: number) {
+  return Math.min(getMaxScrollTop(element), Math.max(0, scrollTop));
 }
 
 export default function ModalLayer() {
@@ -124,10 +128,8 @@ export default function ModalLayer() {
       return;
     }
 
-    const revealProgress = Math.min(
-      1,
-      scrollRoot.scrollTop / getRevealDistancePx(),
-    );
+    const revealDistance = getRevealDistancePx();
+    const revealProgress = Math.min(1, scrollRoot.scrollTop / revealDistance);
     const opacity = revealProgress * MODAL_SCROLL.maxBackdropOpacity;
 
     layer.style.setProperty("--modal-backdrop-opacity", opacity.toFixed(3));
@@ -228,51 +230,84 @@ export default function ModalLayer() {
     });
   }, [navigationRequest, updateIsOpen]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    scrollRootRef.current?.focus();
-  }, [isOpen]);
+  const requestClose = useCallback(() => {
+    close();
+  }, [close]);
 
   useEffect(() => {
-    const handleHomeWheel = (event: WheelEvent) => {
-      if (
-        isOpenRef.current ||
-        Math.abs(event.deltaY) <= Math.abs(event.deltaX)
-      ) {
+    const handleWindowWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
         return;
       }
 
       const deltaY = normalizeWheelDelta(event);
 
-      if (deltaY <= 0) {
+      if (Math.abs(deltaY) < 0.5) {
         return;
       }
 
-      event.preventDefault();
-      updateIsOpen(true);
+      const scrollRoot = scrollRootRef.current;
 
-      window.requestAnimationFrame(() => {
-        scrollRootRef.current?.scrollBy({
-          behavior: "auto",
-          top: deltaY * MODAL_SCROLL.wheelOpenMultiplier,
-        });
-      });
+      if (!scrollRoot) {
+        return;
+      }
+
+      const currentScrollTop = scrollRoot.scrollTop;
+      const nextScrollTop = clampScrollTop(
+        scrollRoot,
+        currentScrollTop + deltaY * MODAL_SCROLL.wheelOpenMultiplier,
+      );
+
+      event.preventDefault();
+
+      if (nextScrollTop === currentScrollTop) {
+        return;
+      }
+
+      scrollRoot.scrollTop = nextScrollTop;
+      scheduleScrollSync();
     };
 
-    window.addEventListener("wheel", handleHomeWheel, { passive: false });
+    window.addEventListener("wheel", handleWindowWheel, {
+      capture: true,
+      passive: false,
+    });
 
     return () => {
-      window.removeEventListener("wheel", handleHomeWheel);
+      window.removeEventListener("wheel", handleWindowWheel, {
+        capture: true,
+      });
     };
-  }, [updateIsOpen]);
+  }, [scheduleScrollSync]);
 
   useEffect(() => {
+    const isEditableTarget = (target: EventTarget | null) =>
+      target instanceof HTMLElement &&
+      (target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT");
+
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() === "q" &&
+        (isOpenRef.current || (scrollRootRef.current?.scrollTop ?? 0) > 1) &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !isEditableTarget(event.target)
+      ) {
+        event.preventDefault();
+        requestClose();
+        return;
+      }
+
       if (event.key === "Escape") {
-        close();
+        requestClose();
         return;
       }
 
@@ -294,7 +329,7 @@ export default function ModalLayer() {
         currentIndex === -1 && direction > 0 ? 0 : currentIndex + direction;
 
       if (nextIndex < 0) {
-        close();
+        requestClose();
         return;
       }
 
@@ -310,7 +345,7 @@ export default function ModalLayer() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeSection, close, openSection]);
+  }, [activeSection, openSection, requestClose]);
 
   const handleScroll = useCallback(() => {
     scheduleScrollSync();
@@ -323,21 +358,14 @@ export default function ModalLayer() {
       if (
         target instanceof HTMLElement &&
         (target.classList.contains("modal-home-spacer") ||
-          target.classList.contains("modal-scroll-gap"))
+          target.classList.contains("modal-scroll-gap") ||
+          target.classList.contains("modal-scroll-root") ||
+          target.classList.contains("modal-scroll-stack"))
       ) {
-        close();
+        requestClose();
       }
     },
-    [close],
-  );
-
-  const handleScrollRootWheel = useCallback(
-    (event: ReactWheelEvent) => {
-      if (event.currentTarget.scrollTop <= 0 && event.deltaY < 0) {
-        updateIsOpen(false);
-      }
-    },
-    [updateIsOpen],
+    [requestClose],
   );
 
   const layerStyle = {
@@ -361,7 +389,6 @@ export default function ModalLayer() {
           className="modal-scroll-root"
           onClick={handleScrollRootClick}
           onScroll={handleScroll}
-          onWheel={handleScrollRootWheel}
           ref={scrollRootRef}
           role="dialog"
           tabIndex={-1}
@@ -417,7 +444,7 @@ export default function ModalLayer() {
                           aria-label="Close section"
                           onClick={(event) => {
                             event.stopPropagation();
-                            close();
+                            requestClose();
                           }}
                           type="button"
                         >

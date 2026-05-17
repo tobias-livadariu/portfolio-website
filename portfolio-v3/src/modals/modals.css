@@ -67,6 +67,7 @@
   overflow-x: hidden;
   outline: none;
   overscroll-behavior-y: contain;
+  overflow-anchor: none;
   scrollbar-width: none;
 }
 
@@ -117,7 +118,7 @@
 
 .modal-panel-toolbar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 1rem;
   min-height: 2.35rem;
@@ -127,12 +128,25 @@
 }
 
 .modal-file-label {
+  grid-area: 1 / 1;
+  justify-self: start;
+  z-index: 1;
   white-space: nowrap;
 }
 
+.modal-panel-toolbar > button {
+  grid-area: 1 / 1;
+  justify-self: end;
+  z-index: 1;
+}
+
 .modal-panel-toolbar .modal-section-tabs {
+  grid-area: 1 / 1;
+  justify-self: center;
   min-width: 0;
+  max-width: min(56vw, 34rem);
   justify-content: center;
+  z-index: 2;
 }
 
 .modal-panel-body {
