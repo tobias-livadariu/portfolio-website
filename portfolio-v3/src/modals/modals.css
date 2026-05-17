@@ -164,6 +164,7 @@
 
 .modal-section-header {
   --modal-header-ascii-font-size: clamp(0.2rem, 0.55vw, 0.85rem);
+  --modal-header-mobile-title-indent: 1.2ch;
 
   display: flex;
   flex-direction: column;
@@ -195,6 +196,7 @@
   align-items: flex-start;
   justify-content: center;
   max-width: 100%;
+  padding-left: 0;
   color: var(--dragon-cyan);
   font-size: var(--modal-header-ascii-font-size);
 }
@@ -614,7 +616,7 @@
   }
 
   .modal-section-header {
-    --modal-header-ascii-font-size: 0.28rem;
+    --modal-header-ascii-font-size: 0.49rem;
   }
 
   .modal-panel-body {
@@ -637,6 +639,7 @@
     justify-self: start;
     gap: 0.38rem;
     max-width: 100%;
+    padding-left: var(--modal-header-mobile-title-indent);
     width: 100%;
   }
 

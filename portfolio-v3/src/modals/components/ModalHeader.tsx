@@ -35,8 +35,17 @@ export default function ModalHeader({
   titleGapSecondCh = 2,
   titlePieces,
 }: Props) {
+  const dividerSideMarginCh = dividerMinSideMarginCh ?? 1;
+
   return (
-    <header className="modal-section-header">
+    <header
+      className="modal-section-header"
+      style={
+        {
+          "--modal-header-mobile-title-indent": `${dividerSideMarginCh * 1.2}ch`,
+        } as CSSProperties
+      }
+    >
       <AsciiDivider
         block={dividerBlock}
         minGapCh={dividerMinGapCh}
