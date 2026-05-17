@@ -163,6 +163,8 @@
 }
 
 .modal-section-header {
+  --modal-header-ascii-font-size: clamp(0.2rem, 0.55vw, 0.85rem);
+
   display: flex;
   flex-direction: column;
   gap: clamp(0.35rem, 0.9vw, 0.8rem);
@@ -194,7 +196,7 @@
   justify-content: center;
   max-width: 100%;
   color: var(--dragon-cyan);
-  font-size: clamp(0.2rem, 0.55vw, 0.85rem);
+  font-size: var(--modal-header-ascii-font-size);
 }
 
 .modal-ascii-title-piece {
@@ -228,7 +230,7 @@
   box-sizing: border-box;
   color: var(--dragon-fg-dim);
   font-family: var(--font-iosevka-term);
-  font-size: clamp(0.2rem, 0.55vw, 0.85rem);
+  font-size: var(--modal-header-ascii-font-size);
   line-height: 1;
   white-space: pre;
 }
@@ -611,6 +613,10 @@
     justify-content: flex-start;
   }
 
+  .modal-section-header {
+    --modal-header-ascii-font-size: 0.28rem;
+  }
+
   .modal-panel-body {
     padding: 0.8rem;
   }
@@ -632,7 +638,6 @@
     gap: 0.38rem;
     max-width: 100%;
     width: 100%;
-    font-size: 0.28rem;
   }
 
   .modal-ascii-title-piece {
