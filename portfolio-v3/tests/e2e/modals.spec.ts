@@ -7,7 +7,7 @@ async function wheelGesture(page: Page) {
   }
 }
 
-test("modal stack opens from scroll and supports section navigation", async ({
+test("modal document opens from scroll and supports section navigation", async ({
   page,
 }) => {
   await page.goto("/");
@@ -16,64 +16,47 @@ test("modal stack opens from scroll and supports section navigation", async ({
 
   await page.mouse.move(900, 120);
   await page.mouse.wheel(0, 120);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await wheelGesture(page);
 
   const dialog = page.getByRole("dialog", {
-    name: "Portfolio section panels",
+    name: "Portfolio sections",
   });
   const activePanel = page.locator('.modal-panel[data-active="true"]');
+  const scrollRoot = page.locator(".modal-scroll-root");
 
   await expect(dialog).toBeVisible();
+  await expect(activePanel).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page
+        .locator(".modal-layer")
+        .evaluate((element) =>
+          Number(
+            getComputedStyle(element).getPropertyValue(
+              "--modal-backdrop-opacity",
+            ),
+          ),
+        ),
+    )
+    .toBeGreaterThan(0);
+
+  await wheelGesture(page);
   await expect(activePanel).toContainText("File: about.modal");
   await expect(activePanel).toContainText("whoami");
 
-  await page.waitForTimeout(600);
   await page.keyboard.press("PageDown");
   await expect(activePanel).toContainText("File: resume.modal");
   await expect(page.getByRole("link", { name: "DOWNLOAD PDF" })).toBeVisible();
-  await page.waitForTimeout(300);
 
-  const resumeScrollArea = activePanel.locator(".modal-panel-scroll");
-  const resumeDocument = activePanel.locator(".modal-resume-document");
-  const resumeBox = await resumeDocument.boundingBox();
+  const resumeScrollTop = await scrollRoot.evaluate(
+    (element) => element.scrollTop,
+  );
+  await page.mouse.move(900, 700);
+  await page.mouse.wheel(0, 900);
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(resumeScrollTop);
 
-  expect(resumeBox).not.toBeNull();
-
-  if (resumeBox) {
-    const scrollMetrics = await resumeScrollArea.evaluate((element) => ({
-      clientHeight: element.clientHeight,
-      scrollHeight: element.scrollHeight,
-      scrollTop: element.scrollTop,
-    }));
-
-    if (scrollMetrics.scrollHeight > scrollMetrics.clientHeight + 2) {
-      await resumeScrollArea.evaluate((element) => {
-        element.scrollTop = element.scrollHeight;
-      });
-    }
-
-    await page.waitForTimeout(100);
-
-    const scrollBox = await resumeScrollArea.boundingBox();
-
-    if (scrollBox) {
-      await page.mouse.move(
-        scrollBox.x + scrollBox.width / 2,
-        scrollBox.y + scrollBox.height * 0.65,
-      );
-    } else {
-      await page.mouse.move(
-        resumeBox.x + resumeBox.width / 2,
-        resumeBox.y + resumeBox.height / 2,
-      );
-    }
-
-    await wheelGesture(page);
-    await expect(activePanel).toContainText("File: portfolio.modal");
-  }
-
-  await page.getByRole("button", { name: "PORTFOLIO" }).click();
+  await activePanel.getByRole("button", { name: "PORTFOLIO" }).click();
   await expect(activePanel).toContainText("File: portfolio.modal");
   await expect(activePanel).toContainText("cd work && ls -l");
   await expect(activePanel).toContainText("cd ../../personal && ls -l");
@@ -81,7 +64,7 @@ test("modal stack opens from scroll and supports section navigation", async ({
     page.getByRole("link", { name: /portfolio-website/ }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: "CONTACT ME" }).click();
+  await activePanel.getByRole("button", { name: "CONTACT ME" }).click();
   await expect(activePanel).toContainText("File: contact.modal");
   await expect(
     page.getByRole("link", { name: "tlivadar@uwaterloo.ca" }),
@@ -93,6 +76,6 @@ test("modal stack opens from scroll and supports section navigation", async ({
     path: "test-results/modal-contact.png",
   });
 
-  await page.getByRole("button", { name: "Close section" }).click();
+  await activePanel.getByRole("button", { name: "Close section" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });

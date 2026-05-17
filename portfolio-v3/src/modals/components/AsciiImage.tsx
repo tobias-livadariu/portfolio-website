@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import publicPath from "../../utility/public-path";
 
 interface AtlasFrame {
@@ -210,6 +210,8 @@ export default function AsciiImage(props: Props) {
   } = props;
   const [frames, setFrames] = useState<AsciiFrame[]>([]);
   const [frameIndex, setFrameIndex] = useState(0);
+  const [isVisible, setIsVisible] = useState(false);
+  const imageRef = useRef<HTMLPreElement>(null);
   const cacheKey = useMemo(
     () => `${imagePath}|${jsonPath ?? ""}|${atlasKey ?? ""}|${columns}|${rows}`,
     [atlasKey, columns, imagePath, jsonPath, rows],
@@ -243,7 +245,29 @@ export default function AsciiImage(props: Props) {
   }, [atlasKey, cacheKey, columns, imagePath, jsonPath, rows]);
 
   useEffect(() => {
-    if (frames.length <= 1) {
+    const element = imageRef.current;
+
+    if (!element || typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(Boolean(entry?.isIntersecting));
+      },
+      { rootMargin: "160px 0px" },
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isVisible || frames.length <= 1) {
       return;
     }
 
@@ -254,7 +278,7 @@ export default function AsciiImage(props: Props) {
     return () => {
       window.clearInterval(interval);
     };
-  }, [frames.length, intervalMs]);
+  }, [frames.length, intervalMs, isVisible]);
 
   const frame = rotateFrame(frames[frameIndex] ?? [], rotateQuarterTurns);
 
@@ -262,6 +286,7 @@ export default function AsciiImage(props: Props) {
     <pre
       aria-label={alt}
       className={`modal-ascii-image ${className ?? ""}`.trim()}
+      ref={imageRef}
     >
       {frame.map((line, rowIndex) => (
         <span className="modal-ascii-image-line" key={rowIndex}>

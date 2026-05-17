@@ -13,20 +13,11 @@ export const MODAL_SECTIONS = [
 
 export const MODAL_SECTION_KEYS = MODAL_SECTIONS.map(({ key }) => key);
 
-export const MODAL_NAVIGATION = {
-  homeOpenThresholdPx: 520,
-  panelSwitchThresholdPx: 430,
-  touchSwitchThresholdPx: 150,
-  maxWheelDeltaPx: 96,
-  maxTouchDeltaPx: 72,
-  minWheelEventsBeforeCommit: 3,
-  boundaryGateMs: 420,
-  maxDragPx: 132,
-  bottomBouncePx: 68,
-  releaseDelayMs: 180,
-  gestureQuietMs: 520,
-  inertiaQuietMs: 220,
-  openAnimationMs: 460,
+export const MODAL_SCROLL = {
+  homeOffsetVh: 14,
+  sectionGapVh: 18,
+  maxBackdropOpacity: 0.72,
+  wheelOpenMultiplier: 1,
 } as const;
 
 export const DRAGON_LUCY = {
