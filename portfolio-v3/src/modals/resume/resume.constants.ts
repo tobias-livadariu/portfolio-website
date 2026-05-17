@@ -30,9 +30,9 @@ export const RESUME_TERMINAL_CONTEXT: TerminalContext = {
 };
 
 export const RESUME_SPRITE = {
-  atlasKey: "gas-giant-1-1",
-  imagePath: "/rotating-planet-spritesheets/gas-giant-1/gas-giant-1-1.png",
-  jsonPath: "/rotating-planet-spritesheets/gas-giant-1/gas-giant-1-1.json",
+  atlasKey: "astroid-5",
+  imagePath: "/rotating-planet-spritesheets/astroid/astroid-5.png",
+  jsonPath: "/rotating-planet-spritesheets/astroid/astroid-5.json",
   columns: 34,
   rows: 18,
 } as const;

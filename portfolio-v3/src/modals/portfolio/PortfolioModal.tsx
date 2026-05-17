@@ -144,8 +144,8 @@ export default function PortfolioModal() {
           flipX: true,
         }}
         rightSprite={{ ...PORTFOLIO_SPRITE, alt: "ASCII terran planet" }}
-        titleGapFirstCh={4}
-        titleGapSecondCh={0.75}
+        titleGapFirstCh={1}
+        titleGapSecondCh={-4}
         titlePieces={PORTFOLIO_ASCII_TITLE_PIECES}
       />
 

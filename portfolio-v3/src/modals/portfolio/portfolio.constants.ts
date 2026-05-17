@@ -2,7 +2,6 @@ import type { TerminalContext } from "../modal.types";
 
 export const PORTFOLIO_ASCII_TITLE_PIECES = [
   [
-    "          .         .                         ",
     "         ,8.       ,8.   `8.`8888.      ,8'   ",
     "        ,888.     ,888.   `8.`8888.    ,8'    ",
     "       .`8888.   .`8888.   `8.`8888.  ,8'     ",

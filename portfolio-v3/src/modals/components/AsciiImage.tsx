@@ -208,10 +208,12 @@ async function loadAsciiFrames(props: {
   const atlas = (await fetch(publicPath(props.jsonPath)).then((response) =>
     response.json(),
   )) as AtlasJson;
-  const animationKey =
-    props.atlasKey ?? Object.keys(atlas.animations ?? {})[0] ?? "";
+  const animationKeys = Object.keys(atlas.animations ?? {});
+  const animationKey = props.atlasKey ?? animationKeys[0] ?? "";
   const frameKeys =
-    atlas.animations?.[animationKey] ?? Object.keys(atlas.frames).slice(0, 1);
+    atlas.animations?.[animationKey] ??
+    atlas.animations?.[animationKeys[0] ?? ""] ??
+    Object.keys(atlas.frames).slice(0, 1);
 
   return frameKeys
     .map((frameKey) => atlas.frames[frameKey])
