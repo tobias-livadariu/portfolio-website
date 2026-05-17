@@ -21,7 +21,7 @@ export const RESUME_ASCII_TITLE_PIECES = [
   ],
 ] as const;
 
-export const RESUME_DIVIDER = ["88888888", "88888888"] as const;
+export const RESUME_DIVIDER = ["8888888", "8888888"] as const;
 
 export const RESUME_TERMINAL_CONTEXT: TerminalContext = {
   directory: "repos/resume",

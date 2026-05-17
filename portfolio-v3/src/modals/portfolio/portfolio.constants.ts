@@ -39,7 +39,7 @@ export const PORTFOLIO_ASCII_TITLE_PIECES = [
   ],
 ] as const;
 
-export const PORTFOLIO_DIVIDER = ["@!@!@!@!@", "!!!@!@!!!"] as const;
+export const PORTFOLIO_DIVIDER = ["!@!@!@!", "!!@!@!!"] as const;
 
 export const PORTFOLIO_TERMINAL_CONTEXT: TerminalContext = {
   directory: "repos/my-portfolio",

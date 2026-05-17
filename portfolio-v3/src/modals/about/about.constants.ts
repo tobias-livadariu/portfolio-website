@@ -21,11 +21,7 @@ export const ABOUT_ASCII_TITLE_PIECES = [
   ],
 ] as const;
 
-export const ABOUT_DIVIDER = [
-  "---------------",
-  "-:::::::::::::-",
-  "---------------",
-] as const;
+export const ABOUT_DIVIDER = ["-------", "-:::::-", "-------"] as const;
 
 export const ABOUT_TERMINAL_CONTEXT: TerminalContext = {
   directory: "repos/all-about-me",
