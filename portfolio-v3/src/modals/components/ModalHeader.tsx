@@ -42,7 +42,7 @@ export default function ModalHeader({
       className="modal-section-header"
       style={
         {
-          "--modal-header-mobile-title-indent": `${dividerSideMarginCh * 1.2}ch`,
+          "--modal-header-mobile-title-indent": `${dividerSideMarginCh * 1.4}ch`,
         } as CSSProperties
       }
     >
