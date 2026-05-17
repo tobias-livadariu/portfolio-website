@@ -9,6 +9,7 @@ import {
   STARS,
 } from "./starfield.constants";
 import {
+  createVisibleBounds,
   getFieldRadius,
   getOrbitCenter,
   getOrbitalPosition,
@@ -19,13 +20,24 @@ import {
   mulberry32,
   pickWeightedIndex,
   sampleNormal,
+  type Vec3Tuple,
 } from "./starfield.math";
+
+const STAR_COLOR_OBJECTS = STAR_COLORS.map((value) => new Color(value));
+
+// Module-scoped scratches. Stars is a singleton component so it is safe to
+// share these across re-mounts; mutating them inside useFrame avoids
+// per-star-per-frame allocations (10k stars × 60fps).
+const STAR_REFERENCE_BOUNDS = createVisibleBounds();
+const STAR_VISIBLE_BOUNDS = createVisibleBounds();
+const STAR_ORBIT_CENTER: Vec3Tuple = [0, 0, 0];
+const STAR_BUCKET_COUNTS = new Uint32Array(STARS.emissiveIntensity.buckets.length);
 
 interface VirtualStar {
   angle: number;
   angularSpeed: number;
   bucketIndex: number;
-  color: string;
+  colorIndex: number;
   orbitRadiusRatio: number;
   orbitWellIndex: number;
   size: number;
@@ -78,7 +90,7 @@ function createVirtualStars(): VirtualStar[] {
       angle: random() * Math.PI * 2,
       angularSpeed: angularSpeed * direction,
       bucketIndex: getNearestBucketIndex(emissiveIntensity),
-      color: STAR_COLORS[Math.floor(random() * STAR_COLORS.length)],
+      colorIndex: Math.floor(random() * STAR_COLORS.length),
       orbitRadiusRatio:
         STARS.minOrbitRadiusRatio +
         Math.sqrt(random()) * (1 - STARS.minOrbitRadiusRatio),
@@ -103,38 +115,41 @@ export default function Stars() {
   const meshRefs = useRef<(InstancedMesh | null)[]>([]);
   const stars = useMemo(() => createVirtualStars(), []);
   const dummy = useMemo(() => new Object3D(), []);
-  const color = useMemo(() => new Color(), []);
   const position = useMemo(() => new Vector3(), []);
   const { camera, size } = useThree();
 
   useFrame(({ clock }) => {
     const elapsedSeconds = clock.getElapsedTime();
-    const bucketCounts = STARS.emissiveIntensity.buckets.map(() => 0);
+    STAR_BUCKET_COUNTS.fill(0);
 
     for (const star of stars) {
-      const referenceBounds = getVisibleBoundsAtZForPosition(
+      getVisibleBoundsAtZForPosition(
         camera,
         size,
         star.z,
         CAMERA_PROPS.position,
+        undefined,
+        STAR_REFERENCE_BOUNDS,
       );
-      const fieldRadius = getFieldRadius(referenceBounds);
-      const orbitCenter = getOrbitCenter(
+      const fieldRadius = getFieldRadius(STAR_REFERENCE_BOUNDS);
+      getOrbitCenter(
         star.orbitWellIndex,
-        referenceBounds,
+        STAR_REFERENCE_BOUNDS,
         fieldRadius,
+        STAR_ORBIT_CENTER,
       );
       const orbitRadius = star.orbitRadiusRatio * fieldRadius;
       const angle = star.angle + elapsedSeconds * star.angularSpeed;
-      getOrbitalPosition(orbitCenter, orbitRadius, angle, star.z, position);
+      getOrbitalPosition(
+        STAR_ORBIT_CENTER,
+        orbitRadius,
+        angle,
+        star.z,
+        position,
+      );
 
-      if (
-        !isInsideBounds(
-          position,
-          getVisibleBoundsAtZ(camera, size, star.z),
-          star.size,
-        )
-      ) {
+      getVisibleBoundsAtZ(camera, size, star.z, undefined, STAR_VISIBLE_BOUNDS);
+      if (!isInsideBounds(position, STAR_VISIBLE_BOUNDS, star.size)) {
         continue;
       }
 
@@ -143,14 +158,14 @@ export default function Stars() {
         continue;
       }
 
-      const instanceIndex = bucketCounts[star.bucketIndex]++;
+      const instanceIndex = STAR_BUCKET_COUNTS[star.bucketIndex]++;
       dummy.position.copy(position);
       dummy.rotation.set(0, 0, angle);
       dummy.scale.setScalar(star.size);
       dummy.updateMatrix();
 
       mesh.setMatrixAt(instanceIndex, dummy.matrix);
-      mesh.setColorAt(instanceIndex, color.set(star.color));
+      mesh.setColorAt(instanceIndex, STAR_COLOR_OBJECTS[star.colorIndex]);
     }
 
     for (let i = 0; i < meshRefs.current.length; i++) {
@@ -159,7 +174,7 @@ export default function Stars() {
         continue;
       }
 
-      mesh.count = bucketCounts[i] ?? 0;
+      mesh.count = STAR_BUCKET_COUNTS[i] ?? 0;
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) {
         mesh.instanceColor.needsUpdate = true;

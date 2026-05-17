@@ -34,7 +34,7 @@ type RenderableObject = Object3D & {
 };
 
 interface RenderableSnapshot {
-  material?: Material | Material[];
+  material: Material | Material[] | undefined;
   object: RenderableObject;
   visible: boolean;
 }
@@ -173,24 +173,58 @@ function collectMaskTargets(root: Object3D, targets: Object3D[]) {
   });
 }
 
-function applyMaskSceneState(
-  scene: Object3D,
-  targets: Set<Object3D>,
-  getMaskMaterial: MaskMaterialGetter,
-  snapshots: RenderableSnapshot[],
-) {
-  snapshots.length = 0;
+function collectRenderables(scene: Object3D, targets: RenderableObject[]) {
+  targets.length = 0;
 
   scene.traverse((object) => {
-    if (!isRenderableObject(object)) {
-      return;
+    if (isRenderableObject(object)) {
+      targets.push(object);
+    }
+  });
+}
+
+class SnapshotPool {
+  private readonly pool: RenderableSnapshot[] = [];
+  private index = 0;
+
+  reset() {
+    this.index = 0;
+  }
+
+  acquire(
+    object: RenderableObject,
+    material: Material | Material[] | undefined,
+    visible: boolean,
+  ): RenderableSnapshot {
+    if (this.index >= this.pool.length) {
+      this.pool.push({
+        material: undefined,
+        object,
+        visible: false,
+      });
     }
 
-    snapshots.push({
-      material: object.material,
-      object,
-      visible: object.visible,
-    });
+    const snapshot = this.pool[this.index++];
+    snapshot.object = object;
+    snapshot.material = material;
+    snapshot.visible = visible;
+    return snapshot;
+  }
+}
+
+function applyMaskSceneState(
+  renderables: readonly RenderableObject[],
+  targets: ReadonlySet<Object3D>,
+  getMaskMaterial: MaskMaterialGetter,
+  pool: SnapshotPool,
+  snapshots: RenderableSnapshot[],
+) {
+  pool.reset();
+  snapshots.length = 0;
+
+  for (let i = 0; i < renderables.length; i++) {
+    const object = renderables[i];
+    snapshots.push(pool.acquire(object, object.material, object.visible));
 
     if (targets.has(object)) {
       object.visible = true;
@@ -198,39 +232,35 @@ function applyMaskSceneState(
     } else {
       object.visible = false;
     }
-  });
+  }
 }
 
 function applyVisibilitySceneState(
-  scene: Object3D,
-  visibleTargets: Set<Object3D>,
+  renderables: readonly RenderableObject[],
+  visibleTargets: ReadonlySet<Object3D>,
+  pool: SnapshotPool,
   snapshots: RenderableSnapshot[],
 ) {
+  pool.reset();
   snapshots.length = 0;
 
-  scene.traverse((object) => {
-    if (!isRenderableObject(object)) {
-      return;
-    }
-
-    snapshots.push({
-      material: object.material,
-      object,
-      visible: object.visible,
-    });
+  for (let i = 0; i < renderables.length; i++) {
+    const object = renderables[i];
+    snapshots.push(pool.acquire(object, object.material, object.visible));
 
     object.visible = visibleTargets.has(object);
-  });
+  }
 }
 
 function restoreSceneState(snapshots: RenderableSnapshot[]) {
-  snapshots.forEach(({ material, object, visible }) => {
+  for (let i = 0; i < snapshots.length; i++) {
+    const { material, object, visible } = snapshots[i];
     object.visible = visible;
 
-    if (material) {
+    if (material !== undefined) {
       object.material = material;
     }
-  });
+  }
 
   snapshots.length = 0;
 }
@@ -293,6 +323,9 @@ class UiHaloCompositePass extends Pass {
   private readonly renderScene: Scene;
   private readonly selectedObjects: Object3D[];
   private readonly snapshots: RenderableSnapshot[] = [];
+  private readonly snapshotPool = new SnapshotPool();
+  private readonly renderables: RenderableObject[] = [];
+  private readonly targetSet = new Set<Object3D>();
 
   constructor(
     renderScene: Scene,
@@ -338,7 +371,13 @@ class UiHaloCompositePass extends Pass {
     writeBuffer: WebGLRenderTarget,
     readBuffer: WebGLRenderTarget,
   ) {
-    const targetSet = new Set(this.selectedObjects);
+    this.targetSet.clear();
+    for (let i = 0; i < this.selectedObjects.length; i++) {
+      this.targetSet.add(this.selectedObjects[i]);
+    }
+
+    collectRenderables(this.renderScene, this.renderables);
+
     const previousBackground = this.renderScene.background;
     const previousClearAlpha = renderer.getClearAlpha();
 
@@ -346,9 +385,10 @@ class UiHaloCompositePass extends Pass {
     this.renderScene.background = null;
 
     applyMaskSceneState(
-      this.renderScene,
-      targetSet,
+      this.renderables,
+      this.targetSet,
       this.getMaskMaterial,
+      this.snapshotPool,
       this.snapshots,
     );
 
@@ -380,7 +420,7 @@ class UiHaloCompositePass extends Pass {
     }
 
     this.quad.render(renderer);
-    this.renderUiOverlay(renderer, targetSet);
+    this.renderUiOverlay(renderer, this.targetSet);
   }
 
   private getMaskMaterial = (object: Object3D) => {
@@ -419,7 +459,7 @@ class UiHaloCompositePass extends Pass {
 
   private renderUiOverlay(
     renderer: WebGLRenderer,
-    visibleTargets: Set<Object3D>,
+    visibleTargets: ReadonlySet<Object3D>,
   ) {
     const previousAutoClear = renderer.autoClear;
     const previousBackground = this.renderScene.background;
@@ -428,8 +468,9 @@ class UiHaloCompositePass extends Pass {
     renderer.autoClear = false;
     this.renderScene.background = null;
     applyVisibilitySceneState(
-      this.renderScene,
+      this.renderables,
       visibleTargets,
+      this.snapshotPool,
       this.snapshots,
     );
 
