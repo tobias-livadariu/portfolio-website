@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ReactNode } from "react";
 
 interface Props {
@@ -101,7 +102,7 @@ function renderLine(line: string) {
   return renderInline(line);
 }
 
-export default function BatMarkdown({ content, fileName }: Props) {
+function BatMarkdown({ content, fileName }: Props) {
   const lines = content.trim().split("\n");
 
   return (
@@ -123,3 +124,5 @@ export default function BatMarkdown({ content, fileName }: Props) {
     </div>
   );
 }
+
+export default memo(BatMarkdown);

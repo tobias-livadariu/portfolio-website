@@ -3,8 +3,6 @@ import type { Dispatch, SetStateAction } from "react";
 import type { ModalSectionKey } from "./modal.types";
 
 export interface ModalContextValue {
-  activeIndex: number;
-  activeSection: ModalSectionKey | null;
   close: () => void;
   isOpen: boolean;
   navigationRequest: {
@@ -12,7 +10,6 @@ export interface ModalContextValue {
     section: ModalSectionKey | null;
   } | null;
   openSection: (section: ModalSectionKey) => void;
-  setActiveSection: Dispatch<SetStateAction<ModalSectionKey | null>>;
   setIsOpen: Dispatch<SetStateAction<boolean>>;
 }
 

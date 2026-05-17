@@ -1,3 +1,4 @@
+import { memo } from "react";
 import BatMarkdown from "../components/BatMarkdown";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
@@ -9,17 +10,24 @@ import {
   CONTACT_TERMINAL_CONTEXT,
 } from "./contact.constants";
 
-export default function ContactModal() {
+const CONTACT_LEFT_SPRITE = {
+  ...CONTACT_SPRITE,
+  alt: "Mirrored ASCII ice planet",
+  flipX: true,
+} as const;
+
+const CONTACT_RIGHT_SPRITE = {
+  ...CONTACT_SPRITE,
+  alt: "ASCII ice planet",
+} as const;
+
+function ContactModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
         dividerBlock={CONTACT_DIVIDER}
-        leftSprite={{
-          ...CONTACT_SPRITE,
-          alt: "Mirrored ASCII ice planet",
-          flipX: true,
-        }}
-        rightSprite={{ ...CONTACT_SPRITE, alt: "ASCII ice planet" }}
+        leftSprite={CONTACT_LEFT_SPRITE}
+        rightSprite={CONTACT_RIGHT_SPRITE}
         titlePieces={CONTACT_ASCII_TITLE_PIECES}
       />
 
@@ -40,3 +48,5 @@ export default function ContactModal() {
     </article>
   );
 }
+
+export default memo(ContactModal);

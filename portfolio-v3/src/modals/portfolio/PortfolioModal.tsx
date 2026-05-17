@@ -1,3 +1,4 @@
+import { memo } from "react";
 import BatMarkdown from "../components/BatMarkdown";
 import ModalHeader from "../components/ModalHeader";
 import Terminal, { LsOutput } from "../components/Terminal";
@@ -9,6 +10,17 @@ import {
   PORTFOLIO_TERMINAL_CONTEXT,
 } from "./portfolio.constants";
 import shopifySummary from "./shopify-summary.md?raw";
+
+const PORTFOLIO_LEFT_SPRITE = {
+  ...PORTFOLIO_SPRITE,
+  alt: "Mirrored ASCII terran planet",
+  flipX: true,
+} as const;
+
+const PORTFOLIO_RIGHT_SPRITE = {
+  ...PORTFOLIO_SPRITE,
+  alt: "ASCII terran planet",
+} as const;
 
 const rootRows = [
   {
@@ -133,17 +145,13 @@ const personalRows = [
   },
 ] as const;
 
-export default function PortfolioModal() {
+function PortfolioModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
         dividerBlock={PORTFOLIO_DIVIDER}
-        leftSprite={{
-          ...PORTFOLIO_SPRITE,
-          alt: "Mirrored ASCII terran planet",
-          flipX: true,
-        }}
-        rightSprite={{ ...PORTFOLIO_SPRITE, alt: "ASCII terran planet" }}
+        leftSprite={PORTFOLIO_LEFT_SPRITE}
+        rightSprite={PORTFOLIO_RIGHT_SPRITE}
         titleGapFirstCh={1}
         titleGapSecondCh={-4}
         titlePieces={PORTFOLIO_ASCII_TITLE_PIECES}
@@ -194,3 +202,5 @@ export default function PortfolioModal() {
     </article>
   );
 }
+
+export default memo(PortfolioModal);

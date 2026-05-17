@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import publicPath from "../../utility/public-path";
 
 interface AtlasFrame {
@@ -38,6 +38,7 @@ interface Props {
 
 const ASCII_RAMP = " .:-=+*#%@";
 const frameCache = new Map<string, Promise<AsciiFrame[]>>();
+const TRANSPARENT_CELL: AsciiCell = { char: " ", color: "transparent" };
 
 function getBrightness(red: number, green: number, blue: number) {
   return red * 0.2126 + green * 0.7152 + blue * 0.0722;
@@ -85,12 +86,7 @@ function rotateFrame(frame: AsciiFrame, quarterTurns = 0) {
 
   return Array.from({ length: targetHeight }, (_, row) =>
     Array.from({ length: targetWidth }, (_, column) => {
-      return (
-        getRotatedCell(frame, row, column, turns) ?? {
-          char: " ",
-          color: "transparent",
-        }
-      );
+      return getRotatedCell(frame, row, column, turns) ?? TRANSPARENT_CELL;
     }),
   );
 }
@@ -108,12 +104,7 @@ function flipFrame(frame: AsciiFrame, flipX = false, flipY = false) {
       const sourceRow = flipY ? height - 1 - row : row;
       const sourceColumn = flipX ? width - 1 - column : column;
 
-      return (
-        frame[sourceRow]?.[sourceColumn] ?? {
-          char: " ",
-          color: "transparent",
-        }
-      );
+      return frame[sourceRow]?.[sourceColumn] ?? TRANSPARENT_CELL;
     }),
   );
 }
@@ -166,7 +157,7 @@ function frameToAscii(
       const alpha = pixels[offset + 3] / 255;
 
       if (alpha < 0.08) {
-        return { char: " ", color: "transparent" };
+        return TRANSPARENT_CELL;
       }
 
       const red = pixels[offset];
@@ -223,7 +214,28 @@ async function loadAsciiFrames(props: {
     );
 }
 
-export default function AsciiImage(props: Props) {
+interface ColoredRun {
+  color: string;
+  text: string;
+}
+
+function buildRowRuns(row: AsciiCell[]): ColoredRun[] {
+  const runs: ColoredRun[] = [];
+  let current: ColoredRun | null = null;
+
+  for (const cell of row) {
+    if (current && current.color === cell.color) {
+      current.text += cell.char;
+    } else {
+      current = { color: cell.color, text: cell.char };
+      runs.push(current);
+    }
+  }
+
+  return runs;
+}
+
+function AsciiImage(props: Props) {
   const {
     alt,
     atlasKey,
@@ -309,10 +321,19 @@ export default function AsciiImage(props: Props) {
     };
   }, [frames.length, intervalMs, isVisible]);
 
-  const frame = flipFrame(
-    rotateFrame(frames[frameIndex] ?? [], rotateQuarterTurns),
-    flipX,
-    flipY,
+  const displayFrame = useMemo(() => {
+    const source = frames[frameIndex];
+
+    if (!source) {
+      return [] as AsciiFrame;
+    }
+
+    return flipFrame(rotateFrame(source, rotateQuarterTurns), flipX, flipY);
+  }, [flipX, flipY, frameIndex, frames, rotateQuarterTurns]);
+
+  const rowRuns = useMemo(
+    () => displayFrame.map(buildRowRuns),
+    [displayFrame],
   );
 
   return (
@@ -321,15 +342,15 @@ export default function AsciiImage(props: Props) {
       className={`modal-ascii-image ${className ?? ""}`.trim()}
       ref={imageRef}
     >
-      {frame.map((line, rowIndex) => (
+      {rowRuns.map((runs, rowIndex) => (
         <span className="modal-ascii-image-line" key={rowIndex}>
-          {line.map((cell, columnIndex) => (
+          {runs.map((run, runIndex) => (
             <span
               aria-hidden="true"
-              key={`${rowIndex}-${columnIndex}`}
-              style={{ color: cell.color }}
+              key={runIndex}
+              style={{ color: run.color }}
             >
-              {cell.char}
+              {run.text}
             </span>
           ))}
           {"\n"}
@@ -338,3 +359,5 @@ export default function AsciiImage(props: Props) {
     </pre>
   );
 }
+
+export default memo(AsciiImage);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ReactNode } from "react";
 import { GIT_STATE_LABELS, MODAL_SECTIONS } from "../modals.constants";
 import type {
@@ -152,7 +153,7 @@ export function TerminalNote({ children }: { children: ReactNode }) {
   return <div className="modal-terminal-note">{children}</div>;
 }
 
-export default function Terminal({ commands, context }: Props) {
+function Terminal({ commands, context }: Props) {
   return (
     <div className="modal-terminal" aria-label="terminal transcript">
       <div className="modal-terminal-topbar">
@@ -189,3 +190,5 @@ export default function Terminal({ commands, context }: Props) {
     </div>
   );
 }
+
+export default memo(Terminal);

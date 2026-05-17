@@ -1,3 +1,4 @@
+import { memo } from "react";
 import publicPath from "../../utility/public-path";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
@@ -8,6 +9,17 @@ import {
   RESUME_SPRITE,
   RESUME_TERMINAL_CONTEXT,
 } from "./resume.constants";
+
+const RESUME_LEFT_SPRITE = {
+  ...RESUME_SPRITE,
+  alt: "Mirrored ASCII asteroid",
+  flipX: true,
+} as const;
+
+const RESUME_RIGHT_SPRITE = {
+  ...RESUME_SPRITE,
+  alt: "ASCII asteroid",
+} as const;
 
 const PREVIEW_SRC = publicPath(
   "/resume.pdf#toolbar=0&navpanes=0&scrollbar=0&view=FitH",
@@ -41,17 +53,13 @@ function ResumeViewer() {
   );
 }
 
-export default function ResumeModal() {
+function ResumeModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
         dividerBlock={RESUME_DIVIDER}
-        leftSprite={{
-          ...RESUME_SPRITE,
-          alt: "Mirrored ASCII asteroid",
-          flipX: true,
-        }}
-        rightSprite={{ ...RESUME_SPRITE, alt: "ASCII asteroid" }}
+        leftSprite={RESUME_LEFT_SPRITE}
+        rightSprite={RESUME_RIGHT_SPRITE}
         titleGapFirstCh={3}
         titleGapSecondCh={1}
         titlePieces={RESUME_ASCII_TITLE_PIECES}
@@ -69,3 +77,5 @@ export default function ResumeModal() {
     </article>
   );
 }
+
+export default memo(ResumeModal);

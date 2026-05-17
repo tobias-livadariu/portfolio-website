@@ -90,6 +90,7 @@
 
 .modal-panel {
   width: min(100%, 96rem);
+  contain: layout paint;
 }
 
 .modal-scroll-gap {
@@ -568,22 +569,6 @@
   position: absolute;
   inset: 0;
   background: transparent;
-}
-
-@keyframes modal-panel-rise-in {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 105%, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: translate3d(
-      0,
-      calc((var(--modal-panel-offset) * 105%) + var(--modal-drag-px)),
-      0
-    );
-  }
 }
 
 .modal-action-row {

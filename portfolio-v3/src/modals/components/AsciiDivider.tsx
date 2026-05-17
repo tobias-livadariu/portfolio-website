@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 interface Props {
   block: readonly string[];
@@ -6,7 +13,7 @@ interface Props {
   minSideMarginCh?: number;
 }
 
-export default function AsciiDivider({
+function AsciiDivider({
   block,
   minGapCh = 2,
   minSideMarginCh = 1,
@@ -99,3 +106,5 @@ export default function AsciiDivider({
     </div>
   );
 }
+
+export default memo(AsciiDivider);

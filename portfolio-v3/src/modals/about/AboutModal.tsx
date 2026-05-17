@@ -1,3 +1,4 @@
+import { memo } from "react";
 import BatMarkdown from "../components/BatMarkdown";
 import AsciiImage from "../components/AsciiImage";
 import ModalHeader from "../components/ModalHeader";
@@ -10,20 +11,24 @@ import {
   ABOUT_TERMINAL_CONTEXT,
 } from "./about.constants";
 
-export default function AboutModal() {
+const ABOUT_LEFT_SPRITE = {
+  ...ABOUT_SPRITE,
+  alt: "Mirrored ASCII island planet",
+  flipX: true,
+} as const;
+
+const ABOUT_RIGHT_SPRITE = {
+  ...ABOUT_SPRITE,
+  alt: "ASCII island planet",
+} as const;
+
+function AboutModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
         dividerBlock={ABOUT_DIVIDER}
-        leftSprite={{
-          ...ABOUT_SPRITE,
-          alt: "Mirrored ASCII island planet",
-          flipX: true,
-        }}
-        rightSprite={{
-          ...ABOUT_SPRITE,
-          alt: "ASCII island planet",
-        }}
+        leftSprite={ABOUT_LEFT_SPRITE}
+        rightSprite={ABOUT_RIGHT_SPRITE}
         titlePieces={ABOUT_ASCII_TITLE_PIECES}
       />
 
@@ -66,3 +71,5 @@ export default function AboutModal() {
     </article>
   );
 }
+
+export default memo(AboutModal);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { CSSProperties } from "react";
 import AsciiDivider from "./AsciiDivider";
 import AsciiImage from "./AsciiImage";
@@ -25,7 +26,7 @@ interface Props {
   titlePieces: readonly (readonly string[])[];
 }
 
-export default function ModalHeader({
+function ModalHeader({
   dividerBlock,
   dividerMinGapCh,
   dividerMinSideMarginCh,
@@ -78,3 +79,5 @@ export default function ModalHeader({
     </header>
   );
 }
+
+export default memo(ModalHeader);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
@@ -21,6 +21,85 @@ const SECTION_COMPONENTS: Record<ModalSectionKey, () => ReactElement> = {
   portfolio: PortfolioModal,
   contactMe: ContactModal,
 };
+
+interface ModalPanelProps {
+  Section: () => ReactElement;
+  isLast: boolean;
+  onClose: () => void;
+  onOpenSection: (section: ModalSectionKey) => void;
+  registerRef: (key: ModalSectionKey, element: HTMLElement | null) => void;
+  sectionKey: ModalSectionKey;
+  sectionLabel: string;
+  sectionShortLabel: string;
+}
+
+const ModalPanel = memo(function ModalPanel({
+  Section,
+  isLast,
+  onClose,
+  onOpenSection,
+  registerRef,
+  sectionKey,
+  sectionLabel,
+  sectionShortLabel,
+}: ModalPanelProps) {
+  const setRef = useCallback(
+    (element: HTMLElement | null) => registerRef(sectionKey, element),
+    [registerRef, sectionKey],
+  );
+
+  return (
+    <section
+      aria-label={`${sectionLabel} section`}
+      className="modal-panel"
+      ref={setRef}
+    >
+      <div className="modal-panel-frame">
+        <div className="modal-panel-chrome">
+          <div className="modal-panel-toolbar">
+            <span className="modal-file-label">
+              File: {sectionShortLabel}.modal
+            </span>
+            <nav
+              className="modal-section-tabs"
+              aria-label="Portfolio sections"
+            >
+              {MODAL_SECTIONS.map((navigationSection) => (
+                <button
+                  aria-current={
+                    navigationSection.key === sectionKey ? "page" : undefined
+                  }
+                  key={navigationSection.key}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenSection(navigationSection.key);
+                  }}
+                  type="button"
+                >
+                  {navigationSection.label}
+                </button>
+              ))}
+            </nav>
+            <button
+              aria-label="Close section"
+              onClick={(event) => {
+                event.stopPropagation();
+                onClose();
+              }}
+              type="button"
+            >
+              [q]
+            </button>
+          </div>
+        </div>
+        <div className="modal-panel-body">
+          <Section />
+        </div>
+      </div>
+      {!isLast ? <div className="modal-scroll-gap" aria-hidden="true" /> : null}
+    </section>
+  );
+});
 
 function normalizeWheelDelta(event: WheelEvent) {
   if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
@@ -47,19 +126,12 @@ function clampScrollTop(element: HTMLElement, scrollTop: number) {
 }
 
 export default function ModalLayer() {
-  const {
-    activeSection,
-    close,
-    isOpen,
-    navigationRequest,
-    openSection,
-    setActiveSection,
-    setIsOpen,
-  } = useModalController();
+  const { close, isOpen, navigationRequest, openSection, setIsOpen } =
+    useModalController();
   const layerRef = useRef<HTMLDivElement>(null);
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const isOpenRef = useRef(isOpen);
-  const activeSectionRef = useRef(activeSection);
+  const currentSectionRef = useRef<ModalSectionKey | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const sectionOffsetsRef = useRef<Partial<Record<ModalSectionKey, number>>>(
     {},
@@ -72,10 +144,6 @@ export default function ModalLayer() {
     isOpenRef.current = isOpen;
   }, [isOpen]);
 
-  useEffect(() => {
-    activeSectionRef.current = activeSection;
-  }, [activeSection]);
-
   const updateIsOpen = useCallback(
     (nextIsOpen: boolean) => {
       if (isOpenRef.current === nextIsOpen) {
@@ -86,18 +154,6 @@ export default function ModalLayer() {
       setIsOpen(nextIsOpen);
     },
     [setIsOpen],
-  );
-
-  const updateActiveSection = useCallback(
-    (nextActiveSection: ModalSectionKey | null) => {
-      if (activeSectionRef.current === nextActiveSection) {
-        return;
-      }
-
-      activeSectionRef.current = nextActiveSection;
-      setActiveSection(nextActiveSection);
-    },
-    [setActiveSection],
   );
 
   const updateSectionMetrics = useCallback(() => {
@@ -135,8 +191,8 @@ export default function ModalLayer() {
     layer.style.setProperty("--modal-backdrop-opacity", opacity.toFixed(3));
 
     if (scrollRoot.scrollTop <= 1) {
+      currentSectionRef.current = null;
       updateIsOpen(false);
-      updateActiveSection(null);
       return;
     }
 
@@ -153,8 +209,8 @@ export default function ModalLayer() {
       }
     }
 
-    updateActiveSection(nextActiveSection);
-  }, [sections, updateActiveSection, updateIsOpen]);
+    currentSectionRef.current = nextActiveSection;
+  }, [sections, updateIsOpen]);
 
   const scheduleScrollSync = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -324,7 +380,7 @@ export default function ModalLayer() {
 
       const direction =
         event.key === "ArrowDown" || event.key === "PageDown" ? 1 : -1;
-      const currentIndex = getModalIndex(activeSection);
+      const currentIndex = getModalIndex(currentSectionRef.current);
       const nextIndex =
         currentIndex === -1 && direction > 0 ? 0 : currentIndex + direction;
 
@@ -345,7 +401,7 @@ export default function ModalLayer() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeSection, openSection, requestClose]);
+  }, [openSection, requestClose]);
 
   const handleScroll = useCallback(() => {
     scheduleScrollSync();
@@ -368,10 +424,25 @@ export default function ModalLayer() {
     [requestClose],
   );
 
-  const layerStyle = {
-    "--modal-home-offset": `${MODAL_SCROLL.homeOffsetVh}vh`,
-    "--modal-section-gap": `${MODAL_SCROLL.sectionGapVh}vh`,
-  } as CSSProperties;
+  const registerSectionRef = useCallback(
+    (key: ModalSectionKey, element: HTMLElement | null) => {
+      if (element) {
+        sectionRefs.current[key] = element;
+      } else {
+        delete sectionRefs.current[key];
+      }
+    },
+    [],
+  );
+
+  const layerStyle = useMemo(
+    () =>
+      ({
+        "--modal-home-offset": `${MODAL_SCROLL.homeOffsetVh}vh`,
+        "--modal-section-gap": `${MODAL_SCROLL.sectionGapVh}vh`,
+      }) as CSSProperties,
+    [],
+  );
 
   return (
     <>
@@ -399,67 +470,17 @@ export default function ModalLayer() {
               const Section = SECTION_COMPONENTS[section.key];
 
               return (
-                <section
-                  aria-label={`${section.label} section`}
-                  className="modal-panel"
-                  data-active={activeSection === section.key}
+                <ModalPanel
+                  Section={Section}
+                  isLast={index === sections.length - 1}
                   key={section.key}
-                  ref={(element) => {
-                    if (element) {
-                      sectionRefs.current[section.key] = element;
-                    } else {
-                      delete sectionRefs.current[section.key];
-                    }
-                  }}
-                >
-                  <div className="modal-panel-frame">
-                    <div className="modal-panel-chrome">
-                      <div className="modal-panel-toolbar">
-                        <span className="modal-file-label">
-                          File: {section.shortLabel}.modal
-                        </span>
-                        <nav
-                          className="modal-section-tabs"
-                          aria-label="Portfolio sections"
-                        >
-                          {sections.map((navigationSection) => (
-                            <button
-                              aria-current={
-                                activeSection === navigationSection.key
-                                  ? "page"
-                                  : undefined
-                              }
-                              key={navigationSection.key}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openSection(navigationSection.key);
-                              }}
-                              type="button"
-                            >
-                              {navigationSection.label}
-                            </button>
-                          ))}
-                        </nav>
-                        <button
-                          aria-label="Close section"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            requestClose();
-                          }}
-                          type="button"
-                        >
-                          [q]
-                        </button>
-                      </div>
-                    </div>
-                    <div className="modal-panel-body">
-                      <Section />
-                    </div>
-                  </div>
-                  {index < sections.length - 1 ? (
-                    <div className="modal-scroll-gap" aria-hidden="true" />
-                  ) : null}
-                </section>
+                  onClose={requestClose}
+                  onOpenSection={openSection}
+                  registerRef={registerSectionRef}
+                  sectionKey={section.key}
+                  sectionLabel={section.label}
+                  sectionShortLabel={section.shortLabel}
+                />
               );
             })}
           </div>
