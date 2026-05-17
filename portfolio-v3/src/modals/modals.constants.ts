@@ -1,8 +1,12 @@
+import { ABOUT_SPRITE } from "./about/about.constants";
+import { CONTACT_SPRITE } from "./contact/contact.constants";
 import type {
   GitStateToken,
   ModalSectionDefinition,
   ModalSectionKey,
 } from "./modal.types";
+import { PORTFOLIO_SPRITE } from "./portfolio/portfolio.constants";
+import { RESUME_SPRITE } from "./resume/resume.constants";
 
 export const MODAL_SECTIONS = [
   { key: "about", label: "ABOUT", shortLabel: "about" },
@@ -50,15 +54,18 @@ export const GIT_STATE_LABELS: Record<GitStateToken, string> = {
   untracked: "u",
 };
 
+const MODAL_HEADER_SPRITES = [
+  ABOUT_SPRITE,
+  RESUME_SPRITE,
+  PORTFOLIO_SPRITE,
+  CONTACT_SPRITE,
+] as const;
+
 export const MODAL_ASSETS = [
-  "/rotating-planet-spritesheets/islands/islands-1.json",
-  "/rotating-planet-spritesheets/islands/islands-1.png",
-  "/rotating-planet-spritesheets/gas-giant-1/gas-giant-1-1.json",
-  "/rotating-planet-spritesheets/gas-giant-1/gas-giant-1-1.png",
-  "/rotating-planet-spritesheets/terran-wet/terran-wet-1.json",
-  "/rotating-planet-spritesheets/terran-wet/terran-wet-1.png",
-  "/rotating-planet-spritesheets/ice-world/ice-world-1.json",
-  "/rotating-planet-spritesheets/ice-world/ice-world-1.png",
+  ...MODAL_HEADER_SPRITES.flatMap(({ imagePath, jsonPath }) => [
+    jsonPath,
+    imagePath,
+  ]),
   "/images/me.png",
 ] as const;
 

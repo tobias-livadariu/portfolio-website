@@ -48,10 +48,10 @@ export default function ResumeModal() {
         dividerBlock={RESUME_DIVIDER}
         leftSprite={{
           ...RESUME_SPRITE,
-          alt: "Mirrored ASCII lava planet",
+          alt: "Mirrored ASCII gas giant",
           flipX: true,
         }}
-        rightSprite={{ ...RESUME_SPRITE, alt: "ASCII lava planet" }}
+        rightSprite={{ ...RESUME_SPRITE, alt: "ASCII gas giant" }}
         titleGapFirstCh={3}
         titleGapSecondCh={1}
         titlePieces={RESUME_ASCII_TITLE_PIECES}
