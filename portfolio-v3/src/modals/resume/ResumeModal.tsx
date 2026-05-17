@@ -2,7 +2,7 @@ import publicPath from "../../utility/public-path";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
 import {
-  RESUME_ASCII_TITLE,
+  RESUME_ASCII_TITLE_PIECES,
   RESUME_DIVIDER,
   RESUME_DRIVE_ID,
   RESUME_SPRITE,
@@ -45,11 +45,16 @@ export default function ResumeModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
-        title={RESUME_ASCII_TITLE}
         dividerBlock={RESUME_DIVIDER}
-        dividerRepeats={10}
-        leftSprite={{ ...RESUME_SPRITE, alt: "ASCII star sprite" }}
-        rightSprite={{ ...RESUME_SPRITE, alt: "ASCII star sprite" }}
+        leftSprite={{
+          ...RESUME_SPRITE,
+          alt: "Mirrored ASCII lava planet",
+          flipX: true,
+        }}
+        rightSprite={{ ...RESUME_SPRITE, alt: "ASCII lava planet" }}
+        titleGapFirstCh={3}
+        titleGapSecondCh={1}
+        titlePieces={RESUME_ASCII_TITLE_PIECES}
       />
 
       <Terminal

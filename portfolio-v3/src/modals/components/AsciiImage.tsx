@@ -28,6 +28,8 @@ interface Props {
   className?: string;
   columns: number;
   imagePath: string;
+  flipX?: boolean;
+  flipY?: boolean;
   intervalMs?: number;
   jsonPath?: string;
   rotateQuarterTurns?: number;
@@ -85,6 +87,29 @@ function rotateFrame(frame: AsciiFrame, quarterTurns = 0) {
     Array.from({ length: targetWidth }, (_, column) => {
       return (
         getRotatedCell(frame, row, column, turns) ?? {
+          char: " ",
+          color: "transparent",
+        }
+      );
+    }),
+  );
+}
+
+function flipFrame(frame: AsciiFrame, flipX = false, flipY = false) {
+  if (!flipX && !flipY) {
+    return frame;
+  }
+
+  const height = frame.length;
+  const width = frame[0]?.length ?? 0;
+
+  return Array.from({ length: height }, (_, row) =>
+    Array.from({ length: width }, (_, column) => {
+      const sourceRow = flipY ? height - 1 - row : row;
+      const sourceColumn = flipX ? width - 1 - column : column;
+
+      return (
+        frame[sourceRow]?.[sourceColumn] ?? {
           char: " ",
           color: "transparent",
         }
@@ -202,6 +227,8 @@ export default function AsciiImage(props: Props) {
     atlasKey,
     className,
     columns,
+    flipX = false,
+    flipY = false,
     imagePath,
     intervalMs = 140,
     jsonPath,
@@ -280,7 +307,11 @@ export default function AsciiImage(props: Props) {
     };
   }, [frames.length, intervalMs, isVisible]);
 
-  const frame = rotateFrame(frames[frameIndex] ?? [], rotateQuarterTurns);
+  const frame = flipFrame(
+    rotateFrame(frames[frameIndex] ?? [], rotateQuarterTurns),
+    flipX,
+    flipY,
+  );
 
   return (
     <pre

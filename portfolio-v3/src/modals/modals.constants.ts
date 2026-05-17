@@ -51,14 +51,14 @@ export const GIT_STATE_LABELS: Record<GitStateToken, string> = {
 };
 
 export const MODAL_ASSETS = [
-  "/rotating-planet-spritesheets/black-hole/black-hole-1.json",
-  "/rotating-planet-spritesheets/black-hole/black-hole-1.png",
-  "/rotating-planet-spritesheets/star/star-1.json",
-  "/rotating-planet-spritesheets/star/star-1.png",
   "/rotating-planet-spritesheets/islands/islands-1.json",
   "/rotating-planet-spritesheets/islands/islands-1.png",
-  "/rotating-planet-spritesheets/no-atmosphere/no-atmosphere-1.json",
-  "/rotating-planet-spritesheets/no-atmosphere/no-atmosphere-1.png",
+  "/rotating-planet-spritesheets/gas-giant-1/gas-giant-1-1.json",
+  "/rotating-planet-spritesheets/gas-giant-1/gas-giant-1-1.png",
+  "/rotating-planet-spritesheets/terran-wet/terran-wet-1.json",
+  "/rotating-planet-spritesheets/terran-wet/terran-wet-1.png",
+  "/rotating-planet-spritesheets/ice-world/ice-world-1.json",
+  "/rotating-planet-spritesheets/ice-world/ice-world-1.png",
   "/images/me.png",
 ] as const;
 

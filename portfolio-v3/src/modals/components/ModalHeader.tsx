@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import AsciiDivider from "./AsciiDivider";
 import AsciiImage from "./AsciiImage";
 
@@ -5,6 +6,8 @@ interface SpriteConfig {
   alt: string;
   atlasKey: string;
   columns: number;
+  flipX?: boolean;
+  flipY?: boolean;
   imagePath: string;
   jsonPath: string;
   rotateQuarterTurns?: number;
@@ -13,27 +16,56 @@ interface SpriteConfig {
 
 interface Props {
   dividerBlock: readonly string[];
-  dividerRepeats: number;
+  dividerMinGapCh?: number;
+  dividerMinSideMarginCh?: number;
   leftSprite: SpriteConfig;
-  title: string;
   rightSprite: SpriteConfig;
+  titleGapFirstCh?: number;
+  titleGapSecondCh?: number;
+  titlePieces: readonly (readonly string[])[];
 }
 
 export default function ModalHeader({
   dividerBlock,
-  dividerRepeats,
+  dividerMinGapCh,
+  dividerMinSideMarginCh,
   leftSprite,
   rightSprite,
-  title,
+  titleGapFirstCh = 4,
+  titleGapSecondCh = 2,
+  titlePieces,
 }: Props) {
   return (
     <header className="modal-section-header">
+      <AsciiDivider
+        block={dividerBlock}
+        minGapCh={dividerMinGapCh}
+        minSideMarginCh={dividerMinSideMarginCh}
+      />
       <div className="modal-section-title-row">
         <AsciiImage className="modal-header-sprite" {...leftSprite} />
-        <pre className="modal-ascii-title">{title}</pre>
+        <div
+          className="modal-ascii-title"
+          style={
+            {
+              "--modal-title-gap-first": `${titleGapFirstCh}ch`,
+              "--modal-title-gap-second": `${titleGapSecondCh}ch`,
+            } as CSSProperties
+          }
+        >
+          {titlePieces.map((piece, index) => (
+            <pre className="modal-ascii-title-piece" key={index}>
+              {piece.join("\n")}
+            </pre>
+          ))}
+        </div>
         <AsciiImage className="modal-header-sprite" {...rightSprite} />
       </div>
-      <AsciiDivider block={dividerBlock} repeats={dividerRepeats} />
+      <AsciiDivider
+        block={dividerBlock}
+        minGapCh={dividerMinGapCh}
+        minSideMarginCh={dividerMinSideMarginCh}
+      />
     </header>
   );
 }

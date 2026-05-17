@@ -4,7 +4,7 @@ import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
 import technicalSkills from "./technical-skills.md?raw";
 import {
-  ABOUT_ASCII_TITLE,
+  ABOUT_ASCII_TITLE_PIECES,
   ABOUT_DIVIDER,
   ABOUT_SPRITE,
   ABOUT_TERMINAL_CONTEXT,
@@ -14,15 +14,17 @@ export default function AboutModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
-        title={ABOUT_ASCII_TITLE}
         dividerBlock={ABOUT_DIVIDER}
-        dividerRepeats={13}
-        leftSprite={{ ...ABOUT_SPRITE, alt: "ASCII black hole" }}
+        leftSprite={{
+          ...ABOUT_SPRITE,
+          alt: "Mirrored ASCII island planet",
+          flipX: true,
+        }}
         rightSprite={{
           ...ABOUT_SPRITE,
-          alt: "Rotated ASCII black hole",
-          rotateQuarterTurns: 1,
+          alt: "ASCII island planet",
         }}
+        titlePieces={ABOUT_ASCII_TITLE_PIECES}
       />
 
       <Terminal

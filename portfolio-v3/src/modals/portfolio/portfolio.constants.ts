@@ -1,21 +1,46 @@
 import type { TerminalContext } from "../modal.types";
 
-export const PORTFOLIO_ASCII_TITLE = String.raw`
-     e    e      Y88b    /       888~-_     ,88~-_   888~-_   ~~~888~~~ 888~~    ,88~-_   888     888   ,88~-_   
-    d8b  d8b      Y88b  /        888   \   d888   \  888   \     888    888___  d888   \  888     888  d888   \  
-   d888bdY88b      Y88b/         888    | 88888    | 888    |    888    888    88888    | 888     888 88888    | 
-  / Y88Y Y888b      Y8Y          888   /  88888    | 888   /     888    888    88888    | 888     888 88888    | 
- /   YY   Y888b      Y           888_-~    Y888   /  888_-~      888    888     Y888   /  888     888  Y888   /  
-/          Y888b    /            888        '88_-~   888 ~-_     888    888      '88_-~   888____ 888   '88_-~   
-`.trim();
-
-export const PORTFOLIO_DIVIDER = [
-  "              ",
-  "              ",
-  "              ",
-  "+#++:++#++:++ ",
-  "              ",
+export const PORTFOLIO_ASCII_TITLE_PIECES = [
+  [
+    "          .         .                         ",
+    "         ,8.       ,8.   `8.`8888.      ,8'   ",
+    "        ,888.     ,888.   `8.`8888.    ,8'    ",
+    "       .`8888.   .`8888.   `8.`8888.  ,8'     ",
+    "      ,8.`8888. ,8.`8888.   `8.`8888.,8'      ",
+    "     ,8'8.`8888,8^8.`8888.   `8.`88888'       ",
+    "    ,8' `8.`8888' `8.`8888.   `8. 8888        ",
+    "   ,8'   `8.`88'   `8.`8888.   `8 8888        ",
+    "  ,8'     `8.`'     `8.`8888.   8 8888        ",
+    " ,8'       `8        `8.`8888.  8 8888        ",
+    ",8'         `         `8.`8888. 8 8888        ",
+  ],
+  [
+    "8 888888888o       ,o888888o.     8 888888888o. 8888888 8888888888     ",
+    "8 8888    `88.  . 8888     `88.   8 8888    `88.      8 8888           ",
+    "8 8888     `88 ,8 8888       `8b  8 8888     `88      8 8888           ",
+    "8 8888     ,88 88 8888        `8b 8 8888     ,88      8 8888           ",
+    "8 8888.   ,88' 88 8888         88 8 8888.   ,88'      8 8888           ",
+    "8 888888888P'  88 8888         88 8 888888888P'       8 8888           ",
+    "8 8888         88 8888        ,8P 8 8888`8b           8 8888           ",
+    "8 8888         `8 8888       ,8P  8 8888 `8b.         8 8888           ",
+    "8 8888          ` 8888     ,88'   8 8888   `8b.       8 8888           ",
+    "8 8888             `8888888P'     8 8888     `88.     8 8888           ",
+  ],
+  [
+    "8 8888888888       ,o888888o.     8 8888          8 8888     ,o888888o.   ",
+    "8 8888          . 8888     `88.   8 8888          8 8888  . 8888     `88. ",
+    "8 8888         ,8 8888       `8b  8 8888          8 8888 ,8 8888       `8b",
+    "8 8888         88 8888        `8b 8 8888          8 8888 88 8888        `8b",
+    "8 888888888888 88 8888         88 8 8888          8 8888 88 8888         88",
+    "8 8888         88 8888         88 8 8888          8 8888 88 8888         88",
+    "8 8888         88 8888        ,8P 8 8888          8 8888 88 8888        ,8P",
+    "8 8888         `8 8888       ,8P  8 8888          8 8888 `8 8888       ,8P ",
+    "8 8888          ` 8888     ,88'   8 8888          8 8888  ` 8888     ,88'  ",
+    "8 8888             `8888888P'     8 888888888888  8 8888     `8888888P'    ",
+  ],
 ] as const;
+
+export const PORTFOLIO_DIVIDER = ["@!@!@!@!@", "!!!@!@!!!"] as const;
 
 export const PORTFOLIO_TERMINAL_CONTEXT: TerminalContext = {
   directory: "repos/my-portfolio",
@@ -24,9 +49,9 @@ export const PORTFOLIO_TERMINAL_CONTEXT: TerminalContext = {
 };
 
 export const PORTFOLIO_SPRITE = {
-  atlasKey: "islands-1",
-  imagePath: "/rotating-planet-spritesheets/islands/islands-1.png",
-  jsonPath: "/rotating-planet-spritesheets/islands/islands-1.json",
-  columns: 24,
-  rows: 12,
+  atlasKey: "terran-wet-1",
+  imagePath: "/rotating-planet-spritesheets/terran-wet/terran-wet-1.png",
+  jsonPath: "/rotating-planet-spritesheets/terran-wet/terran-wet-1.json",
+  columns: 34,
+  rows: 18,
 } as const;

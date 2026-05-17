@@ -3,7 +3,7 @@ import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
 import contactInformation from "./contact-information.md?raw";
 import {
-  CONTACT_ASCII_TITLE,
+  CONTACT_ASCII_TITLE_PIECES,
   CONTACT_DIVIDER,
   CONTACT_SPRITE,
   CONTACT_TERMINAL_CONTEXT,
@@ -13,11 +13,14 @@ export default function ContactModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
-        title={CONTACT_ASCII_TITLE}
         dividerBlock={CONTACT_DIVIDER}
-        dividerRepeats={16}
-        leftSprite={{ ...CONTACT_SPRITE, alt: "ASCII no-atmosphere planet" }}
-        rightSprite={{ ...CONTACT_SPRITE, alt: "ASCII no-atmosphere planet" }}
+        leftSprite={{
+          ...CONTACT_SPRITE,
+          alt: "Mirrored ASCII ice planet",
+          flipX: true,
+        }}
+        rightSprite={{ ...CONTACT_SPRITE, alt: "ASCII ice planet" }}
+        titlePieces={CONTACT_ASCII_TITLE_PIECES}
       />
 
       <Terminal

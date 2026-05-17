@@ -3,7 +3,7 @@ import ModalHeader from "../components/ModalHeader";
 import Terminal, { LsOutput } from "../components/Terminal";
 import ideaNotionSummary from "./ideanotion-summary.md?raw";
 import {
-  PORTFOLIO_ASCII_TITLE,
+  PORTFOLIO_ASCII_TITLE_PIECES,
   PORTFOLIO_DIVIDER,
   PORTFOLIO_SPRITE,
   PORTFOLIO_TERMINAL_CONTEXT,
@@ -137,11 +137,16 @@ export default function PortfolioModal() {
   return (
     <article className="modal-section-content">
       <ModalHeader
-        title={PORTFOLIO_ASCII_TITLE}
         dividerBlock={PORTFOLIO_DIVIDER}
-        dividerRepeats={12}
-        leftSprite={{ ...PORTFOLIO_SPRITE, alt: "ASCII island planet" }}
-        rightSprite={{ ...PORTFOLIO_SPRITE, alt: "ASCII island planet" }}
+        leftSprite={{
+          ...PORTFOLIO_SPRITE,
+          alt: "Mirrored ASCII terran planet",
+          flipX: true,
+        }}
+        rightSprite={{ ...PORTFOLIO_SPRITE, alt: "ASCII terran planet" }}
+        titleGapFirstCh={4}
+        titleGapSecondCh={0.75}
+        titlePieces={PORTFOLIO_ASCII_TITLE_PIECES}
       />
 
       <Terminal
