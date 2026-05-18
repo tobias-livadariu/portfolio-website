@@ -78,12 +78,18 @@ function ResumePdfViewer({ src }: Props) {
           pageEl.className = "modal-resume-pdf-page";
           pageEl.style.width = `${viewport.width}px`;
           pageEl.style.height = `${viewport.height}px`;
-          /* pdfjs sizes text/annotation layers with
-             `calc(var(--total-scale-factor) * <pageWidth>px)`. Without these
-             vars set the layers collapse to 0×0, which breaks text-selection
-             alignment and makes link hit-targets unclickable. */
+          /* pdfjs sizes text/annotation layers via
+             `round(down, var(--total-scale-factor) * <pageWidth>px, var(--scale-round-x))`
+             in browsers that support CSS round(). Without ALL four custom
+             properties set, the round() becomes invalid → layers collapse to
+             zero → text selection misaligns and link <section> percentage
+             boxes resolve to 0×0, making hyperlinks unclickable. This mirrors
+             the `.pdfViewer .page` rule from pdf_viewer.css. */
           pageEl.style.setProperty("--scale-factor", String(scale));
+          pageEl.style.setProperty("--user-unit", "1");
           pageEl.style.setProperty("--total-scale-factor", String(scale));
+          pageEl.style.setProperty("--scale-round-x", "1px");
+          pageEl.style.setProperty("--scale-round-y", "1px");
           container.appendChild(pageEl);
 
           const canvas = document.createElement("canvas");
