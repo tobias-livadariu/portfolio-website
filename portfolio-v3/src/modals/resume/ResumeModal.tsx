@@ -1,4 +1,5 @@
 import { memo } from "react";
+import type { CSSProperties } from "react";
 import publicPath from "../../utility/public-path";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
@@ -6,6 +7,7 @@ import {
   RESUME_ASCII_TITLE_PIECES,
   RESUME_DIVIDER,
   RESUME_DRIVE_ID,
+  RESUME_PREVIEW_MARGIN,
   RESUME_SPRITE,
   RESUME_TERMINAL_CONTEXT,
 } from "./resume.constants";
@@ -21,22 +23,27 @@ const RESUME_RIGHT_SPRITE = {
   alt: "ASCII asteroid",
 } as const;
 
-const PREVIEW_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/preview`;
 const OPEN_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/view`;
 const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${RESUME_DRIVE_ID}`;
 
 function ResumeOpenPanel() {
   return (
-    <div className="modal-open-panel modal-resume-viewer">
-      <div className="modal-resume-document">
-        <iframe
-          allow="autoplay"
-          className="modal-resume-frame"
-          loading="lazy"
-          src={PREVIEW_SRC}
-          title="Tobias Livadariu resume preview"
-        />
-        <div className="modal-resume-wheel-layer" aria-hidden="true" />
+    <div
+      className="modal-open-panel modal-resume-viewer"
+      style={
+        {
+          "--modal-resume-preview-margin": RESUME_PREVIEW_MARGIN,
+        } as CSSProperties
+      }
+    >
+      <div className="modal-resume-shell">
+        <div className="modal-resume-document">
+          <img
+            alt="Tobias Livadariu resume preview"
+            className="modal-resume-image"
+            src={publicPath("/images/resume-preview.png")}
+          />
+        </div>
       </div>
       <div className="modal-action-row">
         <a href={OPEN_SRC} rel="noreferrer" target="_blank">

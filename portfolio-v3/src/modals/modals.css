@@ -631,31 +631,32 @@
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+  width: 100%;
+}
+
+.modal-resume-shell {
+  position: relative;
+  width: 100%;
+  padding: var(--modal-resume-preview-margin);
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--dragon-border-bright);
+  background: var(--dragon-bg-alt);
 }
 
 .modal-resume-document {
   position: relative;
-  width: min(100%, 72rem);
-  aspect-ratio: 8.5 / 11;
-  margin: 0 auto;
+  width: 100%;
   overflow: hidden;
-  border: 1px solid var(--dragon-border-bright);
-  background: var(--dragon-black);
+  background: var(--color-white);
+  box-shadow: 0 0 0 1px rgb(197 201 197 / 0.14);
+  line-height: 0;
 }
 
-.modal-resume-frame {
+.modal-resume-image {
   display: block;
   width: 100%;
-  height: 100%;
-  border: 0;
-  background: var(--color-white);
-  pointer-events: none;
-}
-
-.modal-resume-wheel-layer {
-  position: absolute;
-  inset: 0;
-  background: transparent;
+  height: auto;
 }
 
 .modal-action-row {
