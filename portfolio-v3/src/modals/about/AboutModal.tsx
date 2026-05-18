@@ -21,8 +21,8 @@ const ABOUT_RIGHT_SPRITE = {
   alt: "ASCII island planet",
 } as const;
 
-const TOBIFETCH_COLUMNS = 142;
-const TOBIFETCH_ROWS = 99;
+const TOBIFETCH_COLUMNS = 105;
+const TOBIFETCH_ROWS = 73;
 
 const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
