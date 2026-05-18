@@ -764,6 +764,12 @@
   line-height: 1.35;
   text-align: center;
   text-transform: uppercase;
+  .modal-contact-note-copy-subspans {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    row-gap: clamp(0.2rem, 0.2vw, 0.27rem);
+  }
 }
 
 .modal-contact-note-copy span {

@@ -84,10 +84,11 @@ function ContactOpenPanel() {
         </pre>
         <div className="modal-contact-note-copy">
           <span>I am easiest to reach by email</span>
-          <span>
-            Open to software engineering internships, project conversations, and
-            direct technical feedback
-          </span>
+          <div className="modal-contact-note-copy-subspans">
+            <span>Open to software engineering internships,</span>
+            <span>project conversations,</span>
+            <span>and direct technical feedback</span>
+          </div>
         </div>
         <pre
           className="modal-contact-note-bracket modal-contact-note-bracket-right"
