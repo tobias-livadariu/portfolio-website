@@ -19,7 +19,7 @@ export const MODAL_SECTION_KEYS = MODAL_SECTIONS.map(({ key }) => key);
 
 export const MODAL_SCROLL = {
   homeOffsetVh: 0,
-  sectionGapVh: 18,
+  sectionGapVh: 2,
   maxBackdropOpacity: 0.72,
   wheelOpenMultiplier: 1,
 } as const;

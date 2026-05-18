@@ -66,7 +66,7 @@ function ContactOpenPanel() {
               target={isExternal ? "_blank" : undefined}
             >
               <span className="modal-contact-action-comment" aria-hidden="true">
-                //{action.value}
+                {action.value}
               </span>
               <span className="modal-contact-action-label">
                 [ {action.label} ]

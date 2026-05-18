@@ -712,7 +712,7 @@
 .modal-contact-action-comment {
   position: absolute;
   top: 0.32rem;
-  left: 0.44rem;
+  right: 0.32rem;
   max-width: calc(100% - 0.88rem);
   color: var(--dragon-comment);
   font-size: clamp(0.54rem, 0.62vw, 0.7rem);
