@@ -78,6 +78,12 @@ function ResumePdfViewer({ src }: Props) {
           pageEl.className = "modal-resume-pdf-page";
           pageEl.style.width = `${viewport.width}px`;
           pageEl.style.height = `${viewport.height}px`;
+          /* pdfjs sizes text/annotation layers with
+             `calc(var(--total-scale-factor) * <pageWidth>px)`. Without these
+             vars set the layers collapse to 0×0, which breaks text-selection
+             alignment and makes link hit-targets unclickable. */
+          pageEl.style.setProperty("--scale-factor", String(scale));
+          pageEl.style.setProperty("--total-scale-factor", String(scale));
           container.appendChild(pageEl);
 
           const canvas = document.createElement("canvas");

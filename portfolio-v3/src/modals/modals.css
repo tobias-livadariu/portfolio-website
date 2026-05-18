@@ -440,8 +440,9 @@
 
 .modal-tobifetch-row {
   display: inline-grid;
-  /* Art column matches the real ASCII width (TOBIFETCH_COLUMNS = 105) so the
-     info column starts AFTER the art rather than under it. */
+  /* Column widths are set inline by TobifetchOutput from the measured
+     terminal-content width (capped at TOBIFETCH_COLUMNS = 105); this is the
+     fallback used before measurement settles. */
   grid-template-columns: 105ch minmax(0, 1fr);
   gap: clamp(1.25ch, 2vw, 3ch);
   align-items: start;
@@ -451,6 +452,15 @@
   display: inline-block;
   width: 105ch;
   color: var(--dragon-fg-dim);
+  white-space: pre;
+}
+
+/* Invisible character-width probe rendered as a sibling of the tobifetch
+   lines so we can measure `1ch` against the actual terminal font. */
+.modal-tobifetch-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
   white-space: pre;
 }
 
@@ -738,8 +748,17 @@
   z-index: 3;
 }
 
+/* Override pdfjs's default bright-yellow hover (which it ships for print
+   highlighting) with a subtle cyan tint that matches the modal palette. */
+.modal-resume-pdf-page .annotationLayer .linkAnnotation > a,
 .modal-resume-pdf-page .annotationLayer .linkAnnotation > a:hover {
-  background: rgb(81 199 218 / 0.18);
+  opacity: 1;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.modal-resume-pdf-page .annotationLayer .linkAnnotation > a:hover {
+  background-color: rgb(81 199 218 / 0.22);
 }
 
 .modal-resume-pdf-status {
