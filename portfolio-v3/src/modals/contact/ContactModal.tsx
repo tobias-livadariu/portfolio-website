@@ -1,8 +1,6 @@
 import { memo } from "react";
-import type { ReactNode } from "react";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
-import contactInformation from "./contact-information.txt?raw";
 import {
   CONTACT_ASCII_TITLE_PIECES,
   CONTACT_DIVIDER,
@@ -21,51 +19,58 @@ const CONTACT_RIGHT_SPRITE = {
   alt: "ASCII ice planet",
 } as const;
 
-const LINK_PATTERNS = [
+const CONTACT_ACTIONS = [
   {
+    label: "EMAIL",
     href: "mailto:tlivadar@uwaterloo.ca",
-    text: "tlivadar@uwaterloo.ca",
+    value: "tlivadar@uwaterloo.ca",
   },
   {
+    label: "GITHUB",
     href: "https://github.com/tobias-livadariu",
-    text: "github.com/tobias-livadariu",
+    value: "github.com/tobias-livadariu",
   },
   {
+    label: "LINKEDIN",
     href: "https://linkedin.com/in/tobias-livadariu",
-    text: "linkedin.com/in/tobias-livadariu",
+    value: "linkedin.com/in/tobias-livadariu",
   },
   {
+    label: "PORTFOLIO",
     href: "https://tobias-livadariu.online/portfolio",
-    text: "tobias-livadariu.online/portfolio",
+    value: "tobias-livadariu.online/portfolio",
   },
 ] as const;
 
-function renderContactLine(line: string): ReactNode {
-  const link = LINK_PATTERNS.find((entry) => line.includes(entry.text));
-
-  if (!link) {
-    return line === "" ? "\u00a0" : line;
-  }
-
-  const [prefix, suffix] = line.split(link.text);
-
+function ContactOpenPanel() {
   return (
-    <>
-      {prefix}
-      <a href={link.href} rel="noreferrer" target="_blank">
-        {link.text}
-      </a>
-      {suffix}
-    </>
+    <div className="modal-open-panel modal-contact-open-panel">
+      <div className="modal-contact-actions">
+        {CONTACT_ACTIONS.map((action) => {
+          const isExternal = !action.href.startsWith("mailto:");
+
+          return (
+            <a
+              className="modal-contact-action"
+              href={action.href}
+              key={action.href}
+              rel={isExternal ? "noreferrer" : undefined}
+              target={isExternal ? "_blank" : undefined}
+            >
+              <span>{action.label}</span>
+              <span>{action.value}</span>
+            </a>
+          );
+        })}
+      </div>
+      <p>
+        I am usually easiest to reach by email. I am open to software
+        engineering internships, project conversations, and direct technical
+        feedback.
+      </p>
+    </div>
   );
 }
-
-const contactRows = contactInformation
-  .trimEnd()
-  .split("\n")
-  .map((line) => ({
-    content: renderContactLine(line),
-  }));
 
 function ContactModal() {
   return (
@@ -81,8 +86,14 @@ function ContactModal() {
         context={CONTACT_TERMINAL_CONTEXT}
         commands={[
           {
-            command: "cat contact-information.txt",
-            output: contactRows,
+            command: "open contact-tobi.html",
+            output: [
+              {
+                kind: "block",
+                lineCount: 0,
+                render: () => <ContactOpenPanel />,
+              },
+            ],
           },
         ]}
       />

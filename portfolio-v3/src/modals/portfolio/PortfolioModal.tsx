@@ -1,7 +1,10 @@
 import { memo } from "react";
 import AsciiDivider from "../components/AsciiDivider";
 import ModalHeader from "../components/ModalHeader";
-import Terminal, { lsOutputRows, plainTextRows } from "../components/Terminal";
+import Terminal, {
+  lsOutputRows,
+  wrappedTextOutput,
+} from "../components/Terminal";
 import ideaNotionSummary from "./ideanotion-summary.txt?raw";
 import {
   PORTFOLIO_ASCII_TITLE_PIECES,
@@ -132,9 +135,6 @@ const personalContext = {
   gitState: ["untracked"],
 } as const;
 
-const shopifySummaryRows = shopifySummary.trimEnd().split("\n");
-const ideaNotionSummaryRows = ideaNotionSummary.trimEnd().split("\n");
-
 function PortfolioModal() {
   return (
     <article className="modal-section-content">
@@ -156,12 +156,12 @@ function PortfolioModal() {
           },
           {
             command: "cat summary.txt",
-            output: plainTextRows(shopifySummaryRows),
+            output: [wrappedTextOutput(shopifySummary)],
           },
         ]}
       />
 
-      <AsciiDivider block={PORTFOLIO_DIVIDER} minSideMarginCh={2} />
+      <AsciiDivider block={PORTFOLIO_DIVIDER} />
 
       <Terminal
         context={ideaNotionContext}
@@ -172,12 +172,12 @@ function PortfolioModal() {
           },
           {
             command: "cat summary.txt",
-            output: plainTextRows(ideaNotionSummaryRows),
+            output: [wrappedTextOutput(ideaNotionSummary)],
           },
         ]}
       />
 
-      <AsciiDivider block={PORTFOLIO_DIVIDER} minSideMarginCh={2} />
+      <AsciiDivider block={PORTFOLIO_DIVIDER} />
 
       <Terminal
         context={personalContext}

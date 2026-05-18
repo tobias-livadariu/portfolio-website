@@ -1,7 +1,7 @@
 import { memo } from "react";
 import publicPath from "../../utility/public-path";
 import ModalHeader from "../components/ModalHeader";
-import Terminal, { TerminalTranscriptLine } from "../components/Terminal";
+import Terminal from "../components/Terminal";
 import {
   RESUME_ASCII_TITLE_PIECES,
   RESUME_DIVIDER,
@@ -21,21 +21,33 @@ const RESUME_RIGHT_SPRITE = {
   alt: "ASCII asteroid",
 } as const;
 
+const PREVIEW_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/preview`;
 const OPEN_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/view`;
 const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${RESUME_DRIVE_ID}`;
 
-function ResumeCatimgOutput({ firstLineNumber }: { firstLineNumber: number }) {
+function ResumeOpenPanel() {
   return (
-    <TerminalTranscriptLine
-      className="modal-terminal-line-catimg"
-      lineNumber={firstLineNumber}
-    >
-      <img
-        alt="Tobias Livadariu resume rendered as terminal image output"
-        className="modal-resume-catimg"
-        src={publicPath("/images/resume-preview.png")}
-      />
-    </TerminalTranscriptLine>
+    <div className="modal-open-panel modal-resume-viewer">
+      <div className="modal-resume-document">
+        <iframe
+          allow="autoplay"
+          className="modal-resume-frame"
+          loading="lazy"
+          src={PREVIEW_SRC}
+          title="Tobias Livadariu resume preview"
+        />
+        <div className="modal-resume-wheel-layer" aria-hidden="true" />
+      </div>
+      <div className="modal-action-row">
+        <a href={OPEN_SRC} rel="noreferrer" target="_blank">
+          [ OPEN IN GOOGLE DRIVE ]
+        </a>
+        <a href={DOWNLOAD_SRC}>[ DOWNLOAD PDF ]</a>
+        <a href={publicPath("/resume.pdf")} rel="noreferrer" target="_blank">
+          [ VIEW LOCAL FALLBACK ]
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -55,35 +67,12 @@ function ResumeModal() {
         context={RESUME_TERMINAL_CONTEXT}
         commands={[
           {
-            command: "catimg resume.pdf",
+            command: "open resume.html",
             output: [
               {
                 kind: "block",
-                lineCount: 1,
-                render: (firstLineNumber) => (
-                  <ResumeCatimgOutput firstLineNumber={firstLineNumber} />
-                ),
-              },
-              {
-                className: "modal-terminal-line-links",
-                content: (
-                  <>
-                    <span className="modal-terminal-note">open:</span>{" "}
-                    <a href={OPEN_SRC} rel="noreferrer" target="_blank">
-                      google drive
-                    </a>{" "}
-                    <span className="modal-terminal-note">|</span>{" "}
-                    <a href={DOWNLOAD_SRC}>DOWNLOAD PDF</a>{" "}
-                    <span className="modal-terminal-note">|</span>{" "}
-                    <a
-                      href={publicPath("/resume.pdf")}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      local pdf
-                    </a>
-                  </>
-                ),
+                lineCount: 0,
+                render: () => <ResumeOpenPanel />,
               },
             ],
           },

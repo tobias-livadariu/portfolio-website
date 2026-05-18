@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { GIT_STATE_LABELS } from "../modals.constants";
 import type {
@@ -214,6 +214,142 @@ export function plainTextRows(
     className: className ?? "modal-terminal-line-text",
     content: line === "" ? "\u00a0" : line,
   }));
+}
+
+function normalizeWrappedText(text: string) {
+  return text
+    .trimEnd()
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.split(/\n+/).join(" ").replace(/\s+/g, " "))
+    .filter(Boolean);
+}
+
+function wrapParagraph(paragraph: string, maxCharacters: number) {
+  const words = paragraph.split(" ");
+  const lines: string[] = [];
+  let current = "";
+
+  for (const word of words) {
+    if (!current) {
+      current = word;
+      continue;
+    }
+
+    if (`${current} ${word}`.length <= maxCharacters) {
+      current = `${current} ${word}`;
+      continue;
+    }
+
+    lines.push(current);
+    current = word;
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines;
+}
+
+function useTerminalCharacterCapacity() {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [maxCharacters, setMaxCharacters] = useState(72);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const measure = measureRef.current;
+    const terminalBody = wrapper?.closest(".modal-terminal-body");
+
+    if (!wrapper || !measure || !(terminalBody instanceof HTMLElement)) {
+      return;
+    }
+
+    const update = () => {
+      const contentColumn = terminalBody.querySelector(
+        ".modal-terminal-line-content",
+      );
+      const contentWidth =
+        contentColumn instanceof HTMLElement
+          ? contentColumn.getBoundingClientRect().width
+          : terminalBody.clientWidth;
+      const characterWidth = measure.getBoundingClientRect().width / 24;
+
+      if (contentWidth <= 0 || characterWidth <= 0) {
+        return;
+      }
+
+      setMaxCharacters(Math.max(22, Math.floor(contentWidth / characterWidth)));
+    };
+
+    update();
+    void document.fonts?.ready.then(update);
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const observer = new ResizeObserver(update);
+    observer.observe(terminalBody);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  return { maxCharacters, measureRef, wrapperRef };
+}
+
+function WrappedTextOutput({
+  firstLineNumber,
+  text,
+}: {
+  firstLineNumber: number;
+  text: string;
+}) {
+  const { maxCharacters, measureRef, wrapperRef } =
+    useTerminalCharacterCapacity();
+  const lines = useMemo(() => {
+    const paragraphs = normalizeWrappedText(text);
+    const wrapped: string[] = [];
+
+    paragraphs.forEach((paragraph, index) => {
+      if (index > 0) {
+        wrapped.push("");
+      }
+
+      wrapped.push(...wrapParagraph(paragraph, maxCharacters));
+    });
+
+    return wrapped;
+  }, [maxCharacters, text]);
+
+  return (
+    <div className="modal-terminal-wrapped-output" ref={wrapperRef}>
+      <span className="modal-terminal-ch-measure" ref={measureRef}>
+        000000000000000000000000
+      </span>
+      {lines.map((line, index) => (
+        <TerminalTranscriptLine
+          className="modal-terminal-line-text"
+          key={`${index}-${line}`}
+          lineNumber={firstLineNumber + index}
+        >
+          {line || "\u00a0"}
+        </TerminalTranscriptLine>
+      ))}
+    </div>
+  );
+}
+
+export function wrappedTextOutput(text: string): TerminalOutputBlock {
+  return {
+    kind: "block",
+    lineCount: 0,
+    render: (firstLineNumber) => (
+      <WrappedTextOutput firstLineNumber={firstLineNumber} text={text} />
+    ),
+  };
 }
 
 function Terminal({ commands, context }: Props) {
