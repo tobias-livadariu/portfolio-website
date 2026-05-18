@@ -89,11 +89,32 @@ const GUTTER_COLORS = [
   "var(--dragon-mint)",
 ] as const;
 
+const CAT_CLASSES = [
+  "modal-cat-c0",
+  "modal-cat-c1",
+  "modal-cat-c2",
+  "modal-cat-c3",
+  "modal-cat-c4",
+  "modal-cat-c5",
+] as const;
+
 function getGutterStyle(lineNumber: number) {
   return {
     "--modal-terminal-gutter-color":
       GUTTER_COLORS[(lineNumber - 1) % GUTTER_COLORS.length],
   } as CSSProperties;
+}
+
+function colorizeCatLine(text: string, lineNumber: number) {
+  const baseOffset = (lineNumber - 1) % CAT_CLASSES.length;
+  return Array.from(text, (character, index) => (
+    <span
+      className={CAT_CLASSES[(baseOffset + index) % CAT_CLASSES.length]}
+      key={index}
+    >
+      {character}
+    </span>
+  ));
 }
 
 function isOutputBlock(output: TerminalOutput): output is TerminalOutputBlock {
@@ -329,15 +350,18 @@ function WrappedTextOutput({
       <span className="modal-terminal-ch-measure" ref={measureRef}>
         000000000000000000000000
       </span>
-      {lines.map((line, index) => (
-        <TerminalTranscriptLine
-          className="modal-terminal-line-text"
-          key={`${index}-${line}`}
-          lineNumber={firstLineNumber + index}
-        >
-          {line || "\u00a0"}
-        </TerminalTranscriptLine>
-      ))}
+      {lines.map((line, index) => {
+        const lineNumber = firstLineNumber + index;
+        return (
+          <TerminalTranscriptLine
+            className="modal-terminal-line-text"
+            key={`${index}-${line}`}
+            lineNumber={lineNumber}
+          >
+            {line ? colorizeCatLine(line, lineNumber) : "\u00a0"}
+          </TerminalTranscriptLine>
+        );
+      })}
     </div>
   );
 }

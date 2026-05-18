@@ -400,6 +400,16 @@
   overflow-wrap: normal;
 }
 
+/* Cat output character-wave coloring. Anchored so char 0 of any line matches
+   that line's gutter color, then cycles through the softened palette — gives
+   a diagonal flow where characters on the same NE/SW diagonal share a hue. */
+.modal-cat-c0 { color: var(--dragon-cat-yellow); }
+.modal-cat-c1 { color: var(--dragon-cat-orange); }
+.modal-cat-c2 { color: var(--dragon-cat-pink); }
+.modal-cat-c3 { color: var(--dragon-cat-lavender); }
+.modal-cat-c4 { color: var(--dragon-cat-cyan); }
+.modal-cat-c5 { color: var(--dragon-cat-mint); }
+
 .modal-terminal-block {
   min-width: 0;
 }
@@ -430,14 +440,16 @@
 
 .modal-tobifetch-row {
   display: inline-grid;
-  grid-template-columns: 38ch minmax(0, 1fr);
+  /* Art column matches the real ASCII width (TOBIFETCH_COLUMNS = 105) so the
+     info column starts AFTER the art rather than under it. */
+  grid-template-columns: 105ch minmax(0, 1fr);
   gap: clamp(1.25ch, 2vw, 3ch);
   align-items: start;
 }
 
 .modal-tobifetch-art {
   display: inline-block;
-  width: 38ch;
+  width: 105ch;
   color: var(--dragon-fg-dim);
   white-space: pre;
 }
@@ -447,6 +459,16 @@
   padding-top: 0.05em;
   color: var(--dragon-fg-bright);
   line-height: 1.12;
+  white-space: pre-wrap;
+}
+
+/* Stacked mode (below 1050px): info lines render above the art. Info gets
+   a comfortable line-height; art keeps tight line-height for proportions. */
+.modal-terminal-line-tobifetch-stacked-info {
+  line-height: 1.32;
+}
+
+.modal-terminal-line-tobifetch-stacked-info .modal-terminal-line-content {
   white-space: pre-wrap;
 }
 
@@ -668,6 +690,69 @@
   height: auto;
 }
 
+.modal-resume-pdf-viewer {
+  position: relative;
+  width: 100%;
+  /* Restore baseline line-height (the parent zeroes it for image rendering). */
+  line-height: normal;
+}
+
+.modal-resume-pdf-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.modal-resume-pdf-page {
+  position: relative;
+  align-self: center;
+  width: 100%;
+  background: var(--color-white);
+}
+
+.modal-resume-pdf-page + .modal-resume-pdf-page {
+  margin-top: 0.6rem;
+  box-shadow: 0 -1px 0 rgb(0 0 0 / 0.08);
+}
+
+.modal-resume-pdf-canvas {
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+/* Text layer (selectable) overrides — pdfjs ships transparent text glyphs;
+   keep them invisible but keep selection highlights visible against the page. */
+.modal-resume-pdf-page .textLayer {
+  z-index: 2;
+}
+
+.modal-resume-pdf-page .textLayer ::selection {
+  background: rgb(81 199 218 / 0.38);
+}
+
+/* Annotation layer (hyperlinks) — keep links transparent overlays that
+   capture pointer events so URLs in the resume are clickable. */
+.modal-resume-pdf-page .annotationLayer {
+  z-index: 3;
+}
+
+.modal-resume-pdf-page .annotationLayer .linkAnnotation > a:hover {
+  background: rgb(81 199 218 / 0.18);
+}
+
+.modal-resume-pdf-status {
+  padding: 1.1rem 0.9rem;
+  color: var(--dragon-fg-dim);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.modal-resume-pdf-status-error {
+  color: var(--dragon-pink);
+}
+
 .modal-action-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -718,6 +803,9 @@
   font-size: clamp(0.54rem, 0.62vw, 0.7rem);
   font-weight: 400;
   line-height: 1;
+  /* Extend the overflow clip box below the baseline so descenders (g, y) are
+     visible without changing the visible top-of-cap position. */
+  padding-bottom: 0.22em;
   overflow: hidden;
   pointer-events: none;
   text-align: left;
@@ -837,28 +925,6 @@
     grid-template-columns: 1ch 2ch 1ch;
     gap: 0.25ch;
     padding-right: 0.65ch;
-  }
-
-  .modal-terminal-line-fetch .modal-terminal-line-content {
-    white-space: normal;
-  }
-
-  .modal-tobifetch-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
-  .modal-tobifetch-art {
-    display: none;
-  }
-
-  .modal-tobifetch-info {
-    padding-left: 0;
-    line-height: 1.32;
-  }
-
-  .modal-terminal-line-fetch-art-only {
-    display: none;
   }
 
   .modal-ls-row {

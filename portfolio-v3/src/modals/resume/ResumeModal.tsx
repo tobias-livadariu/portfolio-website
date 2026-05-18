@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import publicPath from "../../utility/public-path";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
+import ResumePdfViewer from "./ResumePdfViewer";
 import {
   RESUME_ASCII_TITLE_PIECES,
   RESUME_DIVIDER,
@@ -38,11 +39,7 @@ function ResumeOpenPanel() {
     >
       <div className="modal-resume-shell">
         <div className="modal-resume-document">
-          <img
-            alt="Tobias Livadariu resume preview"
-            className="modal-resume-image"
-            src={publicPath("/images/resume-preview.png")}
-          />
+          <ResumePdfViewer src={publicPath("/resume.pdf")} />
         </div>
       </div>
       <div className="modal-action-row">

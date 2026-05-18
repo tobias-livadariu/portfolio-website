@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { useAsciiImageRows } from "../components/AsciiImage";
 import ModalHeader from "../components/ModalHeader";
@@ -23,6 +23,28 @@ const ABOUT_RIGHT_SPRITE = {
 
 const TOBIFETCH_COLUMNS = 105;
 const TOBIFETCH_ROWS = 73;
+/* Below this width the art column (105ch) crowds the info column, so we
+   stack the info above the art instead of rendering them side-by-side. */
+const TOBIFETCH_STACK_BREAKPOINT_PX = 1050;
+
+function useMatchesMaxWidth(maxWidthPx: number) {
+  const query = `(max-width: ${maxWidthPx - 1}px)`;
+
+  const subscribe = useCallback(
+    (notify: () => void) => {
+      const mediaQueryList = window.matchMedia(query);
+      mediaQueryList.addEventListener("change", notify);
+      return () => mediaQueryList.removeEventListener("change", notify);
+    },
+    [query],
+  );
+
+  const getSnapshot = useCallback(() => window.matchMedia(query).matches, [
+    query,
+  ]);
+
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
 
 const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
@@ -145,6 +167,40 @@ function TobifetchOutput({ firstLineNumber }: { firstLineNumber: number }) {
     imagePath: "/images/tobias-headshot-2026.png",
     rows: TOBIFETCH_ROWS,
   });
+  const isStacked = useMatchesMaxWidth(TOBIFETCH_STACK_BREAKPOINT_PX);
+
+  if (isStacked) {
+    return (
+      <>
+        {TOBIFETCH_INFO_ROWS.map((info, index) => (
+          <TerminalTranscriptLine
+            className="modal-terminal-line-tobifetch-stacked-info"
+            key={`info-${index}`}
+            lineNumber={firstLineNumber + index}
+          >
+            <span
+              className={`modal-tobifetch-info ${info.className ?? ""}`.trim()}
+            >
+              {info.content === "" ? "\u00a0" : info.content}
+            </span>
+          </TerminalTranscriptLine>
+        ))}
+        {Array.from({ length: TOBIFETCH_ROWS }, (_, index) => (
+          <TerminalTranscriptLine
+            className="modal-terminal-line-fetch"
+            key={`art-${index}`}
+            lineNumber={
+              firstLineNumber + TOBIFETCH_INFO_ROWS.length + index
+            }
+          >
+            <span className="modal-tobifetch-art">
+              {renderAsciiRuns(portraitRows[index])}
+            </span>
+          </TerminalTranscriptLine>
+        ))}
+      </>
+    );
+  }
 
   return (
     <>

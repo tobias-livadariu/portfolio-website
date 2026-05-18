@@ -41,6 +41,16 @@
   --dragon-orange: #fdad5d;
   --dragon-lavender: #af98e6;
   --dragon-cyan: #51c7da;
+
+  /* Softened dragon palette for ambient text coloring (cat output, etc.).
+     Mixes each base hue with --dragon-fg-bright to desaturate without
+     losing identity, then lifts toward the foreground tone. */
+  --dragon-cat-yellow: color-mix(in oklch, var(--dragon-yellow) 55%, var(--dragon-fg-bright));
+  --dragon-cat-orange: color-mix(in oklch, var(--dragon-orange) 55%, var(--dragon-fg-bright));
+  --dragon-cat-pink: color-mix(in oklch, var(--dragon-pink) 55%, var(--dragon-fg-bright));
+  --dragon-cat-lavender: color-mix(in oklch, var(--dragon-lavender) 55%, var(--dragon-fg-bright));
+  --dragon-cat-cyan: color-mix(in oklch, var(--dragon-cyan) 55%, var(--dragon-fg-bright));
+  --dragon-cat-mint: color-mix(in oklch, var(--dragon-mint) 55%, var(--dragon-fg-bright));
 }
 
 html {
