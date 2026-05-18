@@ -21,8 +21,8 @@ const ABOUT_RIGHT_SPRITE = {
   alt: "ASCII island planet",
 } as const;
 
-const TOBIFETCH_COLUMNS = 38;
-const TOBIFETCH_ROWS = 29;
+const TOBIFETCH_COLUMNS = 142;
+const TOBIFETCH_ROWS = 99;
 
 const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
@@ -154,7 +154,9 @@ function TobifetchOutput({ firstLineNumber }: { firstLineNumber: number }) {
         return (
           <TerminalTranscriptLine
             className={`modal-terminal-line-fetch ${
-              info ? "modal-terminal-line-fetch-info" : "modal-terminal-line-fetch-art-only"
+              info
+                ? "modal-terminal-line-fetch-info"
+                : "modal-terminal-line-fetch-art-only"
             }`}
             key={index}
             lineNumber={firstLineNumber + index}
