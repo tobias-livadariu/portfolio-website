@@ -14,13 +14,26 @@ export type GitStateToken =
 export interface TerminalContext {
   branch?: string;
   directory: string;
-  gitState?: GitStateToken[];
+  gitState?: readonly GitStateToken[];
 }
+
+export interface TerminalOutputLine {
+  className?: string;
+  content: ReactNode;
+}
+
+export interface TerminalOutputBlock {
+  kind: "block";
+  lineCount: number;
+  render: (firstLineNumber: number) => ReactNode;
+}
+
+export type TerminalOutput = TerminalOutputLine | TerminalOutputBlock;
 
 export interface TerminalCommand {
   command: string;
   context?: Partial<TerminalContext>;
-  output?: ReactNode;
+  output?: readonly TerminalOutput[];
 }
 
 export interface ModalSectionDefinition {

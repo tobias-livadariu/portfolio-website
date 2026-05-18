@@ -85,7 +85,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 var(--modal-edge-gap) 0;
+  padding: 0 var(--modal-edge-gap) 72vh;
 }
 
 .modal-panel {
@@ -98,7 +98,6 @@
 }
 
 .modal-panel-frame {
-  min-height: calc(100vh - 4vh);
   display: flex;
   flex-direction: column;
   background:
@@ -266,38 +265,64 @@
 }
 
 .modal-terminal {
-  overflow: hidden;
-  background: var(--dragon-bg-dim);
+  overflow: clip;
+  padding: clamp(0.8rem, 1.45vw, 1.18rem);
+  background:
+    linear-gradient(180deg, rgb(42 38 38 / 0.32), transparent 15rem),
+    var(--dragon-bg-dim);
   border: 1px solid var(--dragon-border);
-  box-shadow: inset 0 0 0 1px rgb(197 201 197 / 0.03);
-}
-
-.modal-terminal-topbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  gap: 1rem;
-  padding: 0.45rem 0.75rem;
-  color: var(--dragon-comment);
-  background: var(--dragon-black);
-  border-bottom: 1px solid var(--dragon-border-bright);
-  font-size: 0.78rem;
-}
-
-.modal-terminal-topbar span:last-child {
-  text-align: right;
+  box-shadow:
+    inset 0 0 0 1px rgb(197 201 197 / 0.03),
+    inset 0 1px 0 rgb(220 215 186 / 0.03);
 }
 
 .modal-terminal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.9rem;
+  display: grid;
+  color: var(--dragon-fg);
+  font-size: clamp(0.76rem, 0.95vw, 0.95rem);
+  line-height: 1.36;
 }
 
-.modal-terminal-entry {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
+.modal-terminal-line {
+  display: grid;
+  grid-template-columns: 6.35ch minmax(0, 1fr);
+  min-width: 0;
+}
+
+.modal-terminal-line-entry-start:not(:first-child) {
+  margin-top: 1rem;
+}
+
+.modal-terminal-gutter {
+  display: inline-grid;
+  grid-template-columns: 1ch 3ch 1ch;
+  gap: 0.35ch;
+  padding-right: 1.1ch;
+  color: var(--modal-terminal-gutter-color);
+  font-weight: 700;
+  text-align: right;
+  user-select: none;
+}
+
+.modal-terminal-gutter span:first-child,
+.modal-terminal-gutter span:last-child {
+  color: color-mix(
+    in srgb,
+    var(--modal-terminal-gutter-color) 68%,
+    var(--dragon-comment)
+  );
+}
+
+.modal-terminal-line-content {
+  min-width: 0;
+  color: var(--dragon-fg);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.modal-terminal-line-prompt .modal-terminal-line-content,
+.modal-terminal-line-command .modal-terminal-line-content {
+  overflow-wrap: normal;
 }
 
 .modal-terminal-prompt {
@@ -361,32 +386,56 @@
   color: var(--dragon-fg);
 }
 
+.modal-terminal-line-text {
+  color: var(--dragon-fg);
+}
+
 .modal-terminal-note {
   color: var(--dragon-comment);
 }
 
-.modal-about-whoami {
-  display: grid;
-  grid-template-columns: minmax(16rem, 1fr) minmax(13rem, 0.72fr);
-  gap: clamp(1rem, 3vw, 2rem);
-  align-items: center;
+.modal-terminal-line-fetch {
+  line-height: 1;
 }
 
-.modal-about-copy {
-  max-width: 44rem;
+.modal-terminal-line-fetch .modal-terminal-line-content {
+  white-space: nowrap;
+}
+
+.modal-tobifetch-row {
+  display: inline-grid;
+  grid-template-columns: 38ch minmax(0, 1fr);
+  gap: clamp(1.25ch, 2vw, 3ch);
+  align-items: start;
+}
+
+.modal-tobifetch-art {
+  display: inline-block;
+  width: 38ch;
+  color: var(--dragon-fg-dim);
+  white-space: pre;
+}
+
+.modal-tobifetch-info {
+  min-width: 0;
+  padding-top: 0.05em;
   color: var(--dragon-fg-bright);
-  font-size: clamp(0.95rem, 1.15vw, 1.18rem);
-  line-height: 1.65;
+  line-height: 1.12;
+  white-space: pre-wrap;
 }
 
-.modal-about-copy p {
-  margin: 0 0 1rem;
+.modal-tobifetch-host {
+  color: var(--dragon-mint);
+  font-weight: 700;
 }
 
-.modal-about-face {
-  justify-self: center;
-  font-size: clamp(0.27rem, 0.44vw, 0.5rem);
-  line-height: 0.92;
+.modal-tobifetch-rule {
+  color: var(--dragon-comment);
+}
+
+.modal-tobifetch-key {
+  color: var(--dragon-yellow);
+  font-weight: 700;
 }
 
 .modal-bat {
@@ -475,16 +524,15 @@
 .modal-ls-output {
   display: grid;
   gap: 0.12rem;
-  overflow-x: auto;
 }
 
 .modal-ls-row {
   display: grid;
-  grid-template-columns: 7rem 4rem 4.8rem 7.4rem minmax(18rem, 1fr);
-  gap: 0.72rem;
-  min-width: 43rem;
+  grid-template-columns: 12ch 5ch 7ch 13ch minmax(0, 1fr);
+  gap: 1ch;
+  min-width: 0;
   color: var(--dragon-fg-dim);
-  font-size: 0.9rem;
+  font-size: 0.94em;
 }
 
 .modal-ls-perms {
@@ -538,55 +586,32 @@
 
 .modal-ls-name-link {
   color: var(--dragon-cyan);
+  overflow-wrap: anywhere;
 }
 
-.modal-resume-viewer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-}
-
-.modal-resume-document {
-  position: relative;
-  width: min(100%, 72rem);
-  aspect-ratio: 8.5 / 11;
-  margin: 0 auto;
-  overflow: hidden;
-  border: 1px solid var(--dragon-border-bright);
-  background: var(--dragon-black);
-}
-
-.modal-resume-frame {
+.modal-resume-catimg {
   display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
+  width: min(100%, 72rem);
+  margin: 0.65rem auto 0.85rem;
   background: var(--color-white);
-  pointer-events: none;
+  box-shadow: 0 0 0 1px rgb(197 201 197 / 0.16);
 }
 
-.modal-resume-wheel-layer {
-  position: absolute;
-  inset: 0;
-  background: transparent;
+.modal-terminal a {
+  color: var(--dragon-cyan);
+  text-decoration: underline;
+  text-decoration-color: rgb(81 199 218 / 0.42);
+  text-underline-offset: 0.18em;
 }
 
-.modal-action-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.7rem;
+.modal-terminal a:hover,
+.modal-terminal a:focus-visible {
+  color: var(--dragon-mint);
+  outline: none;
 }
 
-.modal-action-row a {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.75rem;
-  padding: 0.45rem 0.65rem;
+.modal-terminal-line-links a {
   color: var(--dragon-yellow);
-  background: var(--dragon-bg-alt);
-  border: 1px solid var(--dragon-border-bright);
-  text-align: center;
 }
 
 @media (max-width: 1100px) {
@@ -634,16 +659,54 @@
     overflow-x: auto;
   }
 
-  .modal-about-whoami {
-    grid-template-columns: 1fr;
+  .modal-terminal {
+    padding: 0.7rem 0.5rem 0.75rem;
   }
 
-  .modal-action-row {
-    grid-template-columns: 1fr;
+  .modal-terminal-body {
+    font-size: clamp(0.62rem, 2.25vw, 0.82rem);
+  }
+
+  .modal-terminal-line {
+    grid-template-columns: 5.4ch minmax(0, 1fr);
+  }
+
+  .modal-terminal-gutter {
+    grid-template-columns: 1ch 2ch 1ch;
+    gap: 0.25ch;
+    padding-right: 0.65ch;
+  }
+
+  .modal-terminal-line-fetch .modal-terminal-line-content {
+    white-space: normal;
+  }
+
+  .modal-tobifetch-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .modal-tobifetch-art {
+    display: none;
+  }
+
+  .modal-tobifetch-info {
+    padding-left: 0;
+    line-height: 1.32;
+  }
+
+  .modal-terminal-line-fetch-art-only {
+    display: none;
   }
 
   .modal-ls-row {
-    grid-template-columns: 7rem 4rem 4.8rem 7.4rem minmax(15rem, 1fr);
+    grid-template-columns: 12ch 5ch minmax(0, 1fr);
+    gap: 0.55ch;
+  }
+
+  .modal-ls-user,
+  .modal-ls-date {
+    display: none;
   }
 }
 

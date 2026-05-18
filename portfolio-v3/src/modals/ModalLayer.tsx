@@ -1,5 +1,5 @@
-import { memo, useCallback, useEffect, useMemo, useRef } from "react";
-import type { CSSProperties, ReactElement } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ComponentType, CSSProperties } from "react";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
 import ModalAssetPreloader from "./components/ModalAssetPreloader";
@@ -15,7 +15,7 @@ import {
 import type { ModalSectionKey } from "./modal.types";
 import "./modals.css";
 
-const SECTION_COMPONENTS: Record<ModalSectionKey, () => ReactElement> = {
+const SECTION_COMPONENTS: Record<ModalSectionKey, ComponentType> = {
   about: AboutModal,
   resume: ResumeModal,
   portfolio: PortfolioModal,
@@ -23,7 +23,8 @@ const SECTION_COMPONENTS: Record<ModalSectionKey, () => ReactElement> = {
 };
 
 interface ModalPanelProps {
-  Section: () => ReactElement;
+  Section: ComponentType;
+  isActive: boolean;
   isLast: boolean;
   onClose: () => void;
   onOpenSection: (section: ModalSectionKey) => void;
@@ -35,6 +36,7 @@ interface ModalPanelProps {
 
 const ModalPanel = memo(function ModalPanel({
   Section,
+  isActive,
   isLast,
   onClose,
   onOpenSection,
@@ -52,6 +54,7 @@ const ModalPanel = memo(function ModalPanel({
     <section
       aria-label={`${sectionLabel} section`}
       className="modal-panel"
+      data-active={isActive ? "true" : undefined}
       ref={setRef}
     >
       <div className="modal-panel-frame">
@@ -133,6 +136,9 @@ export default function ModalLayer() {
   const isOpenRef = useRef(isOpen);
   const currentSectionRef = useRef<ModalSectionKey | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const [activeSection, setActiveSection] = useState<ModalSectionKey | null>(
+    null,
+  );
   const sectionOffsetsRef = useRef<Partial<Record<ModalSectionKey, number>>>(
     {},
   );
@@ -192,6 +198,7 @@ export default function ModalLayer() {
 
     if (scrollRoot.scrollTop <= 1) {
       currentSectionRef.current = null;
+      setActiveSection(null);
       updateIsOpen(false);
       return;
     }
@@ -210,6 +217,7 @@ export default function ModalLayer() {
     }
 
     currentSectionRef.current = nextActiveSection;
+    setActiveSection(nextActiveSection);
   }, [sections, updateIsOpen]);
 
   const scheduleScrollSync = useCallback(() => {
@@ -274,9 +282,14 @@ export default function ModalLayer() {
       }
 
       if (navigationRequest.section === null) {
+        currentSectionRef.current = null;
+        setActiveSection(null);
         scrollRoot.scrollTo({ behavior: "smooth", top: 0 });
         return;
       }
+
+      currentSectionRef.current = navigationRequest.section;
+      setActiveSection(navigationRequest.section);
 
       sectionRefs.current[navigationRequest.section]?.scrollIntoView({
         behavior: "smooth",
@@ -472,6 +485,7 @@ export default function ModalLayer() {
               return (
                 <ModalPanel
                   Section={Section}
+                  isActive={activeSection === section.key}
                   isLast={index === sections.length - 1}
                   key={section.key}
                   onClose={requestClose}

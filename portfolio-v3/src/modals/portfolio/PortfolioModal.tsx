@@ -1,15 +1,15 @@
 import { memo } from "react";
-import BatMarkdown from "../components/BatMarkdown";
+import AsciiDivider from "../components/AsciiDivider";
 import ModalHeader from "../components/ModalHeader";
-import Terminal, { LsOutput } from "../components/Terminal";
-import ideaNotionSummary from "./ideanotion-summary.md?raw";
+import Terminal, { lsOutputRows, plainTextRows } from "../components/Terminal";
+import ideaNotionSummary from "./ideanotion-summary.txt?raw";
 import {
   PORTFOLIO_ASCII_TITLE_PIECES,
   PORTFOLIO_DIVIDER,
   PORTFOLIO_SPRITE,
   PORTFOLIO_TERMINAL_CONTEXT,
 } from "./portfolio.constants";
-import shopifySummary from "./shopify-summary.md?raw";
+import shopifySummary from "./shopify-summary.txt?raw";
 
 const PORTFOLIO_LEFT_SPRITE = {
   ...PORTFOLIO_SPRITE,
@@ -21,36 +21,6 @@ const PORTFOLIO_RIGHT_SPRITE = {
   ...PORTFOLIO_SPRITE,
   alt: "ASCII terran planet",
 } as const;
-
-const rootRows = [
-  {
-    name: "work/",
-    type: "dir",
-    size: "-",
-    date: "May 14 21:18",
-  },
-  {
-    name: "personal/",
-    type: "dir",
-    size: "-",
-    date: "May 14 21:19",
-  },
-] as const;
-
-const workRows = [
-  {
-    name: "shopify/",
-    type: "dir",
-    size: "-",
-    date: "Apr 30 18:22",
-  },
-  {
-    name: "idea-notion/",
-    type: "dir",
-    size: "-",
-    date: "Aug 29 18:10",
-  },
-] as const;
 
 const shopifyRows = [
   {
@@ -72,7 +42,7 @@ const shopifyRows = [
     date: "Apr 18 09:35",
   },
   {
-    name: "summary.md",
+    name: "summary.txt",
     type: "file",
     size: "2.2k",
     date: "May 14 22:10",
@@ -93,7 +63,7 @@ const ideaNotionRows = [
     date: "Aug 28 17:42",
   },
   {
-    name: "summary.md",
+    name: "summary.txt",
     type: "file",
     size: "2.0k",
     date: "May 14 22:12",
@@ -145,6 +115,26 @@ const personalRows = [
   },
 ] as const;
 
+const shopifyContext = {
+  ...PORTFOLIO_TERMINAL_CONTEXT,
+  directory: "repos/my-portfolio/work/shopify",
+} as const;
+
+const ideaNotionContext = {
+  ...PORTFOLIO_TERMINAL_CONTEXT,
+  directory: "repos/my-portfolio/work/idea-notion",
+  gitState: ["modified"],
+} as const;
+
+const personalContext = {
+  ...PORTFOLIO_TERMINAL_CONTEXT,
+  directory: "repos/my-portfolio/personal/projects",
+  gitState: ["untracked"],
+} as const;
+
+const shopifySummaryRows = shopifySummary.trimEnd().split("\n");
+const ideaNotionSummaryRows = ideaNotionSummary.trimEnd().split("\n");
+
 function PortfolioModal() {
   return (
     <article className="modal-section-content">
@@ -158,44 +148,43 @@ function PortfolioModal() {
       />
 
       <Terminal
-        context={PORTFOLIO_TERMINAL_CONTEXT}
+        context={shopifyContext}
         commands={[
           {
             command: "ls -l",
-            output: <LsOutput rows={rootRows} />,
+            output: lsOutputRows(shopifyRows),
           },
           {
-            command: "cd work && ls -l",
-            output: <LsOutput rows={workRows} />,
+            command: "cat summary.txt",
+            output: plainTextRows(shopifySummaryRows),
+          },
+        ]}
+      />
+
+      <AsciiDivider block={PORTFOLIO_DIVIDER} minSideMarginCh={2} />
+
+      <Terminal
+        context={ideaNotionContext}
+        commands={[
+          {
+            command: "ls -l",
+            output: lsOutputRows(ideaNotionRows),
           },
           {
-            command: "cd shopify && ls -l",
-            context: { directory: "repos/my-portfolio/work" },
-            output: <LsOutput rows={shopifyRows} />,
+            command: "cat summary.txt",
+            output: plainTextRows(ideaNotionSummaryRows),
           },
+        ]}
+      />
+
+      <AsciiDivider block={PORTFOLIO_DIVIDER} minSideMarginCh={2} />
+
+      <Terminal
+        context={personalContext}
+        commands={[
           {
-            command: "bat summary.md",
-            context: { directory: "repos/my-portfolio/shopify" },
-            output: (
-              <BatMarkdown content={shopifySummary} fileName="summary.md" />
-            ),
-          },
-          {
-            command: "cd ../idea-notion && ls -l",
-            context: { directory: "repos/my-portfolio/shopify" },
-            output: <LsOutput rows={ideaNotionRows} />,
-          },
-          {
-            command: "bat summary.md",
-            context: { directory: "repos/my-portfolio/idea-notion" },
-            output: (
-              <BatMarkdown content={ideaNotionSummary} fileName="summary.md" />
-            ),
-          },
-          {
-            command: "cd ../../personal && ls -l",
-            context: { directory: "repos/my-portfolio/idea-notion" },
-            output: <LsOutput rows={personalRows} />,
+            command: "ls -l",
+            output: lsOutputRows(personalRows),
           },
         ]}
       />

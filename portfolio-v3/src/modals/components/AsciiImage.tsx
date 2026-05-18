@@ -214,7 +214,7 @@ async function loadAsciiFrames(props: {
     );
 }
 
-interface ColoredRun {
+export interface ColoredRun {
   color: string;
   text: string;
 }
@@ -233,6 +233,71 @@ function buildRowRuns(row: AsciiCell[]): ColoredRun[] {
   }
 
   return runs;
+}
+
+export function useAsciiImageRows(props: {
+  atlasKey?: string;
+  columns: number;
+  flipX?: boolean;
+  flipY?: boolean;
+  imagePath: string;
+  jsonPath?: string;
+  rotateQuarterTurns?: number;
+  rows: number;
+}) {
+  const {
+    atlasKey,
+    columns,
+    flipX = false,
+    flipY = false,
+    imagePath,
+    jsonPath,
+    rotateQuarterTurns = 0,
+    rows,
+  } = props;
+  const [frames, setFrames] = useState<AsciiFrame[]>([]);
+  const cacheKey = useMemo(
+    () => `${imagePath}|${jsonPath ?? ""}|${atlasKey ?? ""}|${columns}|${rows}`,
+    [atlasKey, columns, imagePath, jsonPath, rows],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+    let promise = frameCache.get(cacheKey);
+
+    if (!promise) {
+      promise = loadAsciiFrames({
+        atlasKey,
+        columns,
+        imagePath,
+        jsonPath,
+        rows,
+      });
+      frameCache.set(cacheKey, promise);
+    }
+
+    void promise.then((nextFrames) => {
+      if (isMounted) {
+        setFrames(nextFrames);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [atlasKey, cacheKey, columns, imagePath, jsonPath, rows]);
+
+  const displayFrame = useMemo(() => {
+    const source = frames[0];
+
+    if (!source) {
+      return [] as AsciiFrame;
+    }
+
+    return flipFrame(rotateFrame(source, rotateQuarterTurns), flipX, flipY);
+  }, [flipX, flipY, frames, rotateQuarterTurns]);
+
+  return useMemo(() => displayFrame.map(buildRowRuns), [displayFrame]);
 }
 
 function AsciiImage(props: Props) {

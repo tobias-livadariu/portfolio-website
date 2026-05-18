@@ -67,7 +67,7 @@ test("modal document opens from scroll and supports section navigation", async (
     .poll(() => scrollRoot.evaluate((element) => Math.round(element.scrollTop)))
     .toBeGreaterThan(0);
   await expect(activePanel).toContainText("File: about.modal");
-  await expect(activePanel).toContainText("whoami");
+  await expect(activePanel).toContainText("tobifetch");
 
   await page.keyboard.press("PageDown");
   await expect(activePanel).toContainText("File: resume.modal");
@@ -84,8 +84,8 @@ test("modal document opens from scroll and supports section navigation", async (
 
   await activePanel.getByRole("button", { name: "PORTFOLIO" }).click();
   await expect(activePanel).toContainText("File: portfolio.modal");
-  await expect(activePanel).toContainText("cd work && ls -l");
-  await expect(activePanel).toContainText("cd ../../personal && ls -l");
+  await expect(activePanel).toContainText("work/shopify | main");
+  await expect(activePanel).toContainText("personal/projects | main");
   await expect(
     page.getByRole("link", { name: /portfolio-website/ }),
   ).toBeVisible();
