@@ -7,6 +7,7 @@ import PortfolioModal from "./portfolio/PortfolioModal";
 import ResumeModal from "./resume/ResumeModal";
 import { useModalController } from "./modal-context-core";
 import {
+  MODAL_OVERSCROLL,
   MODAL_SCROLL,
   MODAL_SECTIONS,
   MODAL_SECTION_KEYS,
@@ -136,6 +137,7 @@ export default function ModalLayer() {
   const isOpenRef = useRef(isOpen);
   const currentSectionRef = useRef<ModalSectionKey | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const overscrollSettleTimeoutRef = useRef<number | null>(null);
   const [activeSection, setActiveSection] = useState<ModalSectionKey | null>(
     null,
   );
@@ -170,12 +172,16 @@ export default function ModalLayer() {
     }
 
     scrollRootHeightRef.current = scrollRoot.clientHeight;
+    const scrollRootRect = scrollRoot.getBoundingClientRect();
 
     for (const section of sections) {
       const element = sectionRefs.current[section.key];
 
       if (element) {
-        sectionOffsetsRef.current[section.key] = element.offsetTop;
+        sectionOffsetsRef.current[section.key] =
+          scrollRoot.scrollTop +
+          element.getBoundingClientRect().top -
+          scrollRootRect.top;
       }
     }
   }, [sections]);
@@ -204,6 +210,22 @@ export default function ModalLayer() {
     }
 
     updateIsOpen(true);
+
+    if (scrollRoot.scrollTop < revealDistance) {
+      currentSectionRef.current = null;
+      setActiveSection(null);
+      return;
+    }
+
+    const maxScrollTop = getMaxScrollTop(scrollRoot);
+
+    if (scrollRoot.scrollTop >= maxScrollTop - 1) {
+      const lastSection = sections[sections.length - 1]?.key ?? null;
+
+      currentSectionRef.current = lastSection;
+      setActiveSection(lastSection);
+      return;
+    }
 
     const probeY = scrollRoot.scrollTop + scrollRootHeightRef.current * 0.28;
     let nextActiveSection: ModalSectionKey | null = null;
@@ -264,8 +286,36 @@ export default function ModalLayer() {
       if (animationFrameRef.current !== null) {
         window.cancelAnimationFrame(animationFrameRef.current);
       }
+
+      if (overscrollSettleTimeoutRef.current !== null) {
+        window.clearTimeout(overscrollSettleTimeoutRef.current);
+      }
     };
   }, [scheduleScrollSync, sections, updateSectionMetrics]);
+
+  const settleOverscroll = useCallback((offsetPx: number) => {
+    const layer = layerRef.current;
+
+    if (!layer) {
+      return;
+    }
+
+    if (overscrollSettleTimeoutRef.current !== null) {
+      window.clearTimeout(overscrollSettleTimeoutRef.current);
+    }
+
+    layer.classList.remove("modal-layer-overscroll-settling");
+    layer.style.setProperty("--modal-overscroll-y", `${offsetPx.toFixed(2)}px`);
+    void layer.offsetHeight;
+
+    layer.classList.add("modal-layer-overscroll-settling");
+    layer.style.setProperty("--modal-overscroll-y", "0px");
+
+    overscrollSettleTimeoutRef.current = window.setTimeout(() => {
+      layer.classList.remove("modal-layer-overscroll-settling");
+      overscrollSettleTimeoutRef.current = null;
+    }, MODAL_OVERSCROLL.settleMs);
+  }, []);
 
   useEffect(() => {
     if (!navigationRequest) {
@@ -291,9 +341,13 @@ export default function ModalLayer() {
       currentSectionRef.current = navigationRequest.section;
       setActiveSection(navigationRequest.section);
 
+      const isLastSection =
+        navigationRequest.section ===
+        MODAL_SECTION_KEYS[MODAL_SECTION_KEYS.length - 1];
+
       sectionRefs.current[navigationRequest.section]?.scrollIntoView({
         behavior: "smooth",
-        block: "start",
+        block: isLastSection ? "end" : "start",
         inline: "nearest",
       });
     });
@@ -304,6 +358,37 @@ export default function ModalLayer() {
   }, [close]);
 
   useEffect(() => {
+    const maybeSettleEdgeOverscroll = (
+      event: WheelEvent,
+      deltaY: number,
+      scrollRoot: HTMLElement,
+    ) => {
+      const currentScrollTop = scrollRoot.scrollTop;
+      const maxScrollTop = getMaxScrollTop(scrollRoot);
+      const rawNextScrollTop =
+        currentScrollTop + deltaY * MODAL_SCROLL.wheelOpenMultiplier;
+      const isTopOverscroll = currentScrollTop <= 0 && rawNextScrollTop < 0;
+      const isBottomOverscroll =
+        currentScrollTop >= maxScrollTop && rawNextScrollTop > maxScrollTop;
+
+      if (!isTopOverscroll && !isBottomOverscroll) {
+        return false;
+      }
+
+      const direction = isTopOverscroll ? 1 : -1;
+      const offsetPx =
+        direction *
+        Math.min(
+          MODAL_OVERSCROLL.maxPx,
+          Math.abs(rawNextScrollTop - currentScrollTop) *
+            MODAL_OVERSCROLL.resistance,
+        );
+
+      event.preventDefault();
+      settleOverscroll(offsetPx);
+      return true;
+    };
+
     const handleWindowWheel = (event: WheelEvent) => {
       if (event.ctrlKey || event.metaKey) {
         return;
@@ -326,14 +411,15 @@ export default function ModalLayer() {
       }
 
       const currentScrollTop = scrollRoot.scrollTop;
-      const nextScrollTop = clampScrollTop(
-        scrollRoot,
-        currentScrollTop + deltaY * MODAL_SCROLL.wheelOpenMultiplier,
-      );
+      const rawNextScrollTop =
+        currentScrollTop + deltaY * MODAL_SCROLL.wheelOpenMultiplier;
+      const nextScrollTop = clampScrollTop(scrollRoot, rawNextScrollTop);
 
       event.preventDefault();
 
       if (nextScrollTop === currentScrollTop) {
+        maybeSettleEdgeOverscroll(event, deltaY, scrollRoot);
+
         return;
       }
 
@@ -341,7 +427,31 @@ export default function ModalLayer() {
       scheduleScrollSync();
     };
 
+    const handleScrollRootWheel = (event: WheelEvent) => {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey) {
+        return;
+      }
+
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+        return;
+      }
+
+      const scrollRoot = scrollRootRef.current;
+
+      if (!scrollRoot) {
+        return;
+      }
+
+      maybeSettleEdgeOverscroll(event, normalizeWheelDelta(event), scrollRoot);
+    };
+
+    const scrollRoot = scrollRootRef.current;
+
     window.addEventListener("wheel", handleWindowWheel, {
+      capture: true,
+      passive: false,
+    });
+    scrollRoot?.addEventListener("wheel", handleScrollRootWheel, {
       capture: true,
       passive: false,
     });
@@ -350,8 +460,11 @@ export default function ModalLayer() {
       window.removeEventListener("wheel", handleWindowWheel, {
         capture: true,
       });
+      scrollRoot?.removeEventListener("wheel", handleScrollRootWheel, {
+        capture: true,
+      });
     };
-  }, [scheduleScrollSync]);
+  }, [scheduleScrollSync, settleOverscroll]);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) =>
@@ -453,6 +566,7 @@ export default function ModalLayer() {
       ({
         "--modal-home-offset": `${MODAL_SCROLL.homeOffsetVh}vh`,
         "--modal-section-gap": `${MODAL_SCROLL.sectionGapVh}vh`,
+        "--modal-overscroll-settle-ms": `${MODAL_OVERSCROLL.settleMs}ms`,
       }) as CSSProperties,
     [],
   );

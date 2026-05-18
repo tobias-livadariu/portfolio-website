@@ -35,11 +35,18 @@ const CONTACT_ACTIONS = [
     href: "https://linkedin.com/in/tobias-livadariu",
     value: "linkedin.com/in/tobias-livadariu",
   },
-  {
-    label: "PORTFOLIO",
-    href: "https://tobias-livadariu.online/portfolio",
-    value: "tobias-livadariu.online/portfolio",
-  },
+] as const;
+
+const CONTACT_NOTE_BRACKET = [
+  "  .d888",
+  ' d88P" ',
+  " 888   ",
+  ".888   ",
+  "888(   ",
+  '"888   ',
+  " 888   ",
+  " Y88b. ",
+  '  "Y888',
 ] as const;
 
 function ContactOpenPanel() {
@@ -51,23 +58,44 @@ function ContactOpenPanel() {
 
           return (
             <a
+              aria-label={action.value}
               className="modal-contact-action"
               href={action.href}
               key={action.href}
               rel={isExternal ? "noreferrer" : undefined}
               target={isExternal ? "_blank" : undefined}
             >
-              <span>{action.label}</span>
-              <span>{action.value}</span>
+              <span className="modal-contact-action-comment" aria-hidden="true">
+                //{action.value}
+              </span>
+              <span className="modal-contact-action-label">
+                [ {action.label} ]
+              </span>
             </a>
           );
         })}
       </div>
-      <p>
-        I am usually easiest to reach by email. I am open to software
-        engineering internships, project conversations, and direct technical
-        feedback.
-      </p>
+      <div
+        aria-label="I am easiest to reach by email. Open to software engineering internships, project conversations, and direct technical feedback."
+        className="modal-contact-note-panel"
+      >
+        <pre className="modal-contact-note-bracket" aria-hidden="true">
+          {CONTACT_NOTE_BRACKET.join("\n")}
+        </pre>
+        <div className="modal-contact-note-copy">
+          <span>I am easiest to reach by email</span>
+          <span>
+            Open to software engineering internships, project conversations, and
+            direct technical feedback
+          </span>
+        </div>
+        <pre
+          className="modal-contact-note-bracket modal-contact-note-bracket-right"
+          aria-hidden="true"
+        >
+          {CONTACT_NOTE_BRACKET.join("\n")}
+        </pre>
+      </div>
     </div>
   );
 }

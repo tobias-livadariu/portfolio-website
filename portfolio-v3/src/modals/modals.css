@@ -3,6 +3,8 @@
   --modal-backdrop-opacity: 0;
   --modal-home-offset: 14vh;
   --modal-section-gap: 18vh;
+  --modal-overscroll-y: 0px;
+  --modal-overscroll-settle-ms: 340ms;
 
   position: fixed;
   inset: 0;
@@ -85,7 +87,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 var(--modal-edge-gap) 72vh;
+  padding: 0 var(--modal-edge-gap) 0;
+  transform: translate3d(0, var(--modal-overscroll-y), 0);
+  will-change: transform;
+}
+
+.modal-layer-overscroll-settling .modal-scroll-stack {
+  transition: transform var(--modal-overscroll-settle-ms)
+    cubic-bezier(0.18, 0.9, 0.22, 1);
 }
 
 .modal-panel {
@@ -679,6 +688,11 @@
   text-decoration: none;
 }
 
+.modal-terminal .modal-contact-action {
+  color: var(--dragon-yellow);
+  text-decoration: none;
+}
+
 .modal-contact-open-panel {
   display: grid;
   gap: 0.9rem;
@@ -686,32 +700,74 @@
 
 .modal-contact-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.7rem;
 }
 
 .modal-contact-action {
-  flex-direction: column;
-  gap: 0.16rem;
-  min-height: 4.2rem;
+  position: relative;
+  min-height: 2.75rem;
 }
 
-.modal-contact-action span:first-child {
+.modal-contact-action-comment {
+  position: absolute;
+  top: 0.32rem;
+  left: 0.44rem;
+  max-width: calc(100% - 0.88rem);
+  color: var(--dragon-comment);
+  font-size: clamp(0.54rem, 0.62vw, 0.7rem);
+  font-weight: 400;
+  line-height: 1;
+  overflow: hidden;
+  pointer-events: none;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-contact-action-label {
   color: var(--dragon-yellow);
   font-weight: 700;
 }
 
-.modal-contact-action span:last-child {
-  max-width: 100%;
-  color: var(--dragon-cyan);
-  overflow-wrap: anywhere;
+.modal-contact-note-panel {
+  display: grid;
+  grid-template-columns: minmax(3.6ch, auto) minmax(0, 1fr) minmax(3.6ch, auto);
+  gap: clamp(0.65rem, 1.5vw, 1.4rem);
+  align-items: center;
+  min-height: clamp(6.8rem, 11vw, 9.4rem);
+  padding: clamp(0.65rem, 1.1vw, 1rem);
+  color: var(--dragon-yellow);
+  background: var(--dragon-bg-alt);
+  border: 1px solid var(--dragon-border-bright);
 }
 
-.modal-contact-open-panel p {
-  max-width: 72ch;
+.modal-contact-note-bracket {
   margin: 0;
-  color: var(--dragon-fg);
-  line-height: 1.5;
+  color: var(--dragon-yellow);
+  font-size: clamp(0.46rem, 0.72vw, 0.86rem);
+  font-weight: 700;
+  line-height: 0.92;
+}
+
+.modal-contact-note-bracket-right {
+  transform: scaleX(-1);
+}
+
+.modal-contact-note-copy {
+  display: grid;
+  gap: clamp(0.3rem, 0.72vw, 0.58rem);
+  justify-items: center;
+  color: var(--dragon-yellow);
+  font-size: clamp(0.72rem, 0.96vw, 0.98rem);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.modal-contact-note-copy span {
+  max-width: 78ch;
 }
 
 @media (max-width: 1100px) {
@@ -812,6 +868,20 @@
   .modal-action-row,
   .modal-contact-actions {
     grid-template-columns: 1fr;
+  }
+
+  .modal-contact-note-panel {
+    grid-template-columns: minmax(2ch, auto) minmax(0, 1fr) minmax(2ch, auto);
+    gap: 0.45rem;
+    padding: 0.65rem 0.5rem;
+  }
+
+  .modal-contact-note-bracket {
+    font-size: clamp(0.28rem, 1.35vw, 0.48rem);
+  }
+
+  .modal-contact-note-copy {
+    font-size: clamp(0.62rem, 2vw, 0.78rem);
   }
 }
 
