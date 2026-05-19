@@ -1,19 +1,23 @@
-Shopify gave me a bigger-system version of the work I already liked:
-product surfaces, data correctness, and infrastructure tied together.
+Shopify was my second internship. I worked on the marketing analytics
+team, where the code serves millions of merchants.
 
-I worked on the marketing analytics team, where the code had to support
-merchants at real scale. I fixed marketing page crashes affecting about
-150 shops per day, helped decouple admin reporting pages from an
-expensive legacy data pipeline, and worked through database migration
-problems where small test failures pointed to much larger production-data
-risks.
+My main project was decoupling admin reporting pages from a legacy data
+pipeline that caused roughly half the team's on-call incidents. I
+rewired the pages to query sales data at request time, saving
+significant infrastructure costs once the old pipeline was deprecated. I
+also fixed marketing page crashes hitting around 150 shops a day, and
+during a database migration I found a string collation issue buried in a
+test failure that turned out to affect billions of rows of production
+data.
 
-The strongest part of the internship was learning how to reason about
-safety. A lot of the work was careful and deliberate: reading query
-patterns, writing rollout notes, splitting changes into reviewable PRs,
-and explaining risks clearly before touching shared systems.
+Working at Shopify showed me how much thought goes behind every change
+at that scale. Reading query patterns before touching anything, writing
+safety analyses for PRs, splitting changes so reviewers could follow the
+reasoning. I caught a GCP incident that automated monitoring missed,
+which would have caused days of unnoticed data decay. The biggest lesson
+was learning to balance safety with speed.
 
-I also built Stickify during hackdays with Waterloo classmates, a React
-and Vite tool that turns Slack threads into structured tickets. We pitched
-it to Shopify executives, and my mentor estimated it could save about 30
-minutes per day for a regular user.
+During hackdays I built Stickify with Waterloo classmates, a React/Vite
+tool that turns Slack threads into structured tickets. We pitched it to
+executives, and my mentor estimated it could save about 30 minutes a day
+per user.
