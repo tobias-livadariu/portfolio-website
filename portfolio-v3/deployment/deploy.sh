@@ -21,8 +21,10 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 NGINX_DIR="${NGINX_DIR:-/var/www/html/portfolio}"
+NGINX_SNIPPET_SRC="${SCRIPT_DIR}/nginx-portfolio.conf"
+NGINX_SNIPPET_DST="${NGINX_SNIPPET_DST:-/etc/nginx/snippets/portfolio.conf}"
 BRANCH="${BRANCH:-main}"
-HEALTH_URL="${HEALTH_URL:-https://tobias-livadariu.online/portfolio/}"
+HEALTH_URL="${HEALTH_URL:-https://tobias-livadariu.online/portfolio}"
 STAGE_DIR="${NGINX_DIR}.new"
 BACKUP_DIR="${NGINX_DIR}.prev"
 
@@ -88,6 +90,45 @@ if [[ -d "$NGINX_DIR" ]]; then
   sudo mv "$NGINX_DIR" "$BACKUP_DIR"
 fi
 sudo mv "$STAGE_DIR" "$NGINX_DIR"
+
+# ---- 5a. Install/refresh nginx routing snippet --------------------------
+#
+# The snippet handles canonical /portfolio (no slash), /portfolio/* assets
+# and SPA fallback, immutable caching for hashed bundles, and a catch-all
+# redirect that exempts /portfolio and /lights-on. Validate the resulting
+# nginx config before reload; restore the previous snippet on failure.
+
+if [[ -f "$NGINX_SNIPPET_SRC" ]]; then
+  log "Installing nginx snippet → $NGINX_SNIPPET_DST"
+  sudo mkdir -p "$(dirname "$NGINX_SNIPPET_DST")"
+
+  SNIPPET_BAK=""
+  if [[ -f "$NGINX_SNIPPET_DST" ]]; then
+    SNIPPET_BAK="${NGINX_SNIPPET_DST}.bak"
+    sudo cp -a "$NGINX_SNIPPET_DST" "$SNIPPET_BAK"
+  fi
+  sudo install -m 0644 "$NGINX_SNIPPET_SRC" "$NGINX_SNIPPET_DST"
+
+  if ! sudo nginx -t; then
+    log "nginx -t FAILED — restoring previous snippet."
+    if [[ -n "$SNIPPET_BAK" ]]; then
+      sudo cp -a "$SNIPPET_BAK" "$NGINX_SNIPPET_DST"
+    else
+      sudo rm -f "$NGINX_SNIPPET_DST"
+    fi
+    fail "Refusing to reload — nginx config is invalid."
+  fi
+
+  # Soft check: does any enabled config actually include the snippet?
+  if ! sudo grep -rqsF "include $NGINX_SNIPPET_DST;" /etc/nginx/; then
+    log "WARN: $NGINX_SNIPPET_DST is installed but not included anywhere."
+    log "      Add this line inside the tobias-livadariu.online server { }:"
+    log "          include $NGINX_SNIPPET_DST;"
+    log "      (one-time edit; subsequent deploys keep the snippet itself in sync)"
+  fi
+else
+  log "No nginx snippet at $NGINX_SNIPPET_SRC — skipping snippet install."
+fi
 
 # Reload (not restart) — drops zero in-flight connections.
 log "Reloading Nginx..."
