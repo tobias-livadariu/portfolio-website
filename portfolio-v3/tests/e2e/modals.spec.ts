@@ -93,7 +93,7 @@ test("modal document opens from scroll and supports section navigation", async (
   await activePanel.getByRole("button", { name: "CONTACT ME" }).click();
   await expect(activePanel).toContainText("File: contact.modal");
   await expect(
-    page.getByRole("link", { name: "tlivadar@uwaterloo.ca" }),
+    activePanel.getByRole("link", { name: "tlivadar@uwaterloo.ca" }),
   ).toBeVisible();
 
   await page.screenshot({

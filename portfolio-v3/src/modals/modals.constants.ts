@@ -21,13 +21,6 @@ export const MODAL_SCROLL = {
   homeOffsetVh: 0,
   sectionGapVh: 2,
   maxBackdropOpacity: 0.72,
-  wheelOpenMultiplier: 1,
-} as const;
-
-export const MODAL_OVERSCROLL = {
-  maxPx: 42,
-  resistance: 0.18,
-  settleMs: 340,
 } as const;
 
 export const DRAGON_LUCY = {

@@ -7,7 +7,6 @@ import PortfolioModal from "./portfolio/PortfolioModal";
 import ResumeModal from "./resume/ResumeModal";
 import { useModalController } from "./modal-context-core";
 import {
-  MODAL_OVERSCROLL,
   MODAL_SCROLL,
   MODAL_SECTIONS,
   MODAL_SECTION_KEYS,
@@ -64,10 +63,7 @@ const ModalPanel = memo(function ModalPanel({
             <span className="modal-file-label">
               File: {sectionShortLabel}.modal
             </span>
-            <nav
-              className="modal-section-tabs"
-              aria-label="Portfolio sections"
-            >
+            <nav className="modal-section-tabs" aria-label="Portfolio sections">
               {MODAL_SECTIONS.map((navigationSection) => (
                 <button
                   aria-current={
@@ -105,28 +101,8 @@ const ModalPanel = memo(function ModalPanel({
   );
 });
 
-function normalizeWheelDelta(event: WheelEvent) {
-  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-    return event.deltaY * 16;
-  }
-
-  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-    return event.deltaY * window.innerHeight;
-  }
-
-  return event.deltaY;
-}
-
 function getRevealDistancePx() {
   return window.innerHeight * (1 + MODAL_SCROLL.homeOffsetVh / 100);
-}
-
-function getMaxScrollTop(element: HTMLElement) {
-  return Math.max(0, element.scrollHeight - element.clientHeight);
-}
-
-function clampScrollTop(element: HTMLElement, scrollTop: number) {
-  return Math.min(getMaxScrollTop(element), Math.max(0, scrollTop));
 }
 
 export default function ModalLayer() {
@@ -137,7 +113,6 @@ export default function ModalLayer() {
   const isOpenRef = useRef(isOpen);
   const currentSectionRef = useRef<ModalSectionKey | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const overscrollSettleTimeoutRef = useRef<number | null>(null);
   const [activeSection, setActiveSection] = useState<ModalSectionKey | null>(
     null,
   );
@@ -217,7 +192,10 @@ export default function ModalLayer() {
       return;
     }
 
-    const maxScrollTop = getMaxScrollTop(scrollRoot);
+    const maxScrollTop = Math.max(
+      0,
+      scrollRoot.scrollHeight - scrollRoot.clientHeight,
+    );
 
     if (scrollRoot.scrollTop >= maxScrollTop - 1) {
       const lastSection = sections[sections.length - 1]?.key ?? null;
@@ -286,36 +264,8 @@ export default function ModalLayer() {
       if (animationFrameRef.current !== null) {
         window.cancelAnimationFrame(animationFrameRef.current);
       }
-
-      if (overscrollSettleTimeoutRef.current !== null) {
-        window.clearTimeout(overscrollSettleTimeoutRef.current);
-      }
     };
   }, [scheduleScrollSync, sections, updateSectionMetrics]);
-
-  const settleOverscroll = useCallback((offsetPx: number) => {
-    const layer = layerRef.current;
-
-    if (!layer) {
-      return;
-    }
-
-    if (overscrollSettleTimeoutRef.current !== null) {
-      window.clearTimeout(overscrollSettleTimeoutRef.current);
-    }
-
-    layer.classList.remove("modal-layer-overscroll-settling");
-    layer.style.setProperty("--modal-overscroll-y", `${offsetPx.toFixed(2)}px`);
-    void layer.offsetHeight;
-
-    layer.classList.add("modal-layer-overscroll-settling");
-    layer.style.setProperty("--modal-overscroll-y", "0px");
-
-    overscrollSettleTimeoutRef.current = window.setTimeout(() => {
-      layer.classList.remove("modal-layer-overscroll-settling");
-      overscrollSettleTimeoutRef.current = null;
-    }, MODAL_OVERSCROLL.settleMs);
-  }, []);
 
   useEffect(() => {
     if (!navigationRequest) {
@@ -356,115 +306,6 @@ export default function ModalLayer() {
   const requestClose = useCallback(() => {
     close();
   }, [close]);
-
-  useEffect(() => {
-    const maybeSettleEdgeOverscroll = (
-      event: WheelEvent,
-      deltaY: number,
-      scrollRoot: HTMLElement,
-    ) => {
-      const currentScrollTop = scrollRoot.scrollTop;
-      const maxScrollTop = getMaxScrollTop(scrollRoot);
-      const rawNextScrollTop =
-        currentScrollTop + deltaY * MODAL_SCROLL.wheelOpenMultiplier;
-      const isTopOverscroll = currentScrollTop <= 0 && rawNextScrollTop < 0;
-      const isBottomOverscroll =
-        currentScrollTop >= maxScrollTop && rawNextScrollTop > maxScrollTop;
-
-      if (!isTopOverscroll && !isBottomOverscroll) {
-        return false;
-      }
-
-      const direction = isTopOverscroll ? 1 : -1;
-      const offsetPx =
-        direction *
-        Math.min(
-          MODAL_OVERSCROLL.maxPx,
-          Math.abs(rawNextScrollTop - currentScrollTop) *
-            MODAL_OVERSCROLL.resistance,
-        );
-
-      event.preventDefault();
-      settleOverscroll(offsetPx);
-      return true;
-    };
-
-    const handleWindowWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || event.metaKey) {
-        return;
-      }
-
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-        return;
-      }
-
-      const deltaY = normalizeWheelDelta(event);
-
-      if (Math.abs(deltaY) < 0.5) {
-        return;
-      }
-
-      const scrollRoot = scrollRootRef.current;
-
-      if (!scrollRoot) {
-        return;
-      }
-
-      const currentScrollTop = scrollRoot.scrollTop;
-      const rawNextScrollTop =
-        currentScrollTop + deltaY * MODAL_SCROLL.wheelOpenMultiplier;
-      const nextScrollTop = clampScrollTop(scrollRoot, rawNextScrollTop);
-
-      event.preventDefault();
-
-      if (nextScrollTop === currentScrollTop) {
-        maybeSettleEdgeOverscroll(event, deltaY, scrollRoot);
-
-        return;
-      }
-
-      scrollRoot.scrollTop = nextScrollTop;
-      scheduleScrollSync();
-    };
-
-    const handleScrollRootWheel = (event: WheelEvent) => {
-      if (event.defaultPrevented || event.ctrlKey || event.metaKey) {
-        return;
-      }
-
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
-        return;
-      }
-
-      const scrollRoot = scrollRootRef.current;
-
-      if (!scrollRoot) {
-        return;
-      }
-
-      maybeSettleEdgeOverscroll(event, normalizeWheelDelta(event), scrollRoot);
-    };
-
-    const scrollRoot = scrollRootRef.current;
-
-    window.addEventListener("wheel", handleWindowWheel, {
-      capture: true,
-      passive: false,
-    });
-    scrollRoot?.addEventListener("wheel", handleScrollRootWheel, {
-      capture: true,
-      passive: false,
-    });
-
-    return () => {
-      window.removeEventListener("wheel", handleWindowWheel, {
-        capture: true,
-      });
-      scrollRoot?.removeEventListener("wheel", handleScrollRootWheel, {
-        capture: true,
-      });
-    };
-  }, [scheduleScrollSync, settleOverscroll]);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) =>
@@ -566,7 +407,6 @@ export default function ModalLayer() {
       ({
         "--modal-home-offset": `${MODAL_SCROLL.homeOffsetVh}vh`,
         "--modal-section-gap": `${MODAL_SCROLL.sectionGapVh}vh`,
-        "--modal-overscroll-settle-ms": `${MODAL_OVERSCROLL.settleMs}ms`,
       }) as CSSProperties,
     [],
   );
@@ -611,6 +451,19 @@ export default function ModalLayer() {
                 />
               );
             })}
+            {/* Zero-height wrapper contributes nothing to scrollHeight.
+                The footer overflows it visually, sitting just below the
+                last panel. It's clipped by the scroll container at rest
+                but revealed by macOS native rubber-band overscroll. */}
+            <div className="modal-scroll-footer-anchor" aria-hidden="true">
+              <div className="modal-scroll-footer">
+                <span>---</span>
+                <span className="modal-scroll-footer-tag">
+                  [ END OF TRANSMISSION ]
+                </span>
+                <span>---</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
