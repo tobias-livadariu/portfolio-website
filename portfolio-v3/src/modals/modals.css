@@ -393,12 +393,24 @@
 /* Cat output character-wave coloring. Anchored so char 0 of any line matches
    that line's gutter color, then cycles through the softened palette — gives
    a diagonal flow where characters on the same NE/SW diagonal share a hue. */
-.modal-cat-c0 { color: var(--dragon-cat-yellow); }
-.modal-cat-c1 { color: var(--dragon-cat-orange); }
-.modal-cat-c2 { color: var(--dragon-cat-pink); }
-.modal-cat-c3 { color: var(--dragon-cat-lavender); }
-.modal-cat-c4 { color: var(--dragon-cat-cyan); }
-.modal-cat-c5 { color: var(--dragon-cat-mint); }
+.modal-cat-c0 {
+  color: var(--dragon-yellow);
+}
+.modal-cat-c1 {
+  color: var(--dragon-orange);
+}
+.modal-cat-c2 {
+  color: var(--dragon-pink);
+}
+.modal-cat-c3 {
+  color: var(--dragon-lavender);
+}
+.modal-cat-c4 {
+  color: var(--dragon-cyan);
+}
+.modal-cat-c5 {
+  color: var(--dragon-mint);
+}
 
 .modal-terminal-block {
   min-width: 0;
