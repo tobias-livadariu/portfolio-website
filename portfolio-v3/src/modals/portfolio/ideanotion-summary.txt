@@ -1,0 +1,21 @@
+IdeaNotion was my first internship. The main product, DealerAI, is an
+AI chatbot used by 150+ dealerships to turn web traffic into real
+clients.
+
+The biggest feature I built was a conversation summarizer with React,
+OpenAI, and .NET that cut chat review time by 95% across 4,500+ daily
+conversations. I also rebuilt admin tables, built .NET controllers with
+CosmosDB to persist user settings, and replaced plain prompt fields with
+a Lexical markdown editor that the lead AI developer adopted for his own
+workflows.
+
+I worked on Food Banks Canada projects too. On the public site, I built
+ACF content blocks and updated 20+ bilingual pages against Figma
+designs. On The Exchange admin portal, I migrated 5 controllers, 62
+endpoints, and 55 DTOs from a legacy codebase into EF Core and RTK
+Query.
+
+The biggest thing I took away from IdeaNotion wasn't any single
+technology or implementation pattern. It was how important reading
+existing code actually is, how difficult it can be, and how much of
+the job is leaving a codebase better than you found it.

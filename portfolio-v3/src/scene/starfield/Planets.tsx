@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Mesh, MeshBasicMaterial } from "three";
-import { Quaternion, Vector3 } from "three";
-import type { ReadonlyVec3 } from "../../types/geometry";
+import { PlaneGeometry, Quaternion, Vector3 } from "three";
 import { CAMERA_PROPS } from "../canvas.constants";
 import getCameraFacingRotation from "../ui3d/utils/getCameraFacingRotation";
 import {
@@ -11,6 +10,7 @@ import {
   STARFIELD_ORBIT_WELLS,
 } from "./starfield.constants";
 import {
+  createVisibleBounds,
   getFieldRadius,
   getOrbitCenter,
   getOrbitWellFieldDirection,
@@ -22,6 +22,7 @@ import {
   mulberry32,
   pickWeightedIndex,
   sampleNormal,
+  type Vec3Tuple,
 } from "./starfield.math";
 import {
   getPlanetAtlasKeys,
@@ -30,6 +31,18 @@ import {
 } from "./planet-atlas";
 
 const FULL_TURN_RADIANS = Math.PI * 2;
+
+// Module-scoped scratches reused by every PlanetSprite useFrame call. The R3F
+// frame loop runs each callback sequentially, so sharing these is safe and
+// avoids per-sprite-per-frame allocations.
+const PLANET_REFERENCE_BOUNDS = createVisibleBounds();
+const PLANET_VISIBLE_BOUNDS = createVisibleBounds();
+const PLANET_ORBIT_CENTER: Vec3Tuple = [0, 0, 0];
+const PLANET_ROTATION: Vec3Tuple = [0, 0, 0];
+
+// Every planet sprite is a 1x1 plane scaled per-sprite via `mesh.scale.set(...)`,
+// so all 300 sprites can share a single geometry instance.
+const PLANET_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
 
 function normalizeRadians(radians: number) {
   return (
@@ -123,7 +136,7 @@ interface PlanetSpriteProps {
   planet: VirtualPlanet;
 }
 
-function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
+function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const spriteRotationRef = useRef<number | null>(null);
@@ -154,30 +167,39 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
     }
 
     const elapsedSeconds = clock.getElapsedTime();
-    const referenceBounds = getVisibleBoundsAtZForPosition(
+    getVisibleBoundsAtZForPosition(
       camera,
       size,
       planet.z,
       CAMERA_PROPS.position,
       PLANETS.visibilityBuffer,
+      PLANET_REFERENCE_BOUNDS,
     );
-    const visibleBounds = getVisibleBoundsAtZ(
+    getVisibleBoundsAtZ(
       camera,
       size,
       planet.z,
       PLANETS.visibilityBuffer,
+      PLANET_VISIBLE_BOUNDS,
     );
-    const fieldRadius = getFieldRadius(referenceBounds);
-    const orbitCenter = getOrbitCenter(
+    const fieldRadius = getFieldRadius(PLANET_REFERENCE_BOUNDS);
+    getOrbitCenter(
       planet.orbitWellIndex,
-      referenceBounds,
+      PLANET_REFERENCE_BOUNDS,
       fieldRadius,
+      PLANET_ORBIT_CENTER,
     );
     const orbitRadius = planet.orbitRadiusRatio * fieldRadius;
     const angle = planet.angle + elapsedSeconds * planet.angularSpeed;
-    getOrbitalPosition(orbitCenter, orbitRadius, angle, planet.z, position);
+    getOrbitalPosition(
+      PLANET_ORBIT_CENTER,
+      orbitRadius,
+      angle,
+      planet.z,
+      position,
+    );
 
-    const isVisible = isInsideBounds(position, visibleBounds, planetRadius);
+    const isVisible = isInsideBounds(position, PLANET_VISIBLE_BOUNDS, planetRadius);
 
     mesh.visible = isVisible;
     if (!isVisible) {
@@ -201,15 +223,12 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
     mesh.position.copy(position);
     mesh.scale.set(planetWidth, planetHeight, 1);
 
-    const rotation = getCameraFacingRotation(
-      [position.x, position.y, position.z] satisfies ReadonlyVec3,
-      [camera.position.x, camera.position.y, camera.position.z],
-    );
-    mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+    getCameraFacingRotation(position, camera.position, PLANET_ROTATION);
+    mesh.rotation.set(PLANET_ROTATION[0], PLANET_ROTATION[1], PLANET_ROTATION[2]);
 
     getOrbitWellFieldDirection(
       position,
-      referenceBounds,
+      PLANET_REFERENCE_BOUNDS,
       fieldRadius,
       worldLightDirection,
     );
@@ -240,8 +259,12 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
   });
 
   return (
-    <mesh ref={meshRef} frustumCulled={false} renderOrder={1}>
-      <planeGeometry args={[1, 1]} />
+    <mesh
+      ref={meshRef}
+      geometry={PLANET_PLANE_GEOMETRY}
+      frustumCulled={false}
+      renderOrder={1}
+    >
       <meshBasicMaterial
         ref={materialRef}
         map={texture}
@@ -255,33 +278,37 @@ function PlanetSprite({ atlas, planet }: PlanetSpriteProps) {
   );
 }
 
+const PlanetSprite = memo(PlanetSpriteInner);
+
+const EMPTY_ATLAS_MAP: ReadonlyMap<string, PlanetAtlas> = new Map();
+
 export default function Planets() {
   const planets = useMemo(() => createVirtualPlanets(), []);
-  const loadedAtlasesRef = useRef<PlanetAtlas[]>([]);
-  const [loadedAtlases, setLoadedAtlases] = useState<PlanetAtlas[]>([]);
-  const atlasMap = useMemo(
-    () => new Map(loadedAtlases.map((atlas) => [atlas.key, atlas])),
-    [loadedAtlases],
-  );
+  const [atlasMap, setAtlasMap] =
+    useState<ReadonlyMap<string, PlanetAtlas>>(EMPTY_ATLAS_MAP);
 
   useEffect(() => {
     const controller = new AbortController();
+    const owned: PlanetAtlas[] = [];
 
     void loadPlanetAtlases((atlas) => {
       if (controller.signal.aborted) {
         return;
       }
 
-      loadedAtlasesRef.current.push(atlas);
-      setLoadedAtlases([...loadedAtlasesRef.current]);
+      owned.push(atlas);
+      setAtlasMap((previous) => {
+        const next = new Map(previous);
+        next.set(atlas.key, atlas);
+        return next;
+      });
     }, controller.signal);
 
     return () => {
       controller.abort();
-      for (const atlas of loadedAtlasesRef.current) {
+      for (const atlas of owned) {
         atlas.texture.dispose();
       }
-      loadedAtlasesRef.current = [];
     };
   }, []);
 

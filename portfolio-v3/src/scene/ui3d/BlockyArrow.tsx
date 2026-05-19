@@ -1,3 +1,4 @@
+import { BoxGeometry, MeshStandardMaterial, type Material } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
 import { ARROW_GEOMETRY, TEXT_MATERIAL } from "./main-menu.constants";
 
@@ -37,37 +38,34 @@ const ARROW_BLOCKS = [
   [3, -3, 0],
 ] as const;
 
-// BoxGeometry creates six material groups: +x, -x, +y, -y, +z, -z.
-// The menu camera sees the +z face as the arrow front, while the remaining
-// faces should use the same darker side material as hovered Text3D extrusion.
+// BoxGeometry creates six material groups: +x, -x, +y, -y, +z, -z. The menu
+// camera sees the +z face (group index 4) as the arrow front; every other face
+// uses the darker side material.
 const BOX_FRONT_MATERIAL_INDEX = 4;
-const BOX_SIDE_MATERIAL_INDICES = [0, 1, 2, 3, 5] as const;
 
-function ArrowFrontMaterial() {
-  return (
-    <meshStandardMaterial
-      attach={`material-${BOX_FRONT_MATERIAL_INDEX}`}
-      color={TEXT_MATERIAL.hoveredFrontColor}
-      emissive={TEXT_MATERIAL.hoveredFrontEmissive}
-      emissiveIntensity={TEXT_MATERIAL.hoveredFrontEmissiveIntensity}
-      roughness={TEXT_MATERIAL.hoveredFrontRoughness}
-      metalness={TEXT_MATERIAL.metalness}
-    />
-  );
-}
+const ARROW_BLOCK_GEOMETRY = new BoxGeometry(1, 1, 1);
 
-function ArrowSideMaterial(props: { materialIndex: number }) {
-  return (
-    <meshStandardMaterial
-      attach={`material-${props.materialIndex}`}
-      color={TEXT_MATERIAL.hoveredSideColor}
-      emissive={TEXT_MATERIAL.hoveredSideEmissive}
-      emissiveIntensity={TEXT_MATERIAL.hoveredSideEmissiveIntensity}
-      roughness={TEXT_MATERIAL.hoveredSideRoughness}
-      metalness={TEXT_MATERIAL.metalness}
-    />
-  );
-}
+const ARROW_FRONT_MATERIAL = new MeshStandardMaterial({
+  color: TEXT_MATERIAL.hoveredFrontColor,
+  emissive: TEXT_MATERIAL.hoveredFrontEmissive,
+  emissiveIntensity: TEXT_MATERIAL.hoveredFrontEmissiveIntensity,
+  roughness: TEXT_MATERIAL.hoveredFrontRoughness,
+  metalness: TEXT_MATERIAL.metalness,
+});
+
+const ARROW_SIDE_MATERIAL = new MeshStandardMaterial({
+  color: TEXT_MATERIAL.hoveredSideColor,
+  emissive: TEXT_MATERIAL.hoveredSideEmissive,
+  emissiveIntensity: TEXT_MATERIAL.hoveredSideEmissiveIntensity,
+  roughness: TEXT_MATERIAL.hoveredSideRoughness,
+  metalness: TEXT_MATERIAL.metalness,
+});
+
+const ARROW_BLOCK_MATERIALS: Material[] = Array.from({ length: 6 }, (_, index) =>
+  index === BOX_FRONT_MATERIAL_INDEX
+    ? ARROW_FRONT_MATERIAL
+    : ARROW_SIDE_MATERIAL,
+);
 
 export default function BlockyArrow(props: Props) {
   const { offset, flipped = false } = props;
@@ -79,27 +77,19 @@ export default function BlockyArrow(props: Props) {
       {ARROW_BLOCKS.map(([x, y, z], index) => (
         <mesh
           key={`${x}-${y}-${index}`}
+          geometry={ARROW_BLOCK_GEOMETRY}
+          material={ARROW_BLOCK_MATERIALS}
           position={[
             direction * (x - centerX) * ARROW_GEOMETRY.blockSize,
             y * ARROW_GEOMETRY.blockSize,
             z,
           ]}
-        >
-          <boxGeometry
-            args={[
-              ARROW_GEOMETRY.blockSize,
-              ARROW_GEOMETRY.blockSize,
-              ARROW_GEOMETRY.depth,
-            ]}
-          />
-          <ArrowFrontMaterial />
-          {BOX_SIDE_MATERIAL_INDICES.map((materialIndex) => (
-            <ArrowSideMaterial
-              key={materialIndex}
-              materialIndex={materialIndex}
-            />
-          ))}
-        </mesh>
+          scale={[
+            ARROW_GEOMETRY.blockSize,
+            ARROW_GEOMETRY.blockSize,
+            ARROW_GEOMETRY.depth,
+          ]}
+        />
       ))}
     </group>
   );

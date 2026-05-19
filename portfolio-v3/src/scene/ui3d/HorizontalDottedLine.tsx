@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import type { Mesh } from "three";
+import { BoxGeometry, MeshStandardMaterial, type Mesh } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
 import { COLOR_PALETTE_STR } from "../../theme/colors";
 import { LAYOUT, UI_HALO } from "./main-menu.constants";
@@ -15,6 +15,16 @@ interface Props {
   endOffset: ReadonlyVec3;
   animationIndex: number;
 }
+
+// Each separator dot historically created its own BoxGeometry and material.
+// Every dot uses the same color/roughness; the only per-dot difference is its
+// scale, which is now baked into the mesh `scale` prop. Sharing one geometry +
+// one material avoids ~100 redundant GPU buffer allocations.
+const SEGMENT_GEOMETRY = new BoxGeometry(1, 1, 1);
+const SEGMENT_MATERIAL = new MeshStandardMaterial({
+  color: COLOR_PALETTE_STR.campfireAsh,
+  roughness: 0.9,
+});
 
 export default function HorizontalDottedLine(props: Props) {
   const { startOffset, endOffset, animationIndex } = props;
@@ -59,17 +69,14 @@ export default function HorizontalDottedLine(props: Props) {
             ref={(segment) => {
               segmentRefs.current[index] = segment;
             }}
+            geometry={SEGMENT_GEOMETRY}
+            material={SEGMENT_MATERIAL}
             position={[x, y, z]}
+            scale={segmentSize}
             userData={{
               [UI_HALO.radiusScaleUserDataKey]: haloRadiusScale,
             }}
-          >
-            <boxGeometry args={[segmentSize, segmentSize, segmentSize]} />
-            <meshStandardMaterial
-              color={COLOR_PALETTE_STR.campfireAsh}
-              roughness={0.9}
-            />
-          </mesh>
+          />
         );
       })}
     </group>

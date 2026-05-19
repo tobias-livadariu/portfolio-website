@@ -10,6 +10,12 @@ export interface VisibleBounds {
   top: number;
 }
 
+export type Vec3Tuple = [number, number, number];
+
+export function createVisibleBounds(): VisibleBounds {
+  return { bottom: 0, left: 0, right: 0, top: 0 };
+}
+
 export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -63,14 +69,25 @@ export function getVisibleBoundsAtZ(
   canvasSize: { width: number; height: number },
   z: number,
   buffer: number = STARFIELD_BOUNDS.edgeBuffer,
+  target: VisibleBounds = createVisibleBounds(),
 ): VisibleBounds {
   return getVisibleBoundsAtZForPosition(
     camera,
     canvasSize,
     z,
-    [camera.position.x, camera.position.y, camera.position.z],
+    SCRATCH_CAMERA_POSITION_TUPLE(camera),
     buffer,
+    target,
   );
+}
+
+const CAMERA_POSITION_SCRATCH: Vec3Tuple = [0, 0, 0];
+
+function SCRATCH_CAMERA_POSITION_TUPLE(camera: Camera): Vec3Tuple {
+  CAMERA_POSITION_SCRATCH[0] = camera.position.x;
+  CAMERA_POSITION_SCRATCH[1] = camera.position.y;
+  CAMERA_POSITION_SCRATCH[2] = camera.position.z;
+  return CAMERA_POSITION_SCRATCH;
 }
 
 export function getVisibleBoundsAtZForPosition(
@@ -79,6 +96,7 @@ export function getVisibleBoundsAtZForPosition(
   z: number,
   cameraPosition: ReadonlyVec3,
   buffer: number = STARFIELD_BOUNDS.edgeBuffer,
+  target: VisibleBounds = createVisibleBounds(),
 ): VisibleBounds {
   let visibleHeight = 0;
   let visibleWidth = 0;
@@ -89,12 +107,12 @@ export function getVisibleBoundsAtZForPosition(
     visibleWidth = visibleHeight * (canvasSize.width / canvasSize.height);
   }
 
-  return {
-    bottom: cameraPosition[1] - visibleHeight / 2 - buffer,
-    left: cameraPosition[0] - visibleWidth / 2 - buffer,
-    right: cameraPosition[0] + visibleWidth / 2 + buffer,
-    top: cameraPosition[1] + visibleHeight / 2 + buffer,
-  };
+  target.bottom = cameraPosition[1] - visibleHeight / 2 - buffer;
+  target.left = cameraPosition[0] - visibleWidth / 2 - buffer;
+  target.right = cameraPosition[0] + visibleWidth / 2 + buffer;
+  target.top = cameraPosition[1] + visibleHeight / 2 + buffer;
+
+  return target;
 }
 
 export function getFieldRadius(bounds: VisibleBounds) {
@@ -109,39 +127,36 @@ export function getOrbitCenter(
   orbitWellIndex: number,
   bounds: VisibleBounds,
   fieldRadius: number,
-): ReadonlyVec3 {
+  target: Vec3Tuple = [0, 0, 0],
+): Vec3Tuple {
   const well = STARFIELD_ORBIT_WELLS[orbitWellIndex];
   const offset = well.distance * fieldRadius;
 
   if (well.side === "left") {
-    return [
-      bounds.left - offset,
-      lerp(bounds.bottom, bounds.top, well.position),
-      0,
-    ];
+    target[0] = bounds.left - offset;
+    target[1] = lerp(bounds.bottom, bounds.top, well.position);
+    target[2] = 0;
+    return target;
   }
 
   if (well.side === "right") {
-    return [
-      bounds.right + offset,
-      lerp(bounds.bottom, bounds.top, well.position),
-      0,
-    ];
+    target[0] = bounds.right + offset;
+    target[1] = lerp(bounds.bottom, bounds.top, well.position);
+    target[2] = 0;
+    return target;
   }
 
   if (well.side === "top") {
-    return [
-      lerp(bounds.left, bounds.right, well.position),
-      bounds.top + offset,
-      0,
-    ];
+    target[0] = lerp(bounds.left, bounds.right, well.position);
+    target[1] = bounds.top + offset;
+    target[2] = 0;
+    return target;
   }
 
-  return [
-    lerp(bounds.left, bounds.right, well.position),
-    bounds.bottom - offset,
-    0,
-  ];
+  target[0] = lerp(bounds.left, bounds.right, well.position);
+  target[1] = bounds.bottom - offset;
+  target[2] = 0;
+  return target;
 }
 
 export function getOrbitalPosition(

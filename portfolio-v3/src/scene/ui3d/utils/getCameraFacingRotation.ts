@@ -2,30 +2,38 @@ import { Euler, Quaternion, Vector3 } from "three";
 import type { ReadonlyVec3 } from "../../../types/geometry";
 
 type Vec3Like = ReadonlyVec3 | Vector3;
+type Vec3Tuple = [number, number, number];
 
 const TEXT_FRONT_NORMAL = new Vector3(0, 0, 1);
+const SCRATCH_OBJECT_POSITION = new Vector3();
+const SCRATCH_CAMERA_POSITION = new Vector3();
+const SCRATCH_DIRECTION = new Vector3();
+const SCRATCH_QUATERNION = new Quaternion();
+const SCRATCH_EULER = new Euler();
 
-function toVector3(value: Vec3Like) {
-  return value instanceof Vector3
-    ? value.clone()
-    : new Vector3(value[0], value[1], value[2]);
+function setFromVec3Like(target: Vector3, value: Vec3Like) {
+  if (value instanceof Vector3) {
+    target.copy(value);
+  } else {
+    target.set(value[0], value[1], value[2]);
+  }
+  return target;
 }
 
 export default function getCameraFacingRotation(
-  objectPosition: ReadonlyVec3,
+  objectPosition: Vec3Like,
   cameraPosition: Vec3Like,
-): ReadonlyVec3 {
-  const directionToCamera = toVector3(cameraPosition)
-    .sub(toVector3(objectPosition))
+  target: Vec3Tuple = [0, 0, 0],
+): Vec3Tuple {
+  setFromVec3Like(SCRATCH_OBJECT_POSITION, objectPosition);
+  setFromVec3Like(SCRATCH_CAMERA_POSITION, cameraPosition);
+  SCRATCH_DIRECTION.subVectors(SCRATCH_CAMERA_POSITION, SCRATCH_OBJECT_POSITION)
     .normalize();
-  const cameraFacingQuaternion = new Quaternion().setFromUnitVectors(
-    TEXT_FRONT_NORMAL,
-    directionToCamera,
-  );
-  const cameraFacingEuler = new Euler().setFromQuaternion(
-    cameraFacingQuaternion,
-    "XYZ",
-  );
+  SCRATCH_QUATERNION.setFromUnitVectors(TEXT_FRONT_NORMAL, SCRATCH_DIRECTION);
+  SCRATCH_EULER.setFromQuaternion(SCRATCH_QUATERNION, "XYZ");
 
-  return [cameraFacingEuler.x, cameraFacingEuler.y, cameraFacingEuler.z];
+  target[0] = SCRATCH_EULER.x;
+  target[1] = SCRATCH_EULER.y;
+  target[2] = SCRATCH_EULER.z;
+  return target;
 }
