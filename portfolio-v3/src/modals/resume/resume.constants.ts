@@ -37,6 +37,6 @@ export const RESUME_SPRITE = {
   rows: 18,
 } as const;
 
-export const RESUME_DRIVE_ID = "1J4pOm1PnVdsCDL9Tp-9v2_JQKk7rNE_m";
+export const RESUME_DRIVE_ID = "1bkKTMwEYLVcM8fSbjhZK1tF-J43WB643";
 
 export const RESUME_PREVIEW_MARGIN = "clamp(0.85rem, 1.35vw, 1.45rem)";
