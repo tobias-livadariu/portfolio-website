@@ -87,44 +87,6 @@
   padding: 0 var(--modal-edge-gap) 0;
 }
 
-/* Zero-height anchor at the bottom of the scroll stack. Contributes nothing
-   to scrollHeight so the footer is not reachable by normal scrolling. The
-   footer overflows it and is clipped by the scroll container at rest, but
-   macOS rubber-band overscroll stretches content past the clip edge and
-   reveals the marker naturally. */
-.modal-scroll-footer-anchor {
-  width: 100%;
-  height: 0;
-  overflow: visible;
-}
-
-.modal-scroll-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1ch;
-  margin-top: 1.8rem;
-  color: var(--dragon-comment);
-  font-family: var(--font-iosevka-term);
-  font-size: clamp(0.7rem, 0.85vw, 0.85rem);
-  letter-spacing: 0.04em;
-  pointer-events: none;
-  user-select: none;
-  text-shadow:
-    -1px -1px 0 var(--color-ember-shadow),
-     1px -1px 0 var(--color-ember-shadow),
-    -1px  1px 0 var(--color-ember-shadow),
-     1px  1px 0 var(--color-ember-shadow),
-     0   -1px 0 var(--color-ember-shadow),
-     0    1px 0 var(--color-ember-shadow),
-    -1px  0   0 var(--color-ember-shadow),
-     1px  0   0 var(--color-ember-shadow);
-}
-
-.modal-scroll-footer-tag {
-  color: var(--dragon-fg-dim);
-}
-
 .modal-panel {
   width: min(100%, 96rem);
   contain: layout paint;

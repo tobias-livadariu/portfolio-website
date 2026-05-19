@@ -451,19 +451,6 @@ export default function ModalLayer() {
                 />
               );
             })}
-            {/* Zero-height wrapper contributes nothing to scrollHeight.
-                The footer overflows it visually, sitting just below the
-                last panel. It's clipped by the scroll container at rest
-                but revealed by macOS native rubber-band overscroll. */}
-            <div className="modal-scroll-footer-anchor" aria-hidden="true">
-              <div className="modal-scroll-footer">
-                <span>---</span>
-                <span className="modal-scroll-footer-tag">
-                  [ END OF TRANSMISSION ]
-                </span>
-                <span>---</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
