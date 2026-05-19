@@ -592,7 +592,6 @@
   gap: 1ch;
   min-width: 0;
   color: var(--dragon-fg-dim);
-  font-size: 0.94em;
 }
 
 .modal-ls-perms {
