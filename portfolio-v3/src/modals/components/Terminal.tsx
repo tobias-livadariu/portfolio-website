@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { GIT_STATE_LABELS } from "../modals.constants";
 import type {
@@ -13,16 +13,6 @@ import type {
 interface Props {
   commands: readonly TerminalCommand[];
   context: TerminalContext;
-}
-
-export interface LsRow {
-  date: string;
-  href?: string;
-  name: string;
-  permissions?: string;
-  size?: string;
-  type?: "dir" | "file" | "link";
-  user?: string;
 }
 
 interface RenderedTerminalLine {
@@ -47,39 +37,6 @@ function getPromptDirectory(directory: string) {
   return visibleSegments.slice(-2).join("/");
 }
 
-function getPermissionClassName(character: string) {
-  if (character === ".") {
-    return "dot";
-  }
-
-  if (character === "-") {
-    return "dash";
-  }
-
-  if (character === "@") {
-    return "attr";
-  }
-
-  return character;
-}
-
-function Permissions({ value }: { value: string }) {
-  return (
-    <span className="modal-ls-perms">
-      {Array.from(value).map((character, index) => (
-        <span
-          className={`modal-ls-perm modal-ls-perm-${getPermissionClassName(
-            character,
-          )}`}
-          key={index}
-        >
-          {character}
-        </span>
-      ))}
-    </span>
-  );
-}
-
 const GUTTER_COLORS = [
   "var(--dragon-yellow)",
   "var(--dragon-orange)",
@@ -89,15 +46,6 @@ const GUTTER_COLORS = [
   "var(--dragon-mint)",
 ] as const;
 
-const CAT_CLASSES = [
-  "modal-cat-c0",
-  "modal-cat-c1",
-  "modal-cat-c2",
-  "modal-cat-c3",
-  "modal-cat-c4",
-  "modal-cat-c5",
-] as const;
-
 function getGutterStyle(lineNumber: number) {
   return {
     "--modal-terminal-gutter-color":
@@ -105,24 +53,8 @@ function getGutterStyle(lineNumber: number) {
   } as CSSProperties;
 }
 
-function colorizeCatLine(text: string, lineNumber: number) {
-  const baseOffset = (lineNumber - 1) % CAT_CLASSES.length;
-  return Array.from(text, (character, index) => (
-    <span
-      className={CAT_CLASSES[(baseOffset + index) % CAT_CLASSES.length]}
-      key={index}
-    >
-      {character}
-    </span>
-  ));
-}
-
 function isOutputBlock(output: TerminalOutput): output is TerminalOutputBlock {
   return "kind" in output && output.kind === "block";
-}
-
-function normalizeOutputLine(output: TerminalOutputLine) {
-  return output;
 }
 
 export function TerminalTranscriptLine({
@@ -174,13 +106,7 @@ function PromptContext({ context }: { context: TerminalContext }) {
   );
 }
 
-function CommandLine({
-  command,
-  context,
-}: {
-  command: string;
-  context: TerminalContext;
-}) {
+function CommandLine({ command }: { command: string }) {
   return (
     <span className="modal-terminal-command">
       <span className="modal-terminal-cursor">%</span>{" "}
@@ -189,191 +115,8 @@ function CommandLine({
   );
 }
 
-function LsOutputLine({ row }: { row: LsRow }) {
-  const content = row.href ? (
-    <a href={row.href} target="_blank" rel="noreferrer">
-      {row.name}
-    </a>
-  ) : (
-    row.name
-  );
-
-  return (
-    <span className="modal-ls-row" role="listitem">
-      <Permissions
-        value={
-          row.permissions ??
-          (row.type === "dir" ? "drwxr-xr-x@" : ".rw-r--r--@")
-        }
-      />
-      <span className="modal-ls-size">{row.size ?? "128"}</span>
-      <span className="modal-ls-user">{row.user ?? "tobias"}</span>
-      <span className="modal-ls-date">{row.date}</span>
-      <span className={`modal-ls-name modal-ls-name-${row.type ?? "file"}`}>
-        {content}
-      </span>
-    </span>
-  );
-}
-
-export function lsOutputRows(rows: readonly LsRow[]): TerminalOutputLine[] {
-  return rows.map((row) => ({
-    className: "modal-terminal-line-ls",
-    content: <LsOutputLine row={row} />,
-  }));
-}
-
 export function TerminalNote({ children }: { children: ReactNode }) {
   return <span className="modal-terminal-note">{children}</span>;
-}
-
-export function plainTextRows(
-  lines: readonly ReactNode[],
-  className?: string,
-): TerminalOutputLine[] {
-  return lines.map((line) => ({
-    className: className ?? "modal-terminal-line-text",
-    content: line === "" ? "\u00a0" : line,
-  }));
-}
-
-function normalizeWrappedText(text: string) {
-  return text
-    .trimEnd()
-    .split(/\n\s*\n/)
-    .map((paragraph) => paragraph.split(/\n+/).join(" ").replace(/\s+/g, " "))
-    .filter(Boolean);
-}
-
-function wrapParagraph(paragraph: string, maxCharacters: number) {
-  const words = paragraph.split(" ");
-  const lines: string[] = [];
-  let current = "";
-
-  for (const word of words) {
-    if (!current) {
-      current = word;
-      continue;
-    }
-
-    if (`${current} ${word}`.length <= maxCharacters) {
-      current = `${current} ${word}`;
-      continue;
-    }
-
-    lines.push(current);
-    current = word;
-  }
-
-  if (current) {
-    lines.push(current);
-  }
-
-  return lines;
-}
-
-function useTerminalCharacterCapacity() {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLSpanElement>(null);
-  const [maxCharacters, setMaxCharacters] = useState(72);
-
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    const measure = measureRef.current;
-    const terminalBody = wrapper?.closest(".modal-terminal-body");
-
-    if (!wrapper || !measure || !(terminalBody instanceof HTMLElement)) {
-      return;
-    }
-
-    const update = () => {
-      const contentColumn = terminalBody.querySelector(
-        ".modal-terminal-line-content",
-      );
-      const contentWidth =
-        contentColumn instanceof HTMLElement
-          ? contentColumn.getBoundingClientRect().width
-          : terminalBody.clientWidth;
-      const characterWidth = measure.getBoundingClientRect().width / 24;
-
-      if (contentWidth <= 0 || characterWidth <= 0) {
-        return;
-      }
-
-      setMaxCharacters(Math.max(22, Math.floor(contentWidth / characterWidth)));
-    };
-
-    update();
-    void document.fonts?.ready.then(update);
-
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-
-    const observer = new ResizeObserver(update);
-    observer.observe(terminalBody);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
-
-  return { maxCharacters, measureRef, wrapperRef };
-}
-
-function WrappedTextOutput({
-  firstLineNumber,
-  text,
-}: {
-  firstLineNumber: number;
-  text: string;
-}) {
-  const { maxCharacters, measureRef, wrapperRef } =
-    useTerminalCharacterCapacity();
-  const lines = useMemo(() => {
-    const paragraphs = normalizeWrappedText(text);
-    const wrapped: string[] = [];
-
-    paragraphs.forEach((paragraph, index) => {
-      if (index > 0) {
-        wrapped.push("");
-      }
-
-      wrapped.push(...wrapParagraph(paragraph, maxCharacters));
-    });
-
-    return wrapped;
-  }, [maxCharacters, text]);
-
-  return (
-    <div className="modal-terminal-wrapped-output" ref={wrapperRef}>
-      <span className="modal-terminal-ch-measure" ref={measureRef}>
-        000000000000000000000000
-      </span>
-      {lines.map((line, index) => {
-        const lineNumber = firstLineNumber + index;
-        return (
-          <TerminalTranscriptLine
-            className="modal-terminal-line-text"
-            key={`${index}-${line}`}
-            lineNumber={lineNumber}
-          >
-            {line ? colorizeCatLine(line, lineNumber) : "\u00a0"}
-          </TerminalTranscriptLine>
-        );
-      })}
-    </div>
-  );
-}
-
-export function wrappedTextOutput(text: string): TerminalOutputBlock {
-  return {
-    kind: "block",
-    lineCount: 0,
-    render: (firstLineNumber) => (
-      <WrappedTextOutput firstLineNumber={firstLineNumber} text={text} />
-    ),
-  };
 }
 
 function Terminal({ commands, context }: Props) {
@@ -412,15 +155,13 @@ function Terminal({ commands, context }: Props) {
       kind: "line",
       line: {
         className: "modal-terminal-line-command",
-        content: (
-          <CommandLine command={entry.command} context={commandContext} />
-        ),
+        content: <CommandLine command={entry.command} />,
       },
       lineNumber,
     });
     lineNumber += 1;
 
-    entry.output?.forEach((output) => {
+    entry.output?.forEach((output: TerminalOutput) => {
       if (isOutputBlock(output)) {
         rows.push({
           firstLineNumber: lineNumber,
@@ -431,10 +172,9 @@ function Terminal({ commands, context }: Props) {
         return;
       }
 
-      const outputLine = normalizeOutputLine(output);
       rows.push({
         kind: "line",
-        line: outputLine,
+        line: output as TerminalOutputLine,
         lineNumber,
       });
       lineNumber += 1;

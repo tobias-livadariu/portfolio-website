@@ -1,10 +1,11 @@
 import { memo } from "react";
 import AsciiDivider from "../components/AsciiDivider";
 import ModalHeader from "../components/ModalHeader";
-import Terminal, {
+import Terminal from "../components/Terminal";
+import {
   lsOutputRows,
   wrappedTextOutput,
-} from "../components/Terminal";
+} from "../components/terminal-outputs";
 import ideaNotionSummary from "./ideanotion-summary.txt?raw";
 import {
   PORTFOLIO_ASCII_TITLE_PIECES,

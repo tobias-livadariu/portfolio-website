@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { observeWithRaf } from "./observeWithRaf";
 
 interface Props {
   block: readonly string[];
@@ -68,18 +69,13 @@ function AsciiDivider({
 
     const container = containerRef.current;
 
-    if (!container || typeof ResizeObserver === "undefined") {
+    if (!container) {
       return;
     }
 
-    const observer = new ResizeObserver(updateLayout);
-    observer.observe(container);
-
     void document.fonts?.ready.then(updateLayout);
 
-    return () => {
-      observer.disconnect();
-    };
+    return observeWithRaf(container, updateLayout);
   }, [updateLayout]);
 
   return (

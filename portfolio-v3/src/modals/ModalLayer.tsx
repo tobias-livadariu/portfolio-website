@@ -237,13 +237,25 @@ export default function ModalLayer() {
 
     updateSectionMetrics();
 
+    /* Coalesce ResizeObserver + window-resize signals into one per-frame
+       pass so a sustained resize gesture invokes the (4×) getBoundingClientRect
+       reads + setState in syncScrollState at most once per frame. */
+    let pendingFrame: number | null = null;
+    const handleResize = () => {
+      if (pendingFrame !== null) {
+        return;
+      }
+      pendingFrame = window.requestAnimationFrame(() => {
+        pendingFrame = null;
+        updateSectionMetrics();
+        scheduleScrollSync();
+      });
+    };
+
     const resizeObserver =
       typeof ResizeObserver === "undefined"
         ? null
-        : new ResizeObserver(() => {
-            updateSectionMetrics();
-            scheduleScrollSync();
-          });
+        : new ResizeObserver(handleResize);
 
     resizeObserver?.observe(scrollRoot);
 
@@ -255,11 +267,15 @@ export default function ModalLayer() {
       }
     }
 
-    window.addEventListener("resize", updateSectionMetrics);
+    window.addEventListener("resize", handleResize);
 
     return () => {
       resizeObserver?.disconnect();
-      window.removeEventListener("resize", updateSectionMetrics);
+      window.removeEventListener("resize", handleResize);
+
+      if (pendingFrame !== null) {
+        window.cancelAnimationFrame(pendingFrame);
+      }
 
       if (animationFrameRef.current !== null) {
         window.cancelAnimationFrame(animationFrameRef.current);

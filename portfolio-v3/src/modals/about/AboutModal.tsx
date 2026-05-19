@@ -1,15 +1,9 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { memo, useCallback, useSyncExternalStore } from "react";
 import type { CSSProperties, ReactNode } from "react";
-import { useAsciiImageRows } from "../components/AsciiImage";
+import { useAsciiImageRows } from "../components/ascii-image-rows";
 import ModalHeader from "../components/ModalHeader";
 import Terminal, { TerminalTranscriptLine } from "../components/Terminal";
+import { useTerminalContentColumns } from "../components/terminal-outputs";
 import {
   ABOUT_ASCII_TITLE_PIECES,
   ABOUT_DIVIDER,
@@ -35,49 +29,10 @@ const TOBIFETCH_ROW_RATIO = TOBIFETCH_ROWS / TOBIFETCH_COLUMNS;
 /* Below this width the art column (105ch) crowds the info column, so we
    stack the info above the art instead of rendering them side-by-side. */
 const TOBIFETCH_STACK_BREAKPOINT_PX = 1050;
-
-/**
- * Measure how many monospace characters fit in the surrounding terminal's
- * content column. Renders an absolutely-positioned (zero-layout-impact)
- * measurement span as a sibling of the rendered output and watches the
- * `.modal-terminal-body` ancestor for size changes.
- */
-function useTerminalContentColumns(fallback: number) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const measureRef = useRef<HTMLSpanElement>(null);
-  const [columns, setColumns] = useState(fallback);
-
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-    const measure = measureRef.current;
-    const body = wrapper?.closest<HTMLElement>(".modal-terminal-body");
-    if (!wrapper || !measure || !body) {
-      return;
-    }
-
-    const update = () => {
-      const contentColumn = body.querySelector<HTMLElement>(
-        ".modal-terminal-line-content",
-      );
-      const contentWidth =
-        contentColumn?.getBoundingClientRect().width ?? body.clientWidth;
-      const characterWidth = measure.getBoundingClientRect().width / 24;
-      if (contentWidth <= 0 || characterWidth <= 0) {
-        return;
-      }
-      setColumns(Math.max(20, Math.floor(contentWidth / characterWidth)));
-    };
-
-    update();
-    void document.fonts?.ready.then(update);
-
-    const observer = new ResizeObserver(update);
-    observer.observe(body);
-    return () => observer.disconnect();
-  }, []);
-
-  return { wrapperRef, measureRef, columns };
-}
+/* Snap the measured terminal column count to multiples of this value so the
+   portrait isn't re-rasterized (canvas getImageData + per-cell sampling) on
+   every 1ch fluctuation as the user drags the window. */
+const TOBIFETCH_COLUMN_STEP = 4;
 
 function useMatchesMaxWidth(maxWidthPx: number) {
   const query = `(max-width: ${maxWidthPx - 1}px)`;
@@ -219,7 +174,11 @@ function TobifetchOutput({ firstLineNumber }: { firstLineNumber: number }) {
     wrapperRef,
     measureRef,
     columns: availableColumns,
-  } = useTerminalContentColumns(TOBIFETCH_COLUMNS);
+  } = useTerminalContentColumns({
+    fallback: TOBIFETCH_COLUMNS,
+    min: TOBIFETCH_MIN_COLUMNS,
+    step: TOBIFETCH_COLUMN_STEP,
+  });
 
   /* Cap art width at the screen-fit budget; the row count scales with the
      column count so the face keeps its original aspect ratio. */
