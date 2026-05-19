@@ -75,42 +75,42 @@ const ideaNotionRows = [
 
 const personalRows = [
   {
-    name: "portfolio-website -> github.com/tobias-livadariu/portfolio-website",
+    name: "portfolio-website",
     href: "https://github.com/tobias-livadariu/portfolio-website",
     type: "link",
     size: "128",
     date: "May 14 22:20",
   },
   {
-    name: "langsketch -> devpost.com/software/langsketch",
+    name: "langsketch",
     href: "https://devpost.com/software/langsketch",
     type: "link",
     size: "128",
     date: "Sep 15 23:58",
   },
   {
-    name: "codespeak -> devpost.com/software/codespeak",
+    name: "codespeak",
     href: "https://devpost.com/software/codespeak",
     type: "link",
     size: "128",
     date: "Jan 19 19:44",
   },
   {
-    name: "bin-there-ai -> devpost.com/software/bin-there-ai",
+    name: "bin-there-ai",
     href: "https://devpost.com/software/bin-there-ai",
     type: "link",
     size: "128",
     date: "Nov 17 20:05",
   },
   {
-    name: "lights-on -> github.com/tobias-livadariu/lights-on",
+    name: "lights-on",
     href: "https://github.com/tobias-livadariu/lights-on",
     type: "link",
     size: "128",
     date: "Aug 09 14:32",
   },
   {
-    name: "calcium-clicker -> tobiliv.pythonanywhere.com/login",
+    name: "calcium-clicker",
     href: "https://tobiliv.pythonanywhere.com/login",
     type: "link",
     size: "128",
