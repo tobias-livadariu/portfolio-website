@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType, CSSProperties } from "react";
+import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
 import ModalAssetPreloader from "./components/ModalAssetPreloader";
@@ -431,12 +432,11 @@ export default function ModalLayer() {
     <>
       <ModalAssetPreloader />
       <div
-        aria-hidden={!isOpen}
         className={`modal-layer ${isOpen ? "modal-layer-open" : ""}`}
         ref={layerRef}
         style={layerStyle}
       >
-        <div className="modal-backdrop" />
+        <div aria-hidden="true" className="modal-backdrop" />
         <div
           aria-label="Portfolio sections"
           aria-modal={isOpen}
@@ -447,8 +447,11 @@ export default function ModalLayer() {
           role="dialog"
           tabIndex={-1}
         >
+          <BackgroundModeSwitch />
           <div className="modal-home-spacer" />
-          <div className="modal-scroll-stack">
+          {/* The switch above must stay outside this aria-hidden subtree so it
+              remains exposed to assistive tech while the modals are closed. */}
+          <div aria-hidden={!isOpen} className="modal-scroll-stack">
             {sections.map((section, index) => {
               const Section = SECTION_COMPONENTS[section.key];
 

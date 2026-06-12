@@ -25,6 +25,7 @@ import {
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
+import { useBackgroundMode } from "../../background/background-mode-core";
 import { UI_HALO } from "./main-menu.constants";
 
 type RenderableObject = Object3D & {
@@ -326,6 +327,7 @@ class UiHaloCompositePass extends Pass {
   private readonly snapshotPool = new SnapshotPool();
   private readonly renderables: RenderableObject[] = [];
   private readonly targetSet = new Set<Object3D>();
+  private currentRadiusPx: number = UI_HALO.radiusPx;
 
   constructor(
     renderScene: Scene,
@@ -363,7 +365,16 @@ class UiHaloCompositePass extends Pass {
       1 / maskHeight,
     );
     this.haloMaterial.uniforms.radiusPx.value =
-      UI_HALO.radiusPx * UI_HALO.resolutionScale;
+      this.currentRadiusPx * UI_HALO.resolutionScale;
+  }
+
+  /* Both values are live uniforms; radiusPx stays under the compile-time
+     MAX_SAMPLE_RADIUS loop cap, so no shader rebuild is needed. */
+  setHaloStrength(radiusPx: number, expandedMaskEnd: number) {
+    this.currentRadiusPx = radiusPx;
+    this.haloMaterial.uniforms.radiusPx.value =
+      radiusPx * UI_HALO.resolutionScale;
+    this.haloMaterial.uniforms.expandedMaskEnd.value = expandedMaskEnd;
   }
 
   override render(
@@ -496,6 +507,7 @@ class UiHaloCompositePass extends Pass {
 
 export default function UiHaloPass() {
   const { gl, scene, camera, size } = useThree();
+  const { visualMode } = useBackgroundMode();
   const composerRef = useRef<EffectComposer | null>(null);
   const haloPassRef = useRef<UiHaloCompositePass | null>(null);
   const maskTargetsRef = useRef<Object3D[]>([]);
@@ -538,6 +550,15 @@ export default function UiHaloPass() {
     composer.setPixelRatio(gl.getPixelRatio());
     composer.setSize(size.width, size.height);
   }, [gl, size.height, size.width]);
+
+  /* The mode only flips while the transition overlay covers the screen, so
+     the halo strength change is never visible as a pop. */
+  useLayoutEffect(() => {
+    haloPassRef.current?.setHaloStrength(
+      visualMode === "2d" ? UI_HALO.radiusPx2D : UI_HALO.radiusPx,
+      visualMode === "2d" ? UI_HALO.expandedMaskEnd2D : UI_HALO.expandedMaskEnd,
+    );
+  }, [camera, gl, scene, visualMode]);
 
   useFrame((_, delta) => {
     const composer = composerRef.current;

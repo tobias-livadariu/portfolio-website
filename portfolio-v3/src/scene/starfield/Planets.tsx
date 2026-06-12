@@ -24,11 +24,11 @@ import {
   sampleNormal,
   type Vec3Tuple,
 } from "./starfield.math";
+import { getPlanetAtlasKeys, type PlanetAtlas } from "./planet-atlas";
 import {
-  getPlanetAtlasKeys,
-  loadPlanetAtlases,
-  type PlanetAtlas,
-} from "./planet-atlas";
+  ensurePlanetAtlasesLoading,
+  subscribePlanetAtlases,
+} from "./planet-atlas-cache";
 
 const FULL_TURN_RADIANS = Math.PI * 2;
 
@@ -288,28 +288,19 @@ export default function Planets() {
     useState<ReadonlyMap<string, PlanetAtlas>>(EMPTY_ATLAS_MAP);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const owned: PlanetAtlas[] = [];
+    ensurePlanetAtlasesLoading();
 
-    void loadPlanetAtlases((atlas) => {
-      if (controller.signal.aborted) {
-        return;
-      }
-
-      owned.push(atlas);
+    return subscribePlanetAtlases((atlas) => {
       setAtlasMap((previous) => {
+        if (previous.has(atlas.key)) {
+          return previous;
+        }
+
         const next = new Map(previous);
         next.set(atlas.key, atlas);
         return next;
       });
-    }, controller.signal);
-
-    return () => {
-      controller.abort();
-      for (const atlas of owned) {
-        atlas.texture.dispose();
-      }
-    };
+    });
   }, []);
 
   return (

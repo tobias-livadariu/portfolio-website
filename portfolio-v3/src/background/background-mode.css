@@ -1,0 +1,68 @@
+/* The anchor lives inside .modal-scroll-root (position: relative), pinned to
+   the bottom-right of the first viewport of scroll content. Anchoring with
+   `top` (not `bottom`) is what lets it scroll up off-screen with the backdrop
+   when a modal opens. */
+.bg-mode-switch-anchor {
+  position: absolute;
+  top: calc(100vh - 3.6rem);
+  right: clamp(1rem, 3vw, 2.2rem);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.bg-mode-switch {
+  /* The modal layer is pointer-events: none while closed; the switch must
+     stay interactive on its own. */
+  pointer-events: auto;
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  padding: 0.42rem 0.6rem;
+  color: var(--dragon-comment);
+  font-family: var(--font-iosevka-term);
+  font-size: 0.8rem;
+  background: var(--dragon-bg);
+  border: 1px solid var(--dragon-border-bright);
+  box-shadow:
+    0 0 0 1px var(--dragon-black),
+    0 0.35rem 1.4rem rgb(0 0 0 / 0.45);
+  cursor: pointer;
+}
+
+.bg-mode-switch-option {
+  color: var(--dragon-fg-dim);
+  text-shadow:
+    -1px -1px 0 var(--dragon-bg-dim),
+    1px -1px 0 var(--dragon-bg-dim),
+    -1px 1px 0 var(--dragon-bg-dim),
+    1px 1px 0 var(--dragon-bg-dim);
+  transition: color 120ms ease;
+}
+
+.bg-mode-switch-option[data-active="true"] {
+  color: var(--dragon-yellow);
+}
+
+.bg-mode-switch:hover .bg-mode-switch-option:not([data-active="true"]),
+.bg-mode-switch:focus-visible .bg-mode-switch-option:not([data-active="true"]) {
+  color: var(--dragon-cyan);
+}
+
+.bg-mode-switch:focus-visible {
+  outline: 1px solid var(--dragon-cyan);
+  outline-offset: 2px;
+}
+
+.bg-mode-switch[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.bg-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: auto;
+}

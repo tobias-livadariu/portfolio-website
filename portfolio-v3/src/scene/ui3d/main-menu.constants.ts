@@ -74,6 +74,9 @@ export const UI_HALO = {
   backgroundColor: COLOR_PALETTE_STR.background,
   // Halo thickness in screen pixels; this should not scale with menu size.
   radiusPx: 4,
+  // Thicker halo while the busier 2D background is active so a planet drifting
+  // behind the menu never costs glyph readability. Must stay <= maxSampleRadiusPx.
+  radiusPx2D: 6,
   // Strength of the matte color over the expanded mask.
   opacity: 1,
   sceneClearColor: COLOR_PALETTE_STR.background,
@@ -87,6 +90,8 @@ export const UI_HALO = {
   // Softness of the expanded halo edge.
   expandedMaskStart: 0.01,
   expandedMaskEnd: 0.24,
+  // Harder halo edge in 2D mode, pairing with radiusPx2D.
+  expandedMaskEnd2D: 0.18,
   outputAlpha: 1,
   // The red channel carries mask coverage. The mask pass overwrites green with
   // each object's radius scale so the composite shader can vary dilation.
