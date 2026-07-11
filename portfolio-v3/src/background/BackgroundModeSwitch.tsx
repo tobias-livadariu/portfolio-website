@@ -123,14 +123,11 @@ export default function BackgroundModeSwitch() {
                   <small>{option.description}</small>
                 </span>
                 <span aria-hidden="true" className="bg-mode-option-marker">
-                  {isActive ? "[ON]" : "[  ]"}
+                  {isActive ? "[X]" : "[  ]"}
                 </span>
               </button>
             );
           })}
-        </div>
-        <div aria-hidden="true" className="bg-mode-panel-art">
-          └───────────────────────┘
         </div>
       </div>
       <button
@@ -153,9 +150,6 @@ export default function BackgroundModeSwitch() {
         <span className="bg-mode-switch-prompt">render:</span>
         <span className="bg-mode-switch-value">
           [{targetMode.toUpperCase()}]
-        </span>
-        <span aria-hidden="true" className="bg-mode-switch-caret">
-          {isOpen ? "▾" : "▴"}
         </span>
       </button>
     </div>

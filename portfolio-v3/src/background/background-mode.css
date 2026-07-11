@@ -38,7 +38,6 @@
 }
 
 .bg-mode-switch-value {
-  min-width: 7ch;
   color: var(--dragon-yellow);
   text-shadow:
     -1px -1px 0 var(--dragon-bg-dim),
