@@ -49,7 +49,7 @@ function traceDiamond(
    fill while the target scene loads, and "clearing" runs a fresh flood from
    the same seed in reverse to reveal the new background. */
 export default function DiamondTransitionOverlay() {
-  const { notifyCleared, notifyCovered, phase, seedPoint } =
+  const { notifyCleared, notifyCovered, phase, seedPoint, targetMode } =
     useBackgroundMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -141,6 +141,126 @@ export default function DiamondTransitionOverlay() {
       };
 
       animationFrame = requestAnimationFrame(renderFade);
+    } else if (targetMode !== "2d") {
+      const seed = seedPoint ?? { x: width, y: height };
+      const durationMs = targetMode === "glitch" ? 560 : 720;
+      const glyphs = ["#", "@", "%", "+", "=", ":"];
+      const strips = Array.from(
+        { length: Math.ceil(height / 22) },
+        (_, index) => ({
+          delay: ((index * 47) % 13) / 28,
+          height: 16 + ((index * 11) % 18),
+          reverse: index % 3 === 0,
+          y: index * 22,
+        }),
+      );
+
+      const renderDestinationTransition = (now: number) => {
+        const progress = Math.min(
+          1,
+          Math.max(0, (now - startTime) / durationMs),
+        );
+        const revealProgress = easeOutCubic(progress);
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = COLOR_PALETTE_STR.background;
+
+        if (targetMode === "3d") {
+          const maxRadius = Math.max(
+            Math.hypot(seed.x, seed.y),
+            Math.hypot(width - seed.x, seed.y),
+            Math.hypot(seed.x, height - seed.y),
+            Math.hypot(width - seed.x, height - seed.y),
+          );
+          const radius = maxRadius * revealProgress;
+
+          if (isCovering) {
+            ctx.beginPath();
+            ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            fillFullScreen();
+            ctx.save();
+            ctx.globalCompositeOperation = "destination-out";
+            ctx.beginPath();
+            ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
+        } else if (targetMode === "ascii") {
+          const cellWidth = 18;
+          const cellHeight = 22;
+          const columns = Math.ceil(width / cellWidth);
+          const rows = Math.ceil(height / cellHeight);
+          const maxDistance = Math.hypot(width, height);
+          ctx.font = '700 13px "Iosevka Term Web", monospace';
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          for (let row = 0; row < rows; row += 1) {
+            for (let column = 0; column < columns; column += 1) {
+              const x = column * cellWidth;
+              const y = row * cellHeight;
+              const distance = Math.hypot(
+                x + cellWidth / 2 - seed.x,
+                y + cellHeight / 2 - seed.y,
+              );
+              const jitter = ((column * 17 + row * 29) % 11) / 55;
+              const threshold = Math.min(1, distance / maxDistance + jitter);
+              const isFilled = isCovering
+                ? threshold <= revealProgress
+                : threshold > revealProgress;
+
+              if (isFilled) {
+                ctx.fillStyle = COLOR_PALETTE_STR.background;
+                ctx.fillRect(x, y, cellWidth + 1, cellHeight + 1);
+              }
+
+              if (Math.abs(threshold - revealProgress) < 0.035) {
+                ctx.fillStyle = COLOR_PALETTE_STR.campfire;
+                ctx.fillText(
+                  glyphs[(column + row) % glyphs.length],
+                  x + cellWidth / 2,
+                  y + cellHeight / 2,
+                );
+              }
+            }
+          }
+        } else {
+          for (const strip of strips) {
+            const localProgress = Math.min(
+              1,
+              Math.max(0, (revealProgress - strip.delay) / (1 - strip.delay)),
+            );
+            const visibleProgress = isCovering
+              ? localProgress
+              : 1 - localProgress;
+            const stripWidth = width * visibleProgress;
+            const x = strip.reverse ? 0 : width - stripWidth;
+
+            ctx.fillStyle = COLOR_PALETTE_STR.background;
+            ctx.fillRect(x, strip.y, stripWidth + 2, strip.height);
+
+            if (localProgress > 0 && localProgress < 1) {
+              ctx.fillStyle =
+                strip.y % 4 === 0
+                  ? COLOR_PALETTE_STR.campfire
+                  : COLOR_PALETTE_STR.campfireAsh;
+              const edgeX = strip.reverse ? stripWidth : width - stripWidth;
+              ctx.fillRect(edgeX - 9, strip.y, 9, Math.min(2, strip.height));
+            }
+          }
+        }
+
+        if (progress >= 1) {
+          finish();
+          return;
+        }
+
+        animationFrame = requestAnimationFrame(renderDestinationTransition);
+      };
+
+      animationFrame = requestAnimationFrame(renderDestinationTransition);
     } else {
       const seed = seedPoint ?? { x: width, y: height };
       const tiles = buildDiamondField(width, height, seed.x, seed.y);
@@ -196,11 +316,17 @@ export default function DiamondTransitionOverlay() {
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [notifyCleared, notifyCovered, phase, seedPoint]);
+  }, [notifyCleared, notifyCovered, phase, seedPoint, targetMode]);
 
   if (phase === "idle") {
     return null;
   }
 
-  return <canvas aria-hidden="true" className="bg-transition-overlay" ref={canvasRef} />;
+  return (
+    <canvas
+      aria-hidden="true"
+      className="bg-transition-overlay"
+      ref={canvasRef}
+    />
+  );
 }

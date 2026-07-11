@@ -12,6 +12,7 @@ import {
   type BackgroundMode,
   type SeedPoint,
   type TransitionPhase,
+  isBackgroundMode,
 } from "./background-mode-core";
 
 interface BackgroundModeState {
@@ -29,9 +30,9 @@ interface PendingSceneReady {
 
 function readStoredMode(): BackgroundMode {
   try {
-    return localStorage.getItem(BACKGROUND_MODE_STORAGE_KEY) === "2d"
-      ? "2d"
-      : "3d";
+    const storedMode = localStorage.getItem(BACKGROUND_MODE_STORAGE_KEY);
+
+    return isBackgroundMode(storedMode) ? storedMode : "3d";
   } catch {
     return "3d";
   }
@@ -88,13 +89,13 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const requestToggle = useCallback((seed: SeedPoint) => {
-    if (stateRef.current.phase !== "idle") {
+  const requestMode = useCallback((target: BackgroundMode, seed: SeedPoint) => {
+    if (
+      stateRef.current.phase !== "idle" ||
+      stateRef.current.visualMode === target
+    ) {
       return;
     }
-
-    const target: BackgroundMode =
-      stateRef.current.visualMode === "3d" ? "2d" : "3d";
 
     pendingSceneReadyRef.current = createPendingSceneReady(target);
 
@@ -182,12 +183,12 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
       notifyCovered,
       notifySceneReady,
       phase: state.phase,
-      requestToggle,
+      requestMode,
       seedPoint: state.seedPoint,
       targetMode: state.targetMode,
       visualMode: state.visualMode,
     }),
-    [notifyCleared, notifyCovered, notifySceneReady, requestToggle, state],
+    [notifyCleared, notifyCovered, notifySceneReady, requestMode, state],
   );
 
   return (

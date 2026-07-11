@@ -1,6 +1,8 @@
 import { createContext, useContext } from "react";
 
-export type BackgroundMode = "3d" | "2d";
+export const BACKGROUND_MODES = ["3d", "2d", "ascii", "glitch"] as const;
+
+export type BackgroundMode = (typeof BACKGROUND_MODES)[number];
 
 export type TransitionPhase = "idle" | "covering" | "covered" | "clearing";
 
@@ -17,13 +19,17 @@ export interface BackgroundModeContextValue {
   notifyCovered: () => void;
   notifySceneReady: (mode: BackgroundMode) => void;
   phase: TransitionPhase;
-  requestToggle: (seed: SeedPoint) => void;
+  requestMode: (mode: BackgroundMode, seed: SeedPoint) => void;
   seedPoint: SeedPoint | null;
   targetMode: BackgroundMode;
   visualMode: BackgroundMode;
 }
 
 export const BACKGROUND_MODE_STORAGE_KEY = "portfolio:background-mode";
+
+export function isBackgroundMode(value: unknown): value is BackgroundMode {
+  return BACKGROUND_MODES.some((mode) => mode === value);
+}
 
 export const BACKGROUND_TRANSITION = {
   /* Keep the screen covered at least this long so the reveal never feels

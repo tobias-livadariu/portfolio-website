@@ -174,6 +174,7 @@ export function useAnimatedMainMenuRotation(
   objectRef: RefObject<Object3D | null>,
   troughRotation: ReadonlyVec3,
   peakRotation: ReadonlyVec3,
+  enabled = true,
 ) {
   useFrame(({ clock }) => {
     const object = objectRef.current;
@@ -182,11 +183,13 @@ export function useAnimatedMainMenuRotation(
       return;
     }
 
-    const animatedRotation = getAnimatedMainMenuRotation(
-      clock.getElapsedTime(),
-      troughRotation,
-      peakRotation,
-    );
+    const animatedRotation = enabled
+      ? getAnimatedMainMenuRotation(
+          clock.getElapsedTime(),
+          troughRotation,
+          peakRotation,
+        )
+      : ([0, 0, 0] as const);
 
     object.rotation.set(
       animatedRotation[0],

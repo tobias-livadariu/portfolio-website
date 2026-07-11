@@ -128,6 +128,38 @@ export default function ModalLayer() {
     isOpenRef.current = isOpen;
   }, [isOpen]);
 
+  useEffect(() => {
+    const handleCanvasWheel = (event: WheelEvent) => {
+      const scrollRoot = scrollRootRef.current;
+
+      if (
+        !scrollRoot ||
+        event.ctrlKey ||
+        (event.target instanceof Node && scrollRoot.contains(event.target))
+      ) {
+        return;
+      }
+
+      const lineHeight = 16;
+      const pageHeight = scrollRoot.clientHeight;
+      const deltaScale =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? lineHeight
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? pageHeight
+            : 1;
+
+      scrollRoot.scrollTop += event.deltaY * deltaScale;
+      event.preventDefault();
+    };
+
+    window.addEventListener("wheel", handleCanvasWheel, { passive: false });
+
+    return () => {
+      window.removeEventListener("wheel", handleCanvasWheel);
+    };
+  }, []);
+
   const updateIsOpen = useCallback(
     (nextIsOpen: boolean) => {
       if (isOpenRef.current === nextIsOpen) {
@@ -439,12 +471,12 @@ export default function ModalLayer() {
         <div aria-hidden="true" className="modal-backdrop" />
         <div
           aria-label="Portfolio sections"
-          aria-modal={isOpen}
+          aria-modal={isOpen || undefined}
           className="modal-scroll-root"
           onClick={handleScrollRootClick}
           onScroll={handleScroll}
           ref={scrollRootRef}
-          role="dialog"
+          role={isOpen ? "dialog" : undefined}
           tabIndex={-1}
         >
           <BackgroundModeSwitch />

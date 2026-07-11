@@ -2,8 +2,10 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { MathUtils, Vector3 } from "three";
 import { CAMERA_POINTER_SHIFT, CAMERA_PROPS } from "../canvas.constants";
+import { useBackgroundMode } from "../../background/background-mode-core";
 
 export default function PointerCameraShift() {
+  const { visualMode } = useBackgroundMode();
   const gl = useThree((state) => state.gl);
   const basePosition = useMemo(() => new Vector3(...CAMERA_PROPS.position), []);
   const targetPosition = useMemo(() => new Vector3(), []);
@@ -72,11 +74,15 @@ export default function PointerCameraShift() {
 
   useFrame(({ camera, pointer }, delta) => {
     const pointerX =
-      CAMERA_POINTER_SHIFT.enabled && shouldUsePointerRef.current
+      visualMode !== "2d" &&
+      CAMERA_POINTER_SHIFT.enabled &&
+      shouldUsePointerRef.current
         ? pointer.x
         : 0;
     const pointerY =
-      CAMERA_POINTER_SHIFT.enabled && shouldUsePointerRef.current
+      visualMode !== "2d" &&
+      CAMERA_POINTER_SHIFT.enabled &&
+      shouldUsePointerRef.current
         ? pointer.y
         : 0;
 

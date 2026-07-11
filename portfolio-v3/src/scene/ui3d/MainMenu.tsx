@@ -9,6 +9,7 @@ import getCameraFacingRotation from "./utils/getCameraFacingRotation";
 import Title from "./Title.tsx";
 import HorizontalDottedLine from "./HorizontalDottedLine.tsx";
 import Nav from "./Nav.tsx";
+import { useBackgroundMode } from "../../background/background-mode-core";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -19,6 +20,7 @@ function lerp(start: number, end: number, progress: number) {
 }
 
 export default function MainMenu() {
+  const { visualMode } = useBackgroundMode();
   const menuRef = useRef<Group>(null);
   const { size } = useThree();
   const scale = clamp(
@@ -69,6 +71,7 @@ export default function MainMenu() {
     menuRef,
     troughRotation,
     cameraFacingPeakRotation,
+    visualMode !== "2d",
   );
 
   return (
@@ -76,7 +79,7 @@ export default function MainMenu() {
       ref={menuRef}
       name={UI_HALO.rootName}
       position={topLeftPosition}
-      rotation={troughRotation}
+      rotation={visualMode === "2d" ? [0, 0, 0] : troughRotation}
       scale={scale}
     >
       <Title offset={[0, 0, 0]} />

@@ -1,12 +1,6 @@
 import { useLayoutEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import type {
-  Camera,
-  Material,
-  Object3D,
-  Scene,
-  WebGLRenderer,
-} from "three";
+import type { Camera, Material, Object3D, Scene, WebGLRenderer } from "three";
 import {
   Color,
   DoubleSide,
@@ -25,8 +19,10 @@ import {
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
+import { GlitchPass } from "three/examples/jsm/postprocessing/GlitchPass.js";
 import { useBackgroundMode } from "../../background/background-mode-core";
 import { UI_HALO } from "./main-menu.constants";
+import AsciiPass from "../postprocessing/AsciiPass";
 
 type RenderableObject = Object3D & {
   isMesh?: boolean;
@@ -510,6 +506,8 @@ export default function UiHaloPass() {
   const { visualMode } = useBackgroundMode();
   const composerRef = useRef<EffectComposer | null>(null);
   const haloPassRef = useRef<UiHaloCompositePass | null>(null);
+  const asciiPassRef = useRef<AsciiPass | null>(null);
+  const glitchPassRef = useRef<GlitchPass | null>(null);
   const maskTargetsRef = useRef<Object3D[]>([]);
 
   useLayoutEffect(() => {
@@ -517,25 +515,38 @@ export default function UiHaloPass() {
     const composer = new EffectComposer(gl);
     const haloPass = new UiHaloCompositePass(scene, camera, selectedObjects);
     const smaaPass = UI_HALO.smaaEnabled ? new SMAAPass() : null;
+    const asciiPass = new AsciiPass();
+    const glitchPass = new GlitchPass();
     const outputPass = new OutputPass();
+
+    asciiPass.enabled = false;
+    glitchPass.enabled = false;
 
     composer.addPass(new UiSceneRenderPass(scene, camera));
     composer.addPass(haloPass);
     if (smaaPass) {
       composer.addPass(smaaPass);
     }
+    composer.addPass(asciiPass);
+    composer.addPass(glitchPass);
     composer.addPass(outputPass);
 
     composerRef.current = composer;
     haloPassRef.current = haloPass;
+    asciiPassRef.current = asciiPass;
+    glitchPassRef.current = glitchPass;
 
     return () => {
       selectedObjects.length = 0;
       composerRef.current = null;
       haloPassRef.current = null;
+      asciiPassRef.current = null;
+      glitchPassRef.current = null;
       composer.dispose();
       haloPass.dispose();
       smaaPass?.dispose();
+      asciiPass.dispose();
+      glitchPass.dispose();
       outputPass.dispose();
     };
   }, [camera, gl, scene]);
@@ -559,6 +570,15 @@ export default function UiHaloPass() {
       visualMode === "2d" ? UI_HALO.expandedMaskEnd2D : UI_HALO.expandedMaskEnd,
     );
   }, [camera, gl, scene, visualMode]);
+
+  useLayoutEffect(() => {
+    if (asciiPassRef.current) {
+      asciiPassRef.current.enabled = visualMode === "ascii";
+    }
+    if (glitchPassRef.current) {
+      glitchPassRef.current.enabled = visualMode === "glitch";
+    }
+  }, [visualMode]);
 
   useFrame((_, delta) => {
     const composer = composerRef.current;

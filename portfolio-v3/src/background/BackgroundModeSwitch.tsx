@@ -1,52 +1,161 @@
-import { useRef } from "react";
-import { useBackgroundMode } from "./background-mode-core";
+import { useEffect, useId, useRef, useState } from "react";
+import { type BackgroundMode, useBackgroundMode } from "./background-mode-core";
 import "./background-mode.css";
 
+const MODE_OPTIONS: ReadonlyArray<{
+  description: string;
+  label: string;
+  mode: BackgroundMode;
+  sigil: string;
+}> = [
+  {
+    description: "perspective starfield",
+    label: "DEPTH",
+    mode: "3d",
+    sigil: "◇",
+  },
+  {
+    description: "orthographic plane",
+    label: "FLAT",
+    mode: "2d",
+    sigil: "□",
+  },
+  {
+    description: "glyph rasterizer",
+    label: "ASCII",
+    mode: "ascii",
+    sigil: "#",
+  },
+  {
+    description: "signal corruption",
+    label: "GLITCH",
+    mode: "glitch",
+    sigil: "≋",
+  },
+];
+
 export default function BackgroundModeSwitch() {
-  const { isTransitioning, requestToggle, targetMode } = useBackgroundMode();
+  const { isTransitioning, requestMode, targetMode } = useBackgroundMode();
+  const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelId = useId();
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
+  const getSeedPoint = () => {
+    const rect = buttonRef.current?.getBoundingClientRect();
+
+    return rect
+      ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      : { x: window.innerWidth, y: window.innerHeight };
+  };
 
   return (
-    <div className="bg-mode-switch-anchor">
+    <div className="bg-mode-switch-anchor" ref={rootRef}>
+      <div
+        aria-label="Background renderer"
+        aria-hidden={!isOpen}
+        className="bg-mode-panel"
+        data-open={isOpen ? "true" : undefined}
+        id={panelId}
+        role="menu"
+      >
+        <div aria-hidden="true" className="bg-mode-panel-art">
+          ┌─ RENDER.MODE ─────────┐
+        </div>
+        <div className="bg-mode-panel-status">
+          <span>SELECT PIPELINE</span>
+          <span>{String(MODE_OPTIONS.length).padStart(2, "0")} AVAILABLE</span>
+        </div>
+        <div className="bg-mode-options">
+          {MODE_OPTIONS.map((option, index) => {
+            const isActive = targetMode === option.mode;
+
+            return (
+              <button
+                aria-checked={isActive}
+                className="bg-mode-option"
+                data-active={isActive ? "true" : undefined}
+                disabled={isTransitioning}
+                key={option.mode}
+                onClick={(event) => {
+                  event.stopPropagation();
+
+                  if (!isActive && !isTransitioning) {
+                    requestMode(option.mode, getSeedPoint());
+                  }
+                  setIsOpen(false);
+                }}
+                role="menuitemradio"
+                type="button"
+              >
+                <span className="bg-mode-option-index">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="bg-mode-option-sigil">{option.sigil}</span>
+                <span className="bg-mode-option-copy">
+                  <strong>{option.label}</strong>
+                  <small>{option.description}</small>
+                </span>
+                <span aria-hidden="true" className="bg-mode-option-marker">
+                  {isActive ? "[ON]" : "[  ]"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div aria-hidden="true" className="bg-mode-panel-art">
+          └───────────────────────┘
+        </div>
+      </div>
       <button
-        aria-checked={targetMode === "2d"}
+        aria-controls={panelId}
         aria-disabled={isTransitioning || undefined}
-        aria-label="Switch background between 3D and 2D"
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        aria-label="Choose background render mode"
         className="bg-mode-switch"
         onClick={(event) => {
           event.stopPropagation();
-
-          if (isTransitioning) {
-            return;
-          }
-
-          const rect = buttonRef.current?.getBoundingClientRect();
-
-          requestToggle(
-            rect
-              ? {
-                  x: rect.left + rect.width / 2,
-                  y: rect.top + rect.height / 2,
-                }
-              : { x: window.innerWidth, y: window.innerHeight },
-          );
+          if (!isTransitioning) setIsOpen((value) => !value);
         }}
         ref={buttonRef}
-        role="switch"
         type="button"
       >
-        <span className="bg-mode-switch-prompt">bg:</span>
-        <span
-          className="bg-mode-switch-option"
-          data-active={targetMode === "3d" ? "true" : undefined}
-        >
-          [3D]
+        <span aria-hidden="true" className="bg-mode-switch-icon">
+          {isOpen ? "×" : "✦"}
         </span>
-        <span
-          className="bg-mode-switch-option"
-          data-active={targetMode === "2d" ? "true" : undefined}
-        >
-          [2D]
+        <span className="bg-mode-switch-prompt">render:</span>
+        <span className="bg-mode-switch-value">
+          [{targetMode.toUpperCase()}]
+        </span>
+        <span aria-hidden="true" className="bg-mode-switch-caret">
+          {isOpen ? "▾" : "▴"}
         </span>
       </button>
     </div>
