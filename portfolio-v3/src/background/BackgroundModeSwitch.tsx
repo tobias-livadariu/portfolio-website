@@ -12,19 +12,19 @@ const MODE_OPTIONS: ReadonlyArray<{
     description: "perspective starfield",
     label: "DEPTH",
     mode: "3d",
-    sigil: "◇",
+    sigil: "$",
   },
   {
     description: "orthographic plane",
     label: "FLAT",
     mode: "2d",
-    sigil: "□",
+    sigil: "#",
   },
   {
     description: "glyph rasterizer",
     label: "ASCII",
     mode: "ascii",
-    sigil: "#",
+    sigil: "@",
   },
 ];
 
@@ -40,7 +40,7 @@ export default function BackgroundModeSwitch({
   const panelId = useId();
   const shouldHide = hidden || isTransitioning;
   const activeSigil =
-    MODE_OPTIONS.find((option) => option.mode === targetMode)?.sigil ?? "◇";
+    MODE_OPTIONS.find((option) => option.mode === targetMode)?.sigil ?? "$";
 
   useEffect(() => {
     if (!shouldHide) {

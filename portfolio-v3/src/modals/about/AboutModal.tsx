@@ -89,8 +89,8 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Year:</span> second-year
-        undergraduate
+        <span className="modal-tobifetch-key">Year:</span> 2nd
+        undergrad
       </>
     ),
   },
@@ -98,30 +98,19 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Focus:</span> full-stack systems
-      </>
-    ),
-  },
-  {
-    content: (
-      <>
-        <span className="modal-tobifetch-key">AI:</span> LLM products and
-        tooling
-      </>
-    ),
-  },
-  {
-    content: (
-      <>
         <span className="modal-tobifetch-key">Frontend:</span> React,
-        TypeScript, Redux
+        TypeScript,
+        Redux,
+        Three.js
       </>
     ),
   },
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Backend:</span> Node, .NET, Rails,
+        <span className="modal-tobifetch-key">Backend:</span> Node,
+        .NET,
+        Rails,
         Flask
       </>
     ),
@@ -129,8 +118,24 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Data:</span> SQL, Azure, Docker,
+        <span className="modal-tobifetch-key">Data:</span> SQL,
+        Azure,
+        Docker,
+        GCP,
         MongoDB
+      </>
+    ),
+  },
+  {
+    content: (
+      <>
+        <span className="modal-tobifetch-key">AI:</span> Langchain,
+        Langgraph,
+        Cursor,
+        Claude Code,
+        Codex,
+        OpenCode,
+        Pi 
       </>
     ),
   },
@@ -138,16 +143,19 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Likes:</span> learning and
-        building
+        <span className="modal-tobifetch-key">Interests:</span> Cool
+        full-stack
+        systems,
+        novel
+        AI
+        tooling
       </>
     ),
   },
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Open to:</span> internships and
-        feedback
+        <span className="modal-tobifetch-key">Open to:</span> Internships & mentorship
       </>
     ),
   },
