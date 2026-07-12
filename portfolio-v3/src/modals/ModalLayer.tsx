@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType, CSSProperties } from "react";
+import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
 import ModalAssetPreloader from "./components/ModalAssetPreloader";
@@ -126,6 +127,38 @@ export default function ModalLayer() {
   useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
+
+  useEffect(() => {
+    const handleCanvasWheel = (event: WheelEvent) => {
+      const scrollRoot = scrollRootRef.current;
+
+      if (
+        !scrollRoot ||
+        event.ctrlKey ||
+        (event.target instanceof Node && scrollRoot.contains(event.target))
+      ) {
+        return;
+      }
+
+      const lineHeight = 16;
+      const pageHeight = scrollRoot.clientHeight;
+      const deltaScale =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? lineHeight
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? pageHeight
+            : 1;
+
+      scrollRoot.scrollTop += event.deltaY * deltaScale;
+      event.preventDefault();
+    };
+
+    window.addEventListener("wheel", handleCanvasWheel, { passive: false });
+
+    return () => {
+      window.removeEventListener("wheel", handleCanvasWheel);
+    };
+  }, []);
 
   const updateIsOpen = useCallback(
     (nextIsOpen: boolean) => {
@@ -431,24 +464,26 @@ export default function ModalLayer() {
     <>
       <ModalAssetPreloader />
       <div
-        aria-hidden={!isOpen}
         className={`modal-layer ${isOpen ? "modal-layer-open" : ""}`}
         ref={layerRef}
         style={layerStyle}
       >
-        <div className="modal-backdrop" />
+        <div aria-hidden="true" className="modal-backdrop" />
         <div
           aria-label="Portfolio sections"
-          aria-modal={isOpen}
+          aria-modal={isOpen || undefined}
           className="modal-scroll-root"
           onClick={handleScrollRootClick}
           onScroll={handleScroll}
           ref={scrollRootRef}
-          role="dialog"
+          role={isOpen ? "dialog" : undefined}
           tabIndex={-1}
         >
+          <BackgroundModeSwitch hidden={isOpen} />
           <div className="modal-home-spacer" />
-          <div className="modal-scroll-stack">
+          {/* The switch above must stay outside this aria-hidden subtree so it
+              remains exposed to assistive tech while the modals are closed. */}
+          <div aria-hidden={!isOpen} className="modal-scroll-stack">
             {sections.map((section, index) => {
               const Section = SECTION_COMPONENTS[section.key];
 

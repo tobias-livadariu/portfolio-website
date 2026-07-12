@@ -1,11 +1,31 @@
+import { Suspense, lazy } from "react";
 import { Canvas } from "@react-three/fiber";
+import { useBackgroundMode } from "../background/background-mode-core";
 import { PrimaryLighting } from "./lighting/PrimaryLighting";
 import { COLOR_PALETTE_STR } from "../theme/colors";
 import { CAMERA_PROPS, CANVAS_DPR } from "./canvas.constants";
 import PointerCameraShift from "./camera/PointerCameraShift";
+import SceneCamera from "./camera/SceneCamera";
 import Starfield from "./starfield/Starfield";
 import UiHaloPass from "./ui3d/UiHaloPass";
 import MainMenu from "./ui3d/MainMenu";
+import { preloadStarfield2D } from "./starfield2d/preload-starfield2d";
+
+const Starfield2D = lazy(preloadStarfield2D);
+
+function BackgroundScene() {
+  const { visualMode } = useBackgroundMode();
+
+  if (visualMode !== "2d") {
+    return <Starfield key={visualMode} readyMode={visualMode} />;
+  }
+
+  return (
+    <Suspense fallback={null}>
+      <Starfield2D />
+    </Suspense>
+  );
+}
 
 export default function PortfolioCanvas() {
   return (
@@ -21,9 +41,10 @@ export default function PortfolioCanvas() {
       }}
     >
       <color attach="background" args={[COLOR_PALETTE_STR.background]} />
+      <SceneCamera />
       <PointerCameraShift />
       <PrimaryLighting />
-      <Starfield />
+      <BackgroundScene />
       <MainMenu />
       <UiHaloPass />
     </Canvas>

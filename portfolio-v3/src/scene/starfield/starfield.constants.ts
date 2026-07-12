@@ -21,6 +21,17 @@ export const STARFIELD_BOUNDS = {
   fieldRadiusMultiplier: 1.25,
 } as const;
 
+export const ASCII_STARFIELD = {
+  // ASCII cells discard fine detail, so the scene is authored with larger
+  // silhouettes before rasterization instead of merely filtering 3D mode.
+  starSizeScale: 2.5,
+  planetSizeScale: 2.35,
+  // Neutral-cool modulation lowers planet luminance and warm saturation so
+  // the amber UI remains the dominant ASCII layer without flattening sprites.
+  planetTint: "#a5afbf",
+  planetOpacity: 0.78,
+} as const;
+
 // Orbit centers are generated from the current visible bounds, not fixed world
 // coordinates. side decides which viewport edge the invisible center sits
 // beyond, position moves it along that edge, and distance pushes it farther

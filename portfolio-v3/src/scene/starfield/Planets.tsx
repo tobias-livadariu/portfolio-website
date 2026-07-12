@@ -24,11 +24,11 @@ import {
   sampleNormal,
   type Vec3Tuple,
 } from "./starfield.math";
+import { getPlanetAtlasKeys, type PlanetAtlas } from "./planet-atlas";
 import {
-  getPlanetAtlasKeys,
-  loadPlanetAtlases,
-  type PlanetAtlas,
-} from "./planet-atlas";
+  ensurePlanetAtlasesLoading,
+  subscribePlanetAtlases,
+} from "./planet-atlas-cache";
 
 const FULL_TURN_RADIANS = Math.PI * 2;
 
@@ -133,10 +133,19 @@ function createVirtualPlanets(): VirtualPlanet[] {
 
 interface PlanetSpriteProps {
   atlas: PlanetAtlas;
+  maxOpacity: number;
   planet: VirtualPlanet;
+  tint: string;
+  visualScale: number;
 }
 
-function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
+function PlanetSpriteInner({
+  atlas,
+  maxOpacity,
+  planet,
+  tint,
+  visualScale,
+}: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const spriteRotationRef = useRef<number | null>(null);
@@ -147,9 +156,15 @@ function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
   const { camera, size } = useThree();
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetWidth =
-    atlas.frameWidth * PLANETS.pixelsToWorldUnit * planet.sizeScale;
+    atlas.frameWidth *
+    PLANETS.pixelsToWorldUnit *
+    planet.sizeScale *
+    visualScale;
   const planetHeight =
-    atlas.frameHeight * PLANETS.pixelsToWorldUnit * planet.sizeScale;
+    atlas.frameHeight *
+    PLANETS.pixelsToWorldUnit *
+    planet.sizeScale *
+    visualScale;
   const planetRadius = Math.hypot(planetWidth, planetHeight) * 0.5;
 
   useEffect(() => {
@@ -199,7 +214,11 @@ function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
       position,
     );
 
-    const isVisible = isInsideBounds(position, PLANET_VISIBLE_BOUNDS, planetRadius);
+    const isVisible = isInsideBounds(
+      position,
+      PLANET_VISIBLE_BOUNDS,
+      planetRadius,
+    );
 
     mesh.visible = isVisible;
     if (!isVisible) {
@@ -224,7 +243,11 @@ function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
     mesh.scale.set(planetWidth, planetHeight, 1);
 
     getCameraFacingRotation(position, camera.position, PLANET_ROTATION);
-    mesh.rotation.set(PLANET_ROTATION[0], PLANET_ROTATION[1], PLANET_ROTATION[2]);
+    mesh.rotation.set(
+      PLANET_ROTATION[0],
+      PLANET_ROTATION[1],
+      PLANET_ROTATION[2],
+    );
 
     getOrbitWellFieldDirection(
       position,
@@ -232,9 +255,9 @@ function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
       fieldRadius,
       worldLightDirection,
     );
-    localLightDirection.copy(worldLightDirection).applyQuaternion(
-      inverseFacingQuaternion.copy(mesh.quaternion).invert(),
-    );
+    localLightDirection
+      .copy(worldLightDirection)
+      .applyQuaternion(inverseFacingQuaternion.copy(mesh.quaternion).invert());
 
     const targetSpriteRotation =
       Math.atan2(localLightDirection.y, localLightDirection.x) -
@@ -253,7 +276,7 @@ function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
     mesh.rotateZ(spriteRotation);
 
     material.opacity = Math.min(
-      1,
+      maxOpacity,
       material.opacity + delta / PLANETS.fadeInSeconds,
     );
   });
@@ -271,6 +294,7 @@ function PlanetSpriteInner({ atlas, planet }: PlanetSpriteProps) {
         transparent
         opacity={0}
         alphaTest={0.02}
+        color={tint}
         depthWrite={false}
         toneMapped={false}
       />
@@ -282,34 +306,33 @@ const PlanetSprite = memo(PlanetSpriteInner);
 
 const EMPTY_ATLAS_MAP: ReadonlyMap<string, PlanetAtlas> = new Map();
 
-export default function Planets() {
+export default function Planets({
+  maxOpacity = 1,
+  tint = "#ffffff",
+  visualScale = 1,
+}: {
+  maxOpacity?: number;
+  tint?: string;
+  visualScale?: number;
+}) {
   const planets = useMemo(() => createVirtualPlanets(), []);
   const [atlasMap, setAtlasMap] =
     useState<ReadonlyMap<string, PlanetAtlas>>(EMPTY_ATLAS_MAP);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const owned: PlanetAtlas[] = [];
+    ensurePlanetAtlasesLoading();
 
-    void loadPlanetAtlases((atlas) => {
-      if (controller.signal.aborted) {
-        return;
-      }
-
-      owned.push(atlas);
+    return subscribePlanetAtlases((atlas) => {
       setAtlasMap((previous) => {
+        if (previous.has(atlas.key)) {
+          return previous;
+        }
+
         const next = new Map(previous);
         next.set(atlas.key, atlas);
         return next;
       });
-    }, controller.signal);
-
-    return () => {
-      controller.abort();
-      for (const atlas of owned) {
-        atlas.texture.dispose();
-      }
-    };
+    });
   }, []);
 
   return (
@@ -321,7 +344,16 @@ export default function Planets() {
           return null;
         }
 
-        return <PlanetSprite key={planet.id} atlas={atlas} planet={planet} />;
+        return (
+          <PlanetSprite
+            key={planet.id}
+            atlas={atlas}
+            maxOpacity={maxOpacity}
+            planet={planet}
+            tint={tint}
+            visualScale={visualScale}
+          />
+        );
       })}
     </group>
   );

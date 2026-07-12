@@ -3,12 +3,18 @@ import { useThree } from "@react-three/fiber";
 import type { Group } from "three";
 import useTopLeftPosition from "../hooks/useTopLeftPosition";
 import { CAMERA_PROPS } from "../canvas.constants";
-import { LAYOUT, RESPONSIVE_SCALE, UI_HALO } from "./main-menu.constants";
+import {
+  LAYOUT,
+  MODE_MENU_LAYOUT,
+  RESPONSIVE_SCALE,
+  UI_HALO,
+} from "./main-menu.constants";
 import { useAnimatedMainMenuRotation } from "./hooks/useMainMenuAnimation";
 import getCameraFacingRotation from "./utils/getCameraFacingRotation";
 import Title from "./Title.tsx";
 import HorizontalDottedLine from "./HorizontalDottedLine.tsx";
 import Nav from "./Nav.tsx";
+import { useBackgroundMode } from "../../background/background-mode-core";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -19,9 +25,10 @@ function lerp(start: number, end: number, progress: number) {
 }
 
 export default function MainMenu() {
+  const { visualMode } = useBackgroundMode();
   const menuRef = useRef<Group>(null);
-  const { size } = useThree();
-  const scale = clamp(
+  const { camera, size, viewport } = useThree();
+  const responsiveScale = clamp(
     size.width / RESPONSIVE_SCALE.referenceWidth,
     RESPONSIVE_SCALE.min,
     RESPONSIVE_SCALE.max,
@@ -49,16 +56,42 @@ export default function MainMenu() {
     LAYOUT.mainMenuRotation[2] * troughRotationScale,
   ] as const;
 
+  const visibleViewport = viewport.getCurrentViewport(
+    camera,
+    [CAMERA_PROPS.position[0], CAMERA_PROPS.position[1], LAYOUT.z],
+    size,
+  );
+  const asciiScale = Math.min(
+    (visibleViewport.width * (1 - MODE_MENU_LAYOUT.asciiMarginRatioX * 2)) /
+      MODE_MENU_LAYOUT.localWidth,
+    (visibleViewport.height * (1 - MODE_MENU_LAYOUT.asciiMarginRatioY * 2)) /
+      MODE_MENU_LAYOUT.localHeight,
+  );
+  const scale =
+    visualMode === "ascii"
+      ? asciiScale
+      : visualMode === "2d"
+        ? responsiveScale * MODE_MENU_LAYOUT.flatScaleMultiplier
+        : responsiveScale;
+
   const topLeftPosition = useTopLeftPosition({
     cameraPosition: CAMERA_PROPS.position,
     marginX: LAYOUT.marginX * scale,
     marginY: LAYOUT.marginY * scale,
     z: LAYOUT.z,
   });
+  const menuPosition =
+    visualMode === "ascii"
+      ? ([
+          CAMERA_PROPS.position[0] - MODE_MENU_LAYOUT.localCenterX * scale,
+          CAMERA_PROPS.position[1] - MODE_MENU_LAYOUT.localCenterY * scale,
+          LAYOUT.z,
+        ] as const)
+      : topLeftPosition;
   const rotationFocusPosition = [
-    topLeftPosition[0] + LAYOUT.rotationFocusOffset[0] * scale,
-    topLeftPosition[1] + LAYOUT.rotationFocusOffset[1] * scale,
-    topLeftPosition[2] + LAYOUT.rotationFocusOffset[2] * scale,
+    menuPosition[0] + LAYOUT.rotationFocusOffset[0] * scale,
+    menuPosition[1] + LAYOUT.rotationFocusOffset[1] * scale,
+    menuPosition[2] + LAYOUT.rotationFocusOffset[2] * scale,
   ] as const;
   const cameraFacingPeakRotation = getCameraFacingRotation(
     rotationFocusPosition,
@@ -69,14 +102,15 @@ export default function MainMenu() {
     menuRef,
     troughRotation,
     cameraFacingPeakRotation,
+    visualMode !== "2d",
   );
 
   return (
     <group
       ref={menuRef}
       name={UI_HALO.rootName}
-      position={topLeftPosition}
-      rotation={troughRotation}
+      position={menuPosition}
+      rotation={visualMode === "2d" ? [0, 0, 0] : troughRotation}
       scale={scale}
     >
       <Title offset={[0, 0, 0]} />

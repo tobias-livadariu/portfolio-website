@@ -31,7 +31,9 @@ const STAR_COLOR_OBJECTS = STAR_COLORS.map((value) => new Color(value));
 const STAR_REFERENCE_BOUNDS = createVisibleBounds();
 const STAR_VISIBLE_BOUNDS = createVisibleBounds();
 const STAR_ORBIT_CENTER: Vec3Tuple = [0, 0, 0];
-const STAR_BUCKET_COUNTS = new Uint32Array(STARS.emissiveIntensity.buckets.length);
+const STAR_BUCKET_COUNTS = new Uint32Array(
+  STARS.emissiveIntensity.buckets.length,
+);
 
 interface VirtualStar {
   angle: number;
@@ -111,7 +113,7 @@ function createVirtualStars(): VirtualStar[] {
   });
 }
 
-export default function Stars() {
+export default function Stars({ visualScale = 1 }: { visualScale?: number }) {
   const meshRefs = useRef<(InstancedMesh | null)[]>([]);
   const stars = useMemo(() => createVirtualStars(), []);
   const dummy = useMemo(() => new Object3D(), []);
@@ -161,7 +163,7 @@ export default function Stars() {
       const instanceIndex = STAR_BUCKET_COUNTS[star.bucketIndex]++;
       dummy.position.copy(position);
       dummy.rotation.set(0, 0, angle);
-      dummy.scale.setScalar(star.size);
+      dummy.scale.setScalar(star.size * visualScale);
       dummy.updateMatrix();
 
       mesh.setMatrixAt(instanceIndex, dummy.matrix);

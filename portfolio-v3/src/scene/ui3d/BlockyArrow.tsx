@@ -1,6 +1,11 @@
 import { BoxGeometry, MeshStandardMaterial, type Material } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
-import { ARROW_GEOMETRY, TEXT_MATERIAL } from "./main-menu.constants";
+import { useBackgroundMode } from "../../background/background-mode-core";
+import {
+  ARROW_GEOMETRY,
+  ASCII_UI_MATERIAL,
+  TEXT_MATERIAL,
+} from "./main-menu.constants";
 
 interface Props {
   offset: ReadonlyVec3;
@@ -61,14 +66,41 @@ const ARROW_SIDE_MATERIAL = new MeshStandardMaterial({
   metalness: TEXT_MATERIAL.metalness,
 });
 
-const ARROW_BLOCK_MATERIALS: Material[] = Array.from({ length: 6 }, (_, index) =>
-  index === BOX_FRONT_MATERIAL_INDEX
-    ? ARROW_FRONT_MATERIAL
-    : ARROW_SIDE_MATERIAL,
+const ARROW_BLOCK_MATERIALS: Material[] = Array.from(
+  { length: 6 },
+  (_, index) =>
+    index === BOX_FRONT_MATERIAL_INDEX
+      ? ARROW_FRONT_MATERIAL
+      : ARROW_SIDE_MATERIAL,
+);
+
+const ASCII_ARROW_FRONT_MATERIAL = new MeshStandardMaterial({
+  ...ASCII_UI_MATERIAL.arrows.front,
+  metalness: TEXT_MATERIAL.metalness,
+});
+
+const ASCII_ARROW_SIDE_MATERIAL = new MeshStandardMaterial({
+  ...ASCII_UI_MATERIAL.arrows.side,
+  metalness: TEXT_MATERIAL.metalness,
+});
+
+const ASCII_ARROW_BLOCK_MATERIALS: Material[] = Array.from(
+  { length: 6 },
+  (_, index) =>
+    index === BOX_FRONT_MATERIAL_INDEX
+      ? ASCII_ARROW_FRONT_MATERIAL
+      : ASCII_ARROW_SIDE_MATERIAL,
 );
 
 export default function BlockyArrow(props: Props) {
   const { offset, flipped = false } = props;
+  const { visualMode } = useBackgroundMode();
+  const materials =
+    visualMode === "ascii" &&
+    ASCII_UI_MATERIAL.enabled &&
+    ASCII_UI_MATERIAL.arrows.enabled
+      ? ASCII_ARROW_BLOCK_MATERIALS
+      : ARROW_BLOCK_MATERIALS;
   const direction = flipped ? -1 : 1;
   const centerX = (ARROW_GEOMETRY.columnCount - 1) / 2;
 
@@ -78,7 +110,7 @@ export default function BlockyArrow(props: Props) {
         <mesh
           key={`${x}-${y}-${index}`}
           geometry={ARROW_BLOCK_GEOMETRY}
-          material={ARROW_BLOCK_MATERIALS}
+          material={materials}
           position={[
             direction * (x - centerX) * ARROW_GEOMETRY.blockSize,
             y * ARROW_GEOMETRY.blockSize,

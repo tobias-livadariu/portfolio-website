@@ -1,4 +1,5 @@
 import { COLOR_PALETTE_STR } from "../../theme/colors";
+import { CAMERA_PROPS } from "../canvas.constants";
 
 // Copy shown in the stacked title above the navigation menu.
 export const TITLE_TEXT = {
@@ -59,6 +60,71 @@ export const TEXT_MATERIAL = {
   metalness: 0,
 } as const;
 
+// ASCII discards gradients into glyph-density bands. A lighter warm amber
+// gives UI faces enough luminance separation to survive quantization, while
+// the darker burnt-orange sides preserve the original extruded depth. The
+// warm hue also stays distinct from the scene's cooler cyan/green planets.
+export const ASCII_UI_MATERIAL = {
+  enabled: true,
+  text: {
+    enabled: true,
+    front: {
+      color: "#ffbd73",
+      emissive: "#ff9d52",
+      emissiveIntensity: 1.25,
+      roughness: 0.86,
+    },
+    side: {
+      color: "#b84f32",
+      emissive: "#9f3f2d",
+      emissiveIntensity: 0.92,
+      roughness: 0.92,
+    },
+    hoveredFront: {
+      color: "#fff0c7",
+      emissive: "#ffd08a",
+      emissiveIntensity: 1.72,
+      roughness: 0.82,
+    },
+    hoveredSide: {
+      color: "#f19a68",
+      emissive: "#df764d",
+      emissiveIntensity: 1.28,
+      roughness: 0.88,
+    },
+  },
+  arrows: {
+    enabled: true,
+    front: {
+      color: "#fff3d4",
+      emissive: "#ffd58f",
+      emissiveIntensity: 1.82,
+      roughness: 0.8,
+    },
+    side: {
+      color: "#f2a06d",
+      emissive: "#e47a50",
+      emissiveIntensity: 1.34,
+      roughness: 0.87,
+    },
+  },
+  separators: {
+    enabled: true,
+    front: {
+      color: "#ffd69a",
+      emissive: "#ffb765",
+      emissiveIntensity: 1.18,
+      roughness: 0.86,
+    },
+    side: {
+      color: "#b95b3d",
+      emissive: "#a54832",
+      emissiveIntensity: 0.84,
+      roughness: 0.92,
+    },
+  },
+} as const;
+
 // Screen-space readability halo for the 3D UI. The postprocess pass renders the
 // moving scene without this root, builds a UI-only mask, expands that mask in
 // pixel space, composites a dark ember matte, then draws the real UI on top.
@@ -74,6 +140,9 @@ export const UI_HALO = {
   backgroundColor: COLOR_PALETTE_STR.background,
   // Halo thickness in screen pixels; this should not scale with menu size.
   radiusPx: 4,
+  // Thicker halo while the busier 2D background is active so a planet drifting
+  // behind the menu never costs glyph readability. Must stay <= maxSampleRadiusPx.
+  radiusPx2D: 6,
   // Strength of the matte color over the expanded mask.
   opacity: 1,
   sceneClearColor: COLOR_PALETTE_STR.background,
@@ -87,6 +156,8 @@ export const UI_HALO = {
   // Softness of the expanded halo edge.
   expandedMaskStart: 0.01,
   expandedMaskEnd: 0.24,
+  // Harder halo edge in 2D mode, pairing with radiusPx2D.
+  expandedMaskEnd2D: 0.18,
   outputAlpha: 1,
   // The red channel carries mask coverage. The mask pass overwrites green with
   // each object's radius scale so the composite shader can vary dilation.
@@ -306,3 +377,58 @@ export const RESPONSIVE_SCALE = {
   // Rotation multiplier used once the viewport reaches referenceWidth.
   maxTroughRotationScale: 1,
 } as const;
+
+export const MODE_MENU_LAYOUT = {
+  // Match the compact, screen-space menu proportions used by portfolio-v2.
+  flatScaleMultiplier: 0.56,
+  flatOrbitBufferPx: 44,
+  // ASCII is authored as a composition: the menu expands until either its
+  // width or height (including these symmetric margins) fills the viewport.
+  asciiMarginRatioX: 0.06,
+  asciiMarginRatioY: 0.08,
+  localWidth: LAYOUT_WIDTH.rightX - LAYOUT_WIDTH.leftX,
+  localCenterX: LAYOUT_WIDTH.centerX,
+  // Text rises above its line origin and the lower dots extend below theirs;
+  // include both when fitting and centering the composition.
+  localTopY: introY + TEXT_GEOMETRY.nameSize,
+  localBottomY: lowerSeparatorY - LAYOUT.separatorMaxSegmentSize,
+  localHeight:
+    introY +
+    TEXT_GEOMETRY.nameSize -
+    (lowerSeparatorY - LAYOUT.separatorMaxSegmentSize),
+  localCenterY:
+    (introY +
+      TEXT_GEOMETRY.nameSize +
+      lowerSeparatorY -
+      LAYOUT.separatorMaxSegmentSize) /
+    2,
+} as const;
+
+export function getFlatMenuExclusionRadiusPx(
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  const responsiveScale = Math.min(
+    RESPONSIVE_SCALE.max,
+    Math.max(
+      RESPONSIVE_SCALE.min,
+      viewportWidth / RESPONSIVE_SCALE.referenceWidth,
+    ),
+  );
+  const menuScale = responsiveScale * MODE_MENU_LAYOUT.flatScaleMultiplier;
+  const visibleHeight =
+    2 *
+    Math.tan((CAMERA_PROPS.fov * Math.PI) / 360) *
+    Math.abs(CAMERA_PROPS.position[2] - LAYOUT.z);
+  const pixelsPerWorldUnit = viewportHeight / visibleHeight;
+  const farthestX =
+    (LAYOUT.marginX + MODE_MENU_LAYOUT.localWidth) *
+    menuScale *
+    pixelsPerWorldUnit;
+  const farthestY =
+    (LAYOUT.marginY + MODE_MENU_LAYOUT.localHeight) *
+    menuScale *
+    pixelsPerWorldUnit;
+
+  return Math.hypot(farthestX, farthestY) + MODE_MENU_LAYOUT.flatOrbitBufferPx;
+}

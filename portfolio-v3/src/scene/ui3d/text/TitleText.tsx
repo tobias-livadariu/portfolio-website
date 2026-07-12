@@ -3,8 +3,13 @@ import { Center, Text3D } from "@react-three/drei";
 import type { Group } from "three";
 import type { ReadonlyVec3 } from "../../../types/geometry";
 import { THREE_FONTS } from "../../../theme/fonts";
-import { TEXT_GEOMETRY, TEXT_MATERIAL } from "../main-menu.constants";
+import {
+  ASCII_UI_MATERIAL,
+  TEXT_GEOMETRY,
+  TEXT_MATERIAL,
+} from "../main-menu.constants";
 import { useAnimatedMenuPosition } from "../hooks/useMainMenuAnimation";
+import { useBackgroundMode } from "../../../background/background-mode-core";
 
 interface Props {
   offset: ReadonlyVec3;
@@ -15,6 +20,13 @@ interface Props {
 
 export default function TitleText(props: Props) {
   const { offset, size, children, animationIndex } = props;
+  const { visualMode } = useBackgroundMode();
+  const useAsciiMaterial =
+    visualMode === "ascii" &&
+    ASCII_UI_MATERIAL.enabled &&
+    ASCII_UI_MATERIAL.text.enabled;
+  const asciiFront = ASCII_UI_MATERIAL.text.front;
+  const asciiSide = ASCII_UI_MATERIAL.text.side;
   const groupRef = useRef<Group>(null);
 
   useAnimatedMenuPosition(groupRef, offset, animationIndex);
@@ -35,18 +47,42 @@ export default function TitleText(props: Props) {
           {children}
           <meshStandardMaterial
             attach="material-0"
-            color={TEXT_MATERIAL.frontColor}
-            emissive={TEXT_MATERIAL.frontEmissive}
-            emissiveIntensity={TEXT_MATERIAL.frontEmissiveIntensity}
-            roughness={TEXT_MATERIAL.frontRoughness}
+            color={
+              useAsciiMaterial ? asciiFront.color : TEXT_MATERIAL.frontColor
+            }
+            emissive={
+              useAsciiMaterial
+                ? asciiFront.emissive
+                : TEXT_MATERIAL.frontEmissive
+            }
+            emissiveIntensity={
+              useAsciiMaterial
+                ? asciiFront.emissiveIntensity
+                : TEXT_MATERIAL.frontEmissiveIntensity
+            }
+            roughness={
+              useAsciiMaterial
+                ? asciiFront.roughness
+                : TEXT_MATERIAL.frontRoughness
+            }
             metalness={TEXT_MATERIAL.metalness}
           />
           <meshStandardMaterial
             attach="material-1"
-            color={TEXT_MATERIAL.sideColor}
-            emissive={TEXT_MATERIAL.sideEmissive}
-            emissiveIntensity={TEXT_MATERIAL.sideEmissiveIntensity}
-            roughness={TEXT_MATERIAL.sideRoughness}
+            color={useAsciiMaterial ? asciiSide.color : TEXT_MATERIAL.sideColor}
+            emissive={
+              useAsciiMaterial ? asciiSide.emissive : TEXT_MATERIAL.sideEmissive
+            }
+            emissiveIntensity={
+              useAsciiMaterial
+                ? asciiSide.emissiveIntensity
+                : TEXT_MATERIAL.sideEmissiveIntensity
+            }
+            roughness={
+              useAsciiMaterial
+                ? asciiSide.roughness
+                : TEXT_MATERIAL.sideRoughness
+            }
             metalness={TEXT_MATERIAL.metalness}
           />
         </Text3D>
