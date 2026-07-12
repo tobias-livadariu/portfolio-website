@@ -97,7 +97,10 @@ export default function Stars2D() {
   });
 
   return (
-    <group position-z={STARS_2D.zOffset} ref={groupRef}>
+    <group
+      position={[-size.width / 2, size.height / 2, STARS_2D.zOffset]}
+      ref={groupRef}
+    >
       <instancedMesh
         args={[STAR_PLANE_GEOMETRY, undefined, stars.length]}
         frustumCulled={false}

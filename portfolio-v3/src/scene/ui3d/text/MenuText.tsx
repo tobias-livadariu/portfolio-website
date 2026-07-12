@@ -2,6 +2,8 @@ import { Center, Text3D } from "@react-three/drei";
 import type { ReadonlyVec3 } from "../../../types/geometry";
 import { THREE_FONTS } from "../../../theme/fonts";
 import { TEXT_GEOMETRY, TEXT_MATERIAL } from "../main-menu.constants";
+import { ASCII_TEXT_MATERIAL } from "../main-menu.constants";
+import { useBackgroundMode } from "../../../background/background-mode-core";
 
 export interface TextBounds {
   width: number;
@@ -19,24 +21,38 @@ interface Props {
 
 export default function MenuText(props: Props) {
   const { offset, size, children, isHovered = false, onBoundsChange } = props;
-  const frontColor = isHovered
-    ? TEXT_MATERIAL.hoveredFrontColor
-    : TEXT_MATERIAL.frontColor;
-  const sideColor = isHovered
-    ? TEXT_MATERIAL.hoveredSideColor
-    : TEXT_MATERIAL.sideColor;
-  const frontEmissive = isHovered
-    ? TEXT_MATERIAL.hoveredFrontEmissive
-    : TEXT_MATERIAL.frontEmissive;
-  const sideEmissive = isHovered
-    ? TEXT_MATERIAL.hoveredSideEmissive
-    : TEXT_MATERIAL.sideEmissive;
-  const frontEmissiveIntensity = isHovered
-    ? TEXT_MATERIAL.hoveredFrontEmissiveIntensity
-    : TEXT_MATERIAL.frontEmissiveIntensity;
-  const sideEmissiveIntensity = isHovered
-    ? TEXT_MATERIAL.hoveredSideEmissiveIntensity
-    : TEXT_MATERIAL.sideEmissiveIntensity;
+  const { visualMode } = useBackgroundMode();
+  const isAscii = visualMode === "ascii";
+  const frontColor = isAscii
+    ? ASCII_TEXT_MATERIAL.frontColor
+    : isHovered
+      ? TEXT_MATERIAL.hoveredFrontColor
+      : TEXT_MATERIAL.frontColor;
+  const sideColor = isAscii
+    ? ASCII_TEXT_MATERIAL.sideColor
+    : isHovered
+      ? TEXT_MATERIAL.hoveredSideColor
+      : TEXT_MATERIAL.sideColor;
+  const frontEmissive = isAscii
+    ? ASCII_TEXT_MATERIAL.frontEmissive
+    : isHovered
+      ? TEXT_MATERIAL.hoveredFrontEmissive
+      : TEXT_MATERIAL.frontEmissive;
+  const sideEmissive = isAscii
+    ? ASCII_TEXT_MATERIAL.sideEmissive
+    : isHovered
+      ? TEXT_MATERIAL.hoveredSideEmissive
+      : TEXT_MATERIAL.sideEmissive;
+  const frontEmissiveIntensity = isAscii
+    ? ASCII_TEXT_MATERIAL.frontEmissiveIntensity
+    : isHovered
+      ? TEXT_MATERIAL.hoveredFrontEmissiveIntensity
+      : TEXT_MATERIAL.frontEmissiveIntensity;
+  const sideEmissiveIntensity = isAscii
+    ? ASCII_TEXT_MATERIAL.sideEmissiveIntensity
+    : isHovered
+      ? TEXT_MATERIAL.hoveredSideEmissiveIntensity
+      : TEXT_MATERIAL.sideEmissiveIntensity;
   const frontRoughness = isHovered
     ? TEXT_MATERIAL.hoveredFrontRoughness
     : TEXT_MATERIAL.frontRoughness;

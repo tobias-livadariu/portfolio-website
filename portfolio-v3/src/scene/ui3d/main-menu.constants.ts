@@ -1,4 +1,5 @@
 import { COLOR_PALETTE_STR } from "../../theme/colors";
+import { CAMERA_PROPS } from "../canvas.constants";
 
 // Copy shown in the stacked title above the navigation menu.
 export const TITLE_TEXT = {
@@ -57,6 +58,19 @@ export const TEXT_MATERIAL = {
   hoveredSideEmissiveIntensity: 0.32,
   hoveredSideRoughness: 0.95,
   metalness: 0,
+} as const;
+
+// ASCII discards gradients into glyph-density bands. A lighter warm amber
+// gives UI faces enough luminance separation to survive quantization, while
+// the darker burnt-orange sides preserve the original extruded depth. The
+// warm hue also stays distinct from the scene's cooler cyan/green planets.
+export const ASCII_TEXT_MATERIAL = {
+  frontColor: "#ffbd73",
+  frontEmissive: "#ff9d52",
+  frontEmissiveIntensity: 1.25,
+  sideColor: "#b84f32",
+  sideEmissive: "#9f3f2d",
+  sideEmissiveIntensity: 0.92,
 } as const;
 
 // Screen-space readability halo for the 3D UI. The postprocess pass renders the
@@ -315,6 +329,7 @@ export const RESPONSIVE_SCALE = {
 export const MODE_MENU_LAYOUT = {
   // Match the compact, screen-space menu proportions used by portfolio-v2.
   flatScaleMultiplier: 0.56,
+  flatOrbitBufferPx: 44,
   // ASCII is authored as a composition: the menu expands until either its
   // width or height (including these symmetric margins) fills the viewport.
   asciiMarginRatioX: 0.06,
@@ -336,3 +351,32 @@ export const MODE_MENU_LAYOUT = {
       LAYOUT.separatorMaxSegmentSize) /
     2,
 } as const;
+
+export function getFlatMenuExclusionRadiusPx(
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  const responsiveScale = Math.min(
+    RESPONSIVE_SCALE.max,
+    Math.max(
+      RESPONSIVE_SCALE.min,
+      viewportWidth / RESPONSIVE_SCALE.referenceWidth,
+    ),
+  );
+  const menuScale = responsiveScale * MODE_MENU_LAYOUT.flatScaleMultiplier;
+  const visibleHeight =
+    2 *
+    Math.tan((CAMERA_PROPS.fov * Math.PI) / 360) *
+    Math.abs(CAMERA_PROPS.position[2] - LAYOUT.z);
+  const pixelsPerWorldUnit = viewportHeight / visibleHeight;
+  const farthestX =
+    (LAYOUT.marginX + MODE_MENU_LAYOUT.localWidth) *
+    menuScale *
+    pixelsPerWorldUnit;
+  const farthestY =
+    (LAYOUT.marginY + MODE_MENU_LAYOUT.localHeight) *
+    menuScale *
+    pixelsPerWorldUnit;
+
+  return Math.hypot(farthestX, farthestY) + MODE_MENU_LAYOUT.flatOrbitBufferPx;
+}

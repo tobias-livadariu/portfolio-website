@@ -11,6 +11,7 @@ import {
   subscribePlanetAtlases,
 } from "../starfield/planet-atlas-cache";
 import { lerp, sampleNormal } from "../starfield/starfield.math";
+import { getFlatMenuExclusionRadiusPx } from "../ui3d/main-menu.constants";
 import { PLANETS_2D } from "./starfield2d.constants";
 
 const PLANET_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
@@ -19,6 +20,7 @@ interface VirtualPlanet2D {
   assetKey: string;
   frameTimeOffset: number;
   id: number;
+  revision: number;
   sizeScale: number;
   spawnAngle: number;
   spawnRadius: number;
@@ -30,8 +32,8 @@ function randomInRange(min: number, max: number) {
 
 /* Uniform-area sampling of a ring between the center exclusion radius and the
    field edge, mirroring the v2 spawn distribution. */
-function sampleRingRadius(fieldRadius: number) {
-  const innerRadius2 = PLANETS_2D.exclusionRadiusPx ** 2;
+function sampleRingRadius(fieldRadius: number, exclusionRadius: number) {
+  const innerRadius2 = exclusionRadius ** 2;
   const outerRadius2 = fieldRadius ** 2;
 
   return Math.sqrt(lerp(innerRadius2, outerRadius2, Math.random()));
@@ -50,13 +52,17 @@ function createVirtualPlanets2D(
 ): VirtualPlanet2D[] {
   const atlasKeys = getPlanetAtlasKeys();
   const fieldRadius = getFieldRadius(viewportWidth, viewportHeight);
+  const exclusionRadius = getFlatMenuExclusionRadiusPx(
+    viewportWidth,
+    viewportHeight,
+  );
   const count = Math.min(
     PLANETS_2D.maxCount,
     Math.max(
       PLANETS_2D.minCount,
       Math.round(
         Math.PI *
-          (fieldRadius ** 2 - PLANETS_2D.exclusionRadiusPx ** 2) *
+          (fieldRadius ** 2 - exclusionRadius ** 2) *
           PLANETS_2D.densityPerPx2,
       ),
     ),
@@ -66,6 +72,7 @@ function createVirtualPlanets2D(
     assetKey: atlasKeys[Math.floor(Math.random() * atlasKeys.length)],
     frameTimeOffset: Math.random() * 100,
     id: index,
+    revision: 0,
     sizeScale: sampleNormal(
       Math.random,
       PLANETS_2D.sizeScale.mean,
@@ -74,8 +81,39 @@ function createVirtualPlanets2D(
       PLANETS_2D.sizeScale.max,
     ),
     spawnAngle: Math.random() * Math.PI * 2,
-    spawnRadius: sampleRingRadius(fieldRadius),
+    spawnRadius: sampleRingRadius(fieldRadius, exclusionRadius),
   }));
+}
+
+function rerollVirtualPlanet2D(
+  planet: VirtualPlanet2D,
+  viewportWidth: number,
+  viewportHeight: number,
+): VirtualPlanet2D {
+  const atlasKeys = getPlanetAtlasKeys();
+  const exclusionRadius = getFlatMenuExclusionRadiusPx(
+    viewportWidth,
+    viewportHeight,
+  );
+
+  return {
+    assetKey: atlasKeys[Math.floor(Math.random() * atlasKeys.length)],
+    frameTimeOffset: Math.random() * 100,
+    id: planet.id,
+    revision: planet.revision + 1,
+    sizeScale: sampleNormal(
+      Math.random,
+      PLANETS_2D.sizeScale.mean,
+      PLANETS_2D.sizeScale.stdDev,
+      PLANETS_2D.sizeScale.min,
+      PLANETS_2D.sizeScale.max,
+    ),
+    spawnAngle: Math.random() * Math.PI * 2,
+    spawnRadius: sampleRingRadius(
+      getFieldRadius(viewportWidth, viewportHeight),
+      exclusionRadius,
+    ),
+  };
 }
 
 interface CircularPlanetBody {
@@ -102,13 +140,24 @@ function createBody(planet: VirtualPlanet2D): CircularPlanetBody {
 
 interface PlanetSprite2DProps {
   atlas: PlanetAtlas;
+  onRecycle: () => void;
   planet: VirtualPlanet2D;
+  viewportHeight: number;
+  viewportWidth: number;
 }
 
-function PlanetSprite2DInner({ atlas, planet }: PlanetSprite2DProps) {
+function PlanetSprite2DInner({
+  atlas,
+  onRecycle,
+  planet,
+  viewportHeight,
+  viewportWidth,
+}: PlanetSprite2DProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const bodyRef = useRef<CircularPlanetBody | null>(null);
+  const hasEnteredViewportRef = useRef(false);
+  const hasRecycledRef = useRef(false);
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetSize = atlas.frameWidth * planet.sizeScale;
 
@@ -157,11 +206,26 @@ function PlanetSprite2DInner({ atlas, planet }: PlanetSprite2DProps) {
       1 - (frame.y + frame.h) / atlas.textureHeight,
     );
 
-    mesh.position.set(
-      Math.cos(body.angle) * body.radius,
-      Math.sin(body.angle) * body.radius,
-      0,
-    );
+    const x = Math.cos(body.angle) * body.radius;
+    const y = Math.sin(body.angle) * body.radius;
+    const halfSize = planetSize * 0.5;
+    const isOnScreen =
+      x >= -halfSize &&
+      x <= viewportWidth + halfSize &&
+      y <= halfSize &&
+      y >= -viewportHeight - halfSize;
+
+    mesh.visible = isOnScreen;
+
+    if (isOnScreen) {
+      hasEnteredViewportRef.current = true;
+    } else if (hasEnteredViewportRef.current && !hasRecycledRef.current) {
+      hasRecycledRef.current = true;
+      onRecycle();
+      return;
+    }
+
+    mesh.position.set(x, y, 0);
     mesh.rotation.z = body.rotation;
     mesh.scale.set(planetSize, planetSize, 1);
     material.opacity = body.alpha;
@@ -188,6 +252,42 @@ function PlanetSprite2DInner({ atlas, planet }: PlanetSprite2DProps) {
 }
 
 const PlanetSprite2D = memo(PlanetSprite2DInner);
+
+interface PlanetSlot2DProps {
+  atlasMap: ReadonlyMap<string, PlanetAtlas>;
+  initialPlanet: VirtualPlanet2D;
+  viewportHeight: number;
+  viewportWidth: number;
+}
+
+function PlanetSlot2D({
+  atlasMap,
+  initialPlanet,
+  viewportHeight,
+  viewportWidth,
+}: PlanetSlot2DProps) {
+  const [planet, setPlanet] = useState(initialPlanet);
+  const atlas = atlasMap.get(planet.assetKey);
+
+  if (!atlas) {
+    return null;
+  }
+
+  return (
+    <PlanetSprite2D
+      atlas={atlas}
+      key={planet.revision}
+      onRecycle={() => {
+        setPlanet((current) =>
+          rerollVirtualPlanet2D(current, viewportWidth, viewportHeight),
+        );
+      }}
+      planet={planet}
+      viewportHeight={viewportHeight}
+      viewportWidth={viewportWidth}
+    />
+  );
+}
 
 const EMPTY_ATLAS_MAP: ReadonlyMap<string, PlanetAtlas> = new Map();
 
@@ -216,19 +316,15 @@ export default function Planets2D() {
   }, []);
 
   return (
-    <group>
+    <group position={[-size.width / 2, size.height / 2, 0]}>
       {planets.map((planet) => {
-        const atlas = atlasMap.get(planet.assetKey);
-
-        if (!atlas) {
-          return null;
-        }
-
         return (
-          <PlanetSprite2D
-            atlas={atlas}
+          <PlanetSlot2D
+            atlasMap={atlasMap}
+            initialPlanet={planet}
             key={`${size.width}x${size.height}-${planet.id}`}
-            planet={planet}
+            viewportHeight={size.height}
+            viewportWidth={size.width}
           />
         );
       })}

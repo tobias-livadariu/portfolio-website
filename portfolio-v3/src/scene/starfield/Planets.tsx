@@ -133,11 +133,19 @@ function createVirtualPlanets(): VirtualPlanet[] {
 
 interface PlanetSpriteProps {
   atlas: PlanetAtlas;
+  maxOpacity: number;
   planet: VirtualPlanet;
+  tint: string;
   visualScale: number;
 }
 
-function PlanetSpriteInner({ atlas, planet, visualScale }: PlanetSpriteProps) {
+function PlanetSpriteInner({
+  atlas,
+  maxOpacity,
+  planet,
+  tint,
+  visualScale,
+}: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const spriteRotationRef = useRef<number | null>(null);
@@ -268,7 +276,7 @@ function PlanetSpriteInner({ atlas, planet, visualScale }: PlanetSpriteProps) {
     mesh.rotateZ(spriteRotation);
 
     material.opacity = Math.min(
-      1,
+      maxOpacity,
       material.opacity + delta / PLANETS.fadeInSeconds,
     );
   });
@@ -286,6 +294,7 @@ function PlanetSpriteInner({ atlas, planet, visualScale }: PlanetSpriteProps) {
         transparent
         opacity={0}
         alphaTest={0.02}
+        color={tint}
         depthWrite={false}
         toneMapped={false}
       />
@@ -297,7 +306,15 @@ const PlanetSprite = memo(PlanetSpriteInner);
 
 const EMPTY_ATLAS_MAP: ReadonlyMap<string, PlanetAtlas> = new Map();
 
-export default function Planets({ visualScale = 1 }: { visualScale?: number }) {
+export default function Planets({
+  maxOpacity = 1,
+  tint = "#ffffff",
+  visualScale = 1,
+}: {
+  maxOpacity?: number;
+  tint?: string;
+  visualScale?: number;
+}) {
   const planets = useMemo(() => createVirtualPlanets(), []);
   const [atlasMap, setAtlasMap] =
     useState<ReadonlyMap<string, PlanetAtlas>>(EMPTY_ATLAS_MAP);
@@ -331,7 +348,9 @@ export default function Planets({ visualScale = 1 }: { visualScale?: number }) {
           <PlanetSprite
             key={planet.id}
             atlas={atlas}
+            maxOpacity={maxOpacity}
             planet={planet}
+            tint={tint}
             visualScale={visualScale}
           />
         );

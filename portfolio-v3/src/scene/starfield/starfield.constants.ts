@@ -26,6 +26,10 @@ export const ASCII_STARFIELD = {
   // silhouettes before rasterization instead of merely filtering 3D mode.
   starSizeScale: 2.5,
   planetSizeScale: 2.35,
+  // Neutral-cool modulation lowers planet luminance and warm saturation so
+  // the amber UI remains the dominant ASCII layer without flattening sprites.
+  planetTint: "#a5afbf",
+  planetOpacity: 0.78,
 } as const;
 
 // Orbit centers are generated from the current visible bounds, not fixed world

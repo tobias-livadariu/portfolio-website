@@ -33,9 +33,6 @@ export const PLANETS_2D = {
   densityPerPx2: 3.3e-5,
   minCount: 24,
   maxCount: 320,
-  // No planets spawn within this radius of the screen center (v2 value),
-  // keeping the area behind the menu and modals calm.
-  exclusionRadiusPx: 395,
   // Spawn ring outer radius relative to half the viewport diagonal.
   fieldRadiusMultiplier: 2,
   // v2 sprite animation speed: one 50-frame rotation every 25 seconds.

@@ -15,7 +15,11 @@ export default function Starfield({
   return (
     <group>
       <Stars visualScale={isAscii ? ASCII_STARFIELD.starSizeScale : 1} />
-      <Planets visualScale={isAscii ? ASCII_STARFIELD.planetSizeScale : 1} />
+      <Planets
+        maxOpacity={isAscii ? ASCII_STARFIELD.planetOpacity : 1}
+        tint={isAscii ? ASCII_STARFIELD.planetTint : "#ffffff"}
+        visualScale={isAscii ? ASCII_STARFIELD.planetSizeScale : 1}
+      />
     </group>
   );
 }
