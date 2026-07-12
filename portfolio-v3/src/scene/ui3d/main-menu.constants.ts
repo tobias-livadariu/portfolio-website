@@ -64,13 +64,65 @@ export const TEXT_MATERIAL = {
 // gives UI faces enough luminance separation to survive quantization, while
 // the darker burnt-orange sides preserve the original extruded depth. The
 // warm hue also stays distinct from the scene's cooler cyan/green planets.
-export const ASCII_TEXT_MATERIAL = {
-  frontColor: "#ffbd73",
-  frontEmissive: "#ff9d52",
-  frontEmissiveIntensity: 1.25,
-  sideColor: "#b84f32",
-  sideEmissive: "#9f3f2d",
-  sideEmissiveIntensity: 0.92,
+export const ASCII_UI_MATERIAL = {
+  enabled: true,
+  text: {
+    enabled: true,
+    front: {
+      color: "#ffbd73",
+      emissive: "#ff9d52",
+      emissiveIntensity: 1.25,
+      roughness: 0.86,
+    },
+    side: {
+      color: "#b84f32",
+      emissive: "#9f3f2d",
+      emissiveIntensity: 0.92,
+      roughness: 0.92,
+    },
+    hoveredFront: {
+      color: "#fff0c7",
+      emissive: "#ffd08a",
+      emissiveIntensity: 1.72,
+      roughness: 0.82,
+    },
+    hoveredSide: {
+      color: "#f19a68",
+      emissive: "#df764d",
+      emissiveIntensity: 1.28,
+      roughness: 0.88,
+    },
+  },
+  arrows: {
+    enabled: true,
+    front: {
+      color: "#fff3d4",
+      emissive: "#ffd58f",
+      emissiveIntensity: 1.82,
+      roughness: 0.8,
+    },
+    side: {
+      color: "#f2a06d",
+      emissive: "#e47a50",
+      emissiveIntensity: 1.34,
+      roughness: 0.87,
+    },
+  },
+  separators: {
+    enabled: true,
+    front: {
+      color: "#ffd69a",
+      emissive: "#ffb765",
+      emissiveIntensity: 1.18,
+      roughness: 0.86,
+    },
+    side: {
+      color: "#b95b3d",
+      emissive: "#a54832",
+      emissiveIntensity: 0.84,
+      roughness: 0.92,
+    },
+  },
 } as const;
 
 // Screen-space readability halo for the 3D UI. The postprocess pass renders the
