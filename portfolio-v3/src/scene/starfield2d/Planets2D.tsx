@@ -2,19 +2,15 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Mesh, MeshBasicMaterial } from "three";
 import { PlaneGeometry } from "three";
-import { getPlanetAtlasKeys, type PlanetAtlas } from "../starfield/planet-atlas";
+import {
+  getPlanetAtlasKeys,
+  type PlanetAtlas,
+} from "../starfield/planet-atlas";
 import {
   ensurePlanetAtlasesLoading,
   subscribePlanetAtlases,
 } from "../starfield/planet-atlas-cache";
 import { lerp, sampleNormal } from "../starfield/starfield.math";
-import {
-  createGravityWells,
-  resolveWellPositions,
-  stepPlanetBody,
-  type GravityWell,
-  type Planet2DBody,
-} from "./gravity-wells";
 import { PLANETS_2D } from "./starfield2d.constants";
 
 const PLANET_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
@@ -58,7 +54,11 @@ function createVirtualPlanets2D(
     PLANETS_2D.maxCount,
     Math.max(
       PLANETS_2D.minCount,
-      Math.round(viewportWidth * viewportHeight * PLANETS_2D.densityPerPx2),
+      Math.round(
+        Math.PI *
+          (fieldRadius ** 2 - PLANETS_2D.exclusionRadiusPx ** 2) *
+          PLANETS_2D.densityPerPx2,
+      ),
     ),
   );
 
@@ -78,67 +78,39 @@ function createVirtualPlanets2D(
   }));
 }
 
-function createBody(planet: VirtualPlanet2D): Planet2DBody {
-  const speed = randomInRange(
-    PLANETS_2D.initialSpeedPxPerSecond.min,
-    PLANETS_2D.initialSpeedPxPerSecond.max,
-  );
-  const direction = Math.random() * Math.PI * 2;
-  const rotationDirection = Math.random() > 0.5 ? 1 : -1;
+interface CircularPlanetBody {
+  alpha: number;
+  angle: number;
+  angularSpeed: number;
+  radius: number;
+  rotation: number;
+}
+
+function createBody(planet: VirtualPlanet2D): CircularPlanetBody {
+  const variance = PLANETS_2D.orbitSpeedVariance;
 
   return {
     alpha: 0,
-    rotation: Math.random() * Math.PI * 2,
-    rotationSpeed:
-      rotationDirection *
-      randomInRange(
-        PLANETS_2D.selfRotationRadiansPerSecond.min,
-        PLANETS_2D.selfRotationRadiansPerSecond.max,
-      ),
-    vx: Math.cos(direction) * speed,
-    vy: Math.sin(direction) * speed,
-    x: Math.cos(planet.spawnAngle) * planet.spawnRadius,
-    y: Math.sin(planet.spawnAngle) * planet.spawnRadius,
+    angle: planet.spawnAngle,
+    angularSpeed:
+      PLANETS_2D.orbitRadiansPerSecond *
+      randomInRange(1 - variance, 1 + variance),
+    radius: planet.spawnRadius,
+    rotation: planet.spawnAngle - Math.PI / 4,
   };
-}
-
-function respawnBody(body: Planet2DBody, fieldRadius: number) {
-  const radius = sampleRingRadius(fieldRadius);
-  const angle = Math.random() * Math.PI * 2;
-  const speed = randomInRange(
-    PLANETS_2D.initialSpeedPxPerSecond.min,
-    PLANETS_2D.initialSpeedPxPerSecond.max,
-  );
-  const direction = Math.random() * Math.PI * 2;
-
-  body.alpha = 0;
-  body.vx = Math.cos(direction) * speed;
-  body.vy = Math.sin(direction) * speed;
-  body.x = Math.cos(angle) * radius;
-  body.y = Math.sin(angle) * radius;
 }
 
 interface PlanetSprite2DProps {
   atlas: PlanetAtlas;
-  fieldRadius: number;
   planet: VirtualPlanet2D;
-  wellPositions: Float32Array;
-  wells: GravityWell[];
 }
 
-function PlanetSprite2DInner({
-  atlas,
-  fieldRadius,
-  planet,
-  wellPositions,
-  wells,
-}: PlanetSprite2DProps) {
+function PlanetSprite2DInner({ atlas, planet }: PlanetSprite2DProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
-  const bodyRef = useRef<Planet2DBody | null>(null);
+  const bodyRef = useRef<CircularPlanetBody | null>(null);
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetSize = atlas.frameWidth * planet.sizeScale;
-  const recycleRadius = fieldRadius * PLANETS_2D.recycleRadiusMultiplier;
 
   if (bodyRef.current === null) {
     bodyRef.current = createBody(planet);
@@ -161,11 +133,8 @@ function PlanetSprite2DInner({
 
     const deltaSeconds = Math.min(delta, 1 / 30);
 
-    stepPlanetBody(body, wells, wellPositions, deltaSeconds);
-
-    if (Math.hypot(body.x, body.y) > recycleRadius) {
-      respawnBody(body, fieldRadius);
-    }
+    body.angle += body.angularSpeed * deltaSeconds;
+    body.rotation += body.angularSpeed * deltaSeconds;
 
     body.alpha = Math.min(
       1,
@@ -188,7 +157,11 @@ function PlanetSprite2DInner({
       1 - (frame.y + frame.h) / atlas.textureHeight,
     );
 
-    mesh.position.set(body.x, body.y, 0);
+    mesh.position.set(
+      Math.cos(body.angle) * body.radius,
+      Math.sin(body.angle) * body.radius,
+      0,
+    );
     mesh.rotation.z = body.rotation;
     mesh.scale.set(planetSize, planetSize, 1);
     material.opacity = body.alpha;
@@ -226,13 +199,6 @@ export default function Planets2D() {
     () => createVirtualPlanets2D(size.width, size.height),
     [size.width, size.height],
   );
-  const wells = useMemo(() => createGravityWells(), []);
-  const wellPositions = useMemo(
-    () => new Float32Array(wells.length * 2),
-    [wells],
-  );
-  const fieldRadius = getFieldRadius(size.width, size.height);
-
   useEffect(() => {
     ensurePlanetAtlasesLoading();
 
@@ -249,18 +215,6 @@ export default function Planets2D() {
     });
   }, []);
 
-  /* This parent mounts (and therefore subscribes its frame callback) before
-     any sprite child, so well positions are fresh when sprites step. */
-  useFrame(({ clock }) => {
-    resolveWellPositions(
-      wells,
-      clock.getElapsedTime(),
-      size.width,
-      size.height,
-      wellPositions,
-    );
-  });
-
   return (
     <group>
       {planets.map((planet) => {
@@ -273,11 +227,8 @@ export default function Planets2D() {
         return (
           <PlanetSprite2D
             atlas={atlas}
-            fieldRadius={fieldRadius}
             key={`${size.width}x${size.height}-${planet.id}`}
             planet={planet}
-            wellPositions={wellPositions}
-            wells={wells}
           />
         );
       })}

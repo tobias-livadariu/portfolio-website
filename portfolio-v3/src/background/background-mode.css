@@ -8,6 +8,16 @@
   right: clamp(1rem, 3vw, 2.2rem);
   z-index: 2;
   pointer-events: none;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity 180ms ease,
+    transform 360ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-mode-switch-anchor[data-hidden="true"] {
+  opacity: 0;
+  transform: translateX(calc(100% + clamp(2rem, 5vw, 5rem)));
 }
 
 .bg-mode-switch {
@@ -58,11 +68,6 @@
 .bg-mode-switch:focus-visible {
   outline: 1px solid var(--dragon-cyan);
   outline-offset: 2px;
-}
-
-.bg-mode-switch[aria-disabled="true"] {
-  opacity: 0.55;
-  cursor: progress;
 }
 
 .bg-mode-panel {

@@ -6,13 +6,11 @@ import {
 } from "../scene/starfield/planet-atlas-cache";
 import { preloadStarfield2D } from "../scene/starfield2d/preload-starfield2d";
 import {
-  BACKGROUND_MODE_STORAGE_KEY,
   BACKGROUND_TRANSITION,
   BackgroundModeContext,
   type BackgroundMode,
   type SeedPoint,
   type TransitionPhase,
-  isBackgroundMode,
 } from "./background-mode-core";
 
 interface BackgroundModeState {
@@ -26,24 +24,6 @@ interface PendingSceneReady {
   mode: BackgroundMode;
   promise: Promise<void>;
   resolve: () => void;
-}
-
-function readStoredMode(): BackgroundMode {
-  try {
-    const storedMode = localStorage.getItem(BACKGROUND_MODE_STORAGE_KEY);
-
-    return isBackgroundMode(storedMode) ? storedMode : "3d";
-  } catch {
-    return "3d";
-  }
-}
-
-function storeMode(mode: BackgroundMode) {
-  try {
-    localStorage.setItem(BACKGROUND_MODE_STORAGE_KEY, mode);
-  } catch {
-    /* Persistence is best-effort. */
-  }
 }
 
 function delay(ms: number) {
@@ -63,13 +43,11 @@ function createPendingSceneReady(mode: BackgroundMode): PendingSceneReady {
 
 export function BackgroundModeProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<BackgroundModeState>(() => {
-    const storedMode = readStoredMode();
-
     return {
       phase: "idle",
       seedPoint: null,
-      targetMode: storedMode,
-      visualMode: storedMode,
+      targetMode: "3d",
+      visualMode: "3d",
     };
   });
   const stateRef = useRef(state);
@@ -80,13 +58,17 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
-  /* When the page loads straight into 2D mode (persisted preference), the
-     atlases are needed immediately rather than on first toggle. */
+  /* Render modes are session-only and every load starts from canonical 3D.
+     Warm the 2D chunk and shared atlases so its first transition is ready. */
   useEffect(() => {
-    if (stateRef.current.visualMode === "2d") {
-      void preloadStarfield2D();
-      ensurePlanetAtlasesLoading();
+    try {
+      localStorage.removeItem("portfolio:background-mode");
+    } catch {
+      /* Removing the legacy persisted preference is best-effort. */
     }
+
+    void preloadStarfield2D();
+    ensurePlanetAtlasesLoading();
   }, []);
 
   const requestMode = useCallback((target: BackgroundMode, seed: SeedPoint) => {
@@ -122,7 +104,6 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
 
     const target = current.targetMode;
 
-    storeMode(target);
     setState((previous) => ({
       ...previous,
       phase: "covered",

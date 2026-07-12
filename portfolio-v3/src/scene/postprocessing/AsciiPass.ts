@@ -8,8 +8,8 @@ import {
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 
 const ASCII_GLYPHS = " .:-=+*#%@";
-const GLYPH_WIDTH = 12;
-const GLYPH_HEIGHT = 18;
+const GLYPH_WIDTH = 8;
+const GLYPH_HEIGHT = 14;
 
 function createGlyphTexture() {
   const canvas = document.createElement("canvas");
@@ -21,7 +21,7 @@ function createGlyphTexture() {
   if (context) {
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#fff";
-    context.font = '700 16px "Iosevka Term Web", monospace';
+    context.font = `700 ${Math.floor(GLYPH_HEIGHT * 0.82)}px "Iosevka Term Web", monospace`;
     context.textAlign = "center";
     context.textBaseline = "middle";
 

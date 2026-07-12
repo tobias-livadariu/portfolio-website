@@ -143,17 +143,8 @@ export default function DiamondTransitionOverlay() {
       animationFrame = requestAnimationFrame(renderFade);
     } else if (targetMode !== "2d") {
       const seed = seedPoint ?? { x: width, y: height };
-      const durationMs = targetMode === "glitch" ? 560 : 720;
+      const durationMs = 720;
       const glyphs = ["#", "@", "%", "+", "=", ":"];
-      const strips = Array.from(
-        { length: Math.ceil(height / 22) },
-        (_, index) => ({
-          delay: ((index * 47) % 13) / 28,
-          height: 16 + ((index * 11) % 18),
-          reverse: index % 3 === 0,
-          y: index * 22,
-        }),
-      );
 
       const renderDestinationTransition = (now: number) => {
         const progress = Math.min(
@@ -187,7 +178,7 @@ export default function DiamondTransitionOverlay() {
             ctx.fill();
             ctx.restore();
           }
-        } else if (targetMode === "ascii") {
+        } else {
           const cellWidth = 18;
           const cellHeight = 22;
           const columns = Math.ceil(width / cellWidth);
@@ -224,30 +215,6 @@ export default function DiamondTransitionOverlay() {
                   y + cellHeight / 2,
                 );
               }
-            }
-          }
-        } else {
-          for (const strip of strips) {
-            const localProgress = Math.min(
-              1,
-              Math.max(0, (revealProgress - strip.delay) / (1 - strip.delay)),
-            );
-            const visibleProgress = isCovering
-              ? localProgress
-              : 1 - localProgress;
-            const stripWidth = width * visibleProgress;
-            const x = strip.reverse ? 0 : width - stripWidth;
-
-            ctx.fillStyle = COLOR_PALETTE_STR.background;
-            ctx.fillRect(x, strip.y, stripWidth + 2, strip.height);
-
-            if (localProgress > 0 && localProgress < 1) {
-              ctx.fillStyle =
-                strip.y % 4 === 0
-                  ? COLOR_PALETTE_STR.campfire
-                  : COLOR_PALETTE_STR.campfireAsh;
-              const edgeX = strip.reverse ? stripWidth : width - stripWidth;
-              ctx.fillRect(edgeX - 9, strip.y, 9, Math.min(2, strip.height));
             }
           }
         }

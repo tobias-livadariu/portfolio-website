@@ -479,7 +479,7 @@ export default function ModalLayer() {
           role={isOpen ? "dialog" : undefined}
           tabIndex={-1}
         >
-          <BackgroundModeSwitch />
+          <BackgroundModeSwitch hidden={isOpen} />
           <div className="modal-home-spacer" />
           {/* The switch above must stay outside this aria-hidden subtree so it
               remains exposed to assistive tech while the modals are closed. */}

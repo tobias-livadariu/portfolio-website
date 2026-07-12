@@ -311,3 +311,28 @@ export const RESPONSIVE_SCALE = {
   // Rotation multiplier used once the viewport reaches referenceWidth.
   maxTroughRotationScale: 1,
 } as const;
+
+export const MODE_MENU_LAYOUT = {
+  // Match the compact, screen-space menu proportions used by portfolio-v2.
+  flatScaleMultiplier: 0.56,
+  // ASCII is authored as a composition: the menu expands until either its
+  // width or height (including these symmetric margins) fills the viewport.
+  asciiMarginRatioX: 0.06,
+  asciiMarginRatioY: 0.08,
+  localWidth: LAYOUT_WIDTH.rightX - LAYOUT_WIDTH.leftX,
+  localCenterX: LAYOUT_WIDTH.centerX,
+  // Text rises above its line origin and the lower dots extend below theirs;
+  // include both when fitting and centering the composition.
+  localTopY: introY + TEXT_GEOMETRY.nameSize,
+  localBottomY: lowerSeparatorY - LAYOUT.separatorMaxSegmentSize,
+  localHeight:
+    introY +
+    TEXT_GEOMETRY.nameSize -
+    (lowerSeparatorY - LAYOUT.separatorMaxSegmentSize),
+  localCenterY:
+    (introY +
+      TEXT_GEOMETRY.nameSize +
+      lowerSeparatorY -
+      LAYOUT.separatorMaxSegmentSize) /
+    2,
+} as const;

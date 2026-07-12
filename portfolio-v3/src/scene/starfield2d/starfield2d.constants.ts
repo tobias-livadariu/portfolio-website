@@ -8,12 +8,14 @@ export const STARFIELD_2D = {
 } as const;
 
 export const STARS_2D = {
-  densityPerPx2: 2.2e-4,
-  minCount: 200,
-  maxCount: 1200,
-  // Star disc radius relative to half the viewport diagonal. Slightly larger
-  // than 1 so the rotating field never exposes empty corners.
-  fieldRadiusMultiplier: 1.12,
+  // Values ported from portfolio-v2. Count is calculated from the circular
+  // field area rather than the rectangular viewport area.
+  densityPerPx2: 13e-4,
+  minCount: 900,
+  maxCount: 20000,
+  // getFieldRadius starts from half the diagonal; 2 recreates v2's full
+  // viewport-diagonal radius and prevents corners appearing during rotation.
+  fieldRadiusMultiplier: 2,
   // v2's signature slow wheel: the whole field turns 1.8 degrees per second
   // around the screen center.
   orbitRadiansPerSecond: (1.8 * Math.PI) / 180,
@@ -30,14 +32,12 @@ export const STARS_2D = {
 export const PLANETS_2D = {
   densityPerPx2: 3.3e-5,
   minCount: 24,
-  maxCount: 120,
+  maxCount: 320,
   // No planets spawn within this radius of the screen center (v2 value),
   // keeping the area behind the menu and modals calm.
   exclusionRadiusPx: 395,
   // Spawn ring outer radius relative to half the viewport diagonal.
-  fieldRadiusMultiplier: 1.15,
-  // Planets drifting past this multiple of the field radius respawn fresh.
-  recycleRadiusMultiplier: 1.25,
+  fieldRadiusMultiplier: 2,
   // v2 sprite animation speed: one 50-frame rotation every 25 seconds.
   framesPerSecond: 2,
   // v2 faded planets in at 0.06 alpha/tick at 60fps.
@@ -48,40 +48,6 @@ export const PLANETS_2D = {
     min: 0.4,
     max: 1.4,
   },
-  selfRotationRadiansPerSecond: {
-    min: 0.02,
-    max: 0.12,
-  },
-  initialSpeedPxPerSecond: {
-    min: 6,
-    max: 18,
-  },
-  maxSpeedPxPerSecond: 30,
-  velocityDampingPerSecond: 0.25,
-  // Gentle outward push inside the exclusion radius so wells cannot park
-  // planets in the center of the screen.
-  centerRepulsionPxPerSecond2: 50,
-} as const;
-
-export const GRAVITY_WELLS_2D = {
-  count: 5,
-  // Softened inverse-square strength, px^3/s^2.
-  strength: {
-    min: 3.5e5,
-    max: 9e5,
-  },
-  softeningPx: 200,
-  // Wells slowly wander around their base position so planet paths never
-  // settle into repeating orbits.
-  driftAmplitudePx: 140,
-  driftRadiansPerSecond: {
-    min: 0.03,
-    max: 0.08,
-  },
-  // Base well placement in viewport fractions; the range extends past the
-  // screen edges so some wells pull from off-screen.
-  placementFraction: {
-    min: -0.15,
-    max: 1.15,
-  },
+  orbitRadiansPerSecond: (1.8 * Math.PI) / 180,
+  orbitSpeedVariance: 0.15,
 } as const;

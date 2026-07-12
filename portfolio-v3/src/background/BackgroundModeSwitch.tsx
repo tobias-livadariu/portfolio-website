@@ -26,20 +26,32 @@ const MODE_OPTIONS: ReadonlyArray<{
     mode: "ascii",
     sigil: "#",
   },
-  {
-    description: "signal corruption",
-    label: "GLITCH",
-    mode: "glitch",
-    sigil: "≋",
-  },
 ];
 
-export default function BackgroundModeSwitch() {
+export default function BackgroundModeSwitch({
+  hidden = false,
+}: {
+  hidden?: boolean;
+}) {
   const { isTransitioning, requestMode, targetMode } = useBackgroundMode();
   const [isOpen, setIsOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+  const shouldHide = hidden || isTransitioning;
+  const activeSigil =
+    MODE_OPTIONS.find((option) => option.mode === targetMode)?.sigil ?? "◇";
+
+  useEffect(() => {
+    if (!shouldHide) {
+      return;
+    }
+
+    buttonRef.current?.blur();
+    const frame = requestAnimationFrame(() => setIsOpen(false));
+
+    return () => cancelAnimationFrame(frame);
+  }, [shouldHide]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -76,7 +88,12 @@ export default function BackgroundModeSwitch() {
   };
 
   return (
-    <div className="bg-mode-switch-anchor" ref={rootRef}>
+    <div
+      aria-hidden={shouldHide || undefined}
+      className="bg-mode-switch-anchor"
+      data-hidden={shouldHide ? "true" : undefined}
+      ref={rootRef}
+    >
       <div
         aria-label="Background renderer"
         aria-hidden={!isOpen}
@@ -132,7 +149,6 @@ export default function BackgroundModeSwitch() {
       </div>
       <button
         aria-controls={panelId}
-        aria-disabled={isTransitioning || undefined}
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-label="Choose background render mode"
@@ -142,10 +158,11 @@ export default function BackgroundModeSwitch() {
           if (!isTransitioning) setIsOpen((value) => !value);
         }}
         ref={buttonRef}
+        tabIndex={shouldHide ? -1 : undefined}
         type="button"
       >
         <span aria-hidden="true" className="bg-mode-switch-icon">
-          {isOpen ? "×" : "✦"}
+          {isOpen ? "×" : activeSigil}
         </span>
         <span className="bg-mode-switch-prompt">render:</span>
         <span className="bg-mode-switch-value">

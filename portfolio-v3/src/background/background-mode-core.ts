@@ -1,6 +1,6 @@
 import { createContext, useContext } from "react";
 
-export const BACKGROUND_MODES = ["3d", "2d", "ascii", "glitch"] as const;
+export const BACKGROUND_MODES = ["3d", "2d", "ascii"] as const;
 
 export type BackgroundMode = (typeof BACKGROUND_MODES)[number];
 
@@ -23,12 +23,6 @@ export interface BackgroundModeContextValue {
   seedPoint: SeedPoint | null;
   targetMode: BackgroundMode;
   visualMode: BackgroundMode;
-}
-
-export const BACKGROUND_MODE_STORAGE_KEY = "portfolio:background-mode";
-
-export function isBackgroundMode(value: unknown): value is BackgroundMode {
-  return BACKGROUND_MODES.some((mode) => mode === value);
 }
 
 export const BACKGROUND_TRANSITION = {

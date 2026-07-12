@@ -30,16 +30,16 @@ function pickStarSize() {
 }
 
 function createStars(viewportWidth: number, viewportHeight: number): Star2D[] {
+  const fieldRadius =
+    (Math.hypot(viewportWidth, viewportHeight) / 2) *
+    STARS_2D.fieldRadiusMultiplier;
   const count = Math.min(
     STARS_2D.maxCount,
     Math.max(
       STARS_2D.minCount,
-      Math.round(viewportWidth * viewportHeight * STARS_2D.densityPerPx2),
+      Math.round(Math.PI * fieldRadius ** 2 * STARS_2D.densityPerPx2),
     ),
   );
-  const fieldRadius =
-    (Math.hypot(viewportWidth, viewportHeight) / 2) *
-    STARS_2D.fieldRadiusMultiplier;
 
   return Array.from({ length: count }, () => {
     // sqrt sampling keeps the area density uniform across the disc.
@@ -92,8 +92,7 @@ export default function Stars2D() {
     const group = groupRef.current;
 
     if (group) {
-      group.rotation.z +=
-        STARS_2D.orbitRadiansPerSecond * Math.min(delta, 0.1);
+      group.rotation.z += STARS_2D.orbitRadiansPerSecond * Math.min(delta, 0.1);
     }
   });
 
