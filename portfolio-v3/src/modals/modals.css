@@ -390,30 +390,50 @@
   overflow-wrap: normal;
 }
 
-/* Cat output character-wave coloring. Anchored so char 0 of any line matches
-   that line's gutter color, then cycles through the softened palette — gives
-   a diagonal flow where characters on the same NE/SW diagonal share a hue. */
-.modal-cat-c0 {
-  color: var(--dragon-yellow);
-}
-.modal-cat-c1 {
-  color: var(--dragon-orange);
-}
-.modal-cat-c2 {
-  color: var(--dragon-pink);
-}
-.modal-cat-c3 {
-  color: var(--dragon-lavender);
-}
-.modal-cat-c4 {
-  color: var(--dragon-cyan);
-}
-.modal-cat-c5 {
-  color: var(--dragon-mint);
-}
-
 .modal-terminal-block {
   min-width: 0;
+}
+
+/* Ink story scenes (./what-i-built, ./what-i-learnt). Each theme sets the
+   scene's ink hue; ranks below it are derived by dimming toward the
+   terminal background so the splotch reads as one pigment. */
+.modal-terminal-line-story .modal-terminal-line-content {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.modal-ascii-story-mint {
+  --story-ink: var(--dragon-mint);
+}
+
+.modal-ascii-story-cyan {
+  --story-ink: var(--dragon-cyan);
+}
+
+.modal-ink-ink {
+  color: var(--story-ink);
+}
+
+.modal-ink-edge {
+  color: color-mix(in srgb, var(--story-ink) 62%, var(--dragon-bg));
+}
+
+.modal-ink-drop {
+  color: color-mix(in srgb, var(--story-ink) 46%, var(--dragon-bg));
+}
+
+.modal-ink-trail {
+  color: var(--story-ink);
+  font-weight: 700;
+}
+
+.modal-ink-ball {
+  color: color-mix(in srgb, var(--story-ink) 72%, var(--dragon-fg-bright));
+  font-weight: 700;
+}
+
+.modal-ink-text {
+  color: var(--dragon-fg-bright);
 }
 
 .modal-terminal-wrapped-output {
@@ -641,6 +661,11 @@
 
 .modal-ls-name-file {
   color: var(--dragon-fg-bright);
+}
+
+.modal-ls-name-exec {
+  color: var(--dragon-mint);
+  font-weight: 700;
 }
 
 .modal-ls-name-link {

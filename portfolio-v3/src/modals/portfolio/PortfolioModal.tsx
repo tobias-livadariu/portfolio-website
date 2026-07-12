@@ -3,17 +3,19 @@ import AsciiDivider from "../components/AsciiDivider";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
 import {
+  asciiStoryOutput,
   lsOutputRows,
-  wrappedTextOutput,
 } from "../components/terminal-outputs";
-import ideaNotionSummary from "./ideanotion-summary.txt?raw";
+import {
+  IDEANOTION_STORY_BLURBS,
+  SHOPIFY_STORY_BLURBS,
+} from "./portfolio-stories";
 import {
   PORTFOLIO_ASCII_TITLE_PIECES,
   PORTFOLIO_DIVIDER,
   PORTFOLIO_SPRITE,
   PORTFOLIO_TERMINAL_CONTEXT,
 } from "./portfolio.constants";
-import shopifySummary from "./shopify-summary.txt?raw";
 
 const PORTFOLIO_LEFT_SPRITE = {
   ...PORTFOLIO_SPRITE,
@@ -46,9 +48,9 @@ const shopifyRows = [
     date: "Apr 18 09:35",
   },
   {
-    name: "summary.txt",
-    type: "file",
-    size: "2.2k",
+    name: "what-i-built",
+    type: "exec",
+    size: "4.2k",
     date: "May 14 22:10",
   },
 ] as const;
@@ -67,9 +69,9 @@ const ideaNotionRows = [
     date: "Aug 28 17:42",
   },
   {
-    name: "summary.txt",
-    type: "file",
-    size: "2.0k",
+    name: "what-i-learnt",
+    type: "exec",
+    size: "3.8k",
     date: "May 14 22:12",
   },
 ] as const;
@@ -156,8 +158,15 @@ function PortfolioModal() {
             output: lsOutputRows(shopifyRows),
           },
           {
-            command: "cat summary.txt",
-            output: [wrappedTextOutput(shopifySummary)],
+            command: "./what-i-built",
+            output: [
+              asciiStoryOutput({
+                blurbs: SHOPIFY_STORY_BLURBS,
+                kind: "walk",
+                seed: "shopify-walk-v1",
+                theme: "mint",
+              }),
+            ],
           },
         ]}
       />
@@ -172,8 +181,15 @@ function PortfolioModal() {
             output: lsOutputRows(ideaNotionRows),
           },
           {
-            command: "cat summary.txt",
-            output: [wrappedTextOutput(ideaNotionSummary)],
+            command: "./what-i-learnt",
+            output: [
+              asciiStoryOutput({
+                blurbs: IDEANOTION_STORY_BLURBS,
+                kind: "bounce",
+                seed: "ideanotion-bounce-v1",
+                theme: "cyan",
+              }),
+            ],
           },
         ]}
       />
