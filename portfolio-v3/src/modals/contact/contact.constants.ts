@@ -26,7 +26,7 @@ export const CONTACT_ASCII_TITLE_PIECES = [
 export const CONTACT_DIVIDER = ["dBBBBBP"] as const;
 
 export const CONTACT_TERMINAL_CONTEXT: TerminalContext = {
-  directory: "repos/contact-tobi",
+  directory: "repos/reach-out",
   branch: "main",
 };
 
