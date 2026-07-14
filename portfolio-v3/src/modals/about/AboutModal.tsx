@@ -22,8 +22,19 @@ const ABOUT_RIGHT_SPRITE = {
   alt: "ASCII island planet",
 } as const;
 
-const TOBIFETCH_COLUMNS = 105;
-const TOBIFETCH_ROWS = 73;
+// The below values are for public/tobias-headshot-2026.png
+// const TOBIFETCH_COLUMNS = 105;
+// const TOBIFETCH_ROWS = 73;
+// const TOBIFETCH_MIN_COLUMNS = 32;
+// The below values are for public/cool-photo-of-me.png
+// const TOBIFETCH_COLUMNS = 121;
+// const TOBIFETCH_ROWS = 73;
+// The below values are for public/happier-photo-of-me.png (larger width)
+// const TOBIFETCH_COLUMNS = 139;
+// const TOBIFETCH_ROWS = 73;
+// The below values are for public/happier-photo-of-me.png (fits width)
+const TOBIFETCH_COLUMNS = 131;
+const TOBIFETCH_ROWS = 65;
 const TOBIFETCH_MIN_COLUMNS = 32;
 const TOBIFETCH_ROW_RATIO = TOBIFETCH_ROWS / TOBIFETCH_COLUMNS;
 /* Below this width the art column (105ch) crowds the info column, so we
@@ -66,7 +77,8 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Name:</span> Tobias Livadariu
+        <span className="modal-tobifetch-key">Program:</span> Software
+        Engineering
       </>
     ),
   },
@@ -81,8 +93,7 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">Program:</span> Software
-        Engineering
+        <span className="modal-tobifetch-key">Name:</span> Tobias Livadariu
       </>
     ),
   },
@@ -98,9 +109,21 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
   {
     content: (
       <>
+        <span className="modal-tobifetch-key">Languages:</span> Python,
+        Ruby,
+        C#,
+        C++,
+        PHP
+      </>
+    ),
+  },
+  {
+    content: (
+      <>
         <span className="modal-tobifetch-key">Frontend:</span> React,
         TypeScript,
         Redux,
+        Tailwind,
         Three.js
       </>
     ),
@@ -109,9 +132,32 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
     content: (
       <>
         <span className="modal-tobifetch-key">Backend:</span> Node,
+        Express,
         .NET,
         Rails,
-        Flask
+        Flask,
+        FastAPI,
+        GraphQL,
+        Laravel
+      </>
+    ),
+  },
+  {
+    content: (
+      <>
+        <span className="modal-tobifetch-key">Cloud:</span> Azure,
+        GCP,
+        Docker
+      </>
+    ),
+  },
+  {
+    content: (
+      <>
+        <span className="modal-tobifetch-key">Tools:</span> Git,
+        WordPress,
+        Figma,
+        Flink
       </>
     ),
   },
@@ -119,23 +165,23 @@ const TOBIFETCH_INFO_ROWS: Array<{ className?: string; content: ReactNode }> = [
     content: (
       <>
         <span className="modal-tobifetch-key">Data:</span> SQL,
-        Azure,
-        Docker,
-        GCP,
-        MongoDB
+        PostgreSQL,
+        MySQL,
+        MongoDB,
+        BigQuery
       </>
     ),
   },
   {
     content: (
       <>
-        <span className="modal-tobifetch-key">AI:</span> Langchain,
-        Langgraph,
+        <span className="modal-tobifetch-key">AI:</span> LangChain,
+        LangGraph,
         Cursor,
         Claude Code,
         Codex,
         OpenCode,
-        Pi 
+        Pi Harness
       </>
     ),
   },
@@ -198,7 +244,7 @@ function TobifetchOutput({ firstLineNumber }: { firstLineNumber: number }) {
 
   const portraitRows = useAsciiImageRows({
     columns: artColumns,
-    imagePath: "/images/tobias-headshot-2026.png",
+    imagePath: "/images/happier-photo-of-me.png",
     rows: artRows,
   });
   const isStacked = useMatchesMaxWidth(TOBIFETCH_STACK_BREAKPOINT_PX);
