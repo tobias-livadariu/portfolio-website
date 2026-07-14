@@ -394,6 +394,17 @@
   min-width: 0;
 }
 
+/* INCOMING @ Finta — a transparent ASCII-filtered three.js strip. No border
+   or background of its own so the glyphs float directly on the modal. */
+.modal-incoming {
+  height: clamp(320px, 34vw, 420px);
+  margin: 0.5rem 0 1.25rem;
+}
+
+.modal-incoming canvas {
+  display: block;
+}
+
 /* Ink story scenes (./what-i-built, ./what-i-learnt). Each theme sets the
    scene's ink hue; ranks below it are derived by dimming toward the
    terminal background so the splotch reads as one pigment. */
@@ -410,25 +421,25 @@
   --story-ink: var(--dragon-cyan);
 }
 
-.modal-ink-ink {
+.modal-ink-ray {
   color: var(--story-ink);
 }
 
-.modal-ink-edge {
-  color: color-mix(in srgb, var(--story-ink) 62%, var(--dragon-bg));
-}
-
-.modal-ink-drop {
-  color: color-mix(in srgb, var(--story-ink) 46%, var(--dragon-bg));
-}
-
-.modal-ink-trail {
-  color: var(--story-ink);
+.modal-ink-flash {
+  color: color-mix(in srgb, var(--story-ink) 45%, var(--dragon-fg-bright));
   font-weight: 700;
 }
 
-.modal-ink-ball {
-  color: color-mix(in srgb, var(--story-ink) 72%, var(--dragon-fg-bright));
+.modal-ink-debris {
+  color: color-mix(in srgb, var(--story-ink) 52%, var(--dragon-bg));
+}
+
+.modal-ink-wind {
+  color: color-mix(in srgb, var(--story-ink) 38%, var(--dragon-bg));
+}
+
+.modal-ink-border {
+  color: color-mix(in srgb, var(--story-ink) 78%, var(--dragon-fg-bright));
   font-weight: 700;
 }
 
@@ -460,19 +471,8 @@
   white-space: nowrap;
 }
 
-.modal-tobifetch-row {
-  display: inline-grid;
-  /* Column widths are set inline by TobifetchOutput from the measured
-     terminal-content width (capped at TOBIFETCH_COLUMNS = 105); this is the
-     fallback used before measurement settles. */
-  grid-template-columns: 105ch minmax(0, 1fr);
-  gap: clamp(1.25ch, 2vw, 3ch);
-  align-items: start;
-}
-
 .modal-tobifetch-art {
   display: inline-block;
-  width: 105ch;
   color: var(--dragon-fg-dim);
   white-space: pre;
 }

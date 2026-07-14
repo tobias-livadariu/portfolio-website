@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { TerminalOutputBlock, TerminalOutputLine } from "../modal.types";
-import AsciiStoryScene, { type AsciiStoryKind } from "./AsciiStoryScene";
+import AsciiStoryScene from "./AsciiStoryScene";
 import { LsOutputLine, type LsRow } from "./terminal-internals";
 
 export type { LsRow };
@@ -25,7 +25,8 @@ export function plainTextRows(
 
 export function asciiStoryOutput(options: {
   blurbs: readonly string[];
-  kind: AsciiStoryKind;
+  logoPath: string;
+  logoBrightness?: number;
   seed: string;
   theme: "mint" | "cyan";
 }): TerminalOutputBlock {

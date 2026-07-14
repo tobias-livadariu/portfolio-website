@@ -11,7 +11,7 @@ test("modal document opens from scroll and supports section navigation", async (
   page,
 }) => {
   await page.goto("/");
-  await expect(page.locator("canvas")).toBeVisible();
+  await expect(page.locator("canvas").first()).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.mouse.move(900, 120);

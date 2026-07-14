@@ -1,40 +1,29 @@
 import { useDeferredValue, useMemo } from "react";
-import {
-  composeInkBounceScene,
-  composeInkWalkScene,
-  type SceneRow,
-} from "./ascii-story";
+import { useAsciiLogoStamps } from "./ascii-image-rows";
+import { composeLogoBounceScene } from "./ascii-story";
 import { TerminalTranscriptLine } from "./Terminal";
 import { useTerminalContentColumns } from "./use-terminal-content-columns";
-
-export type AsciiStoryKind = "walk" | "bounce";
 
 interface Props {
   blurbs: readonly string[];
   firstLineNumber: number;
-  kind: AsciiStoryKind;
+  /** Public path of the logo that bounces through the scene. */
+  logoPath: string;
+  /** Optional luminance boost applied when rasterizing the logo. */
+  logoBrightness?: number;
   seed: string;
-  /** Scene ink hue: mint for the Shopify walk, cyan for the IdeaNotion ball. */
+  /** Explosion ink hue: mint for Shopify, cyan for IdeaNotion. */
   theme: "mint" | "cyan";
 }
 
-function composeScene(
-  kind: AsciiStoryKind,
-  columns: number,
-  blurbs: readonly string[],
-  seed: string,
-): SceneRow[] {
-  if (kind === "walk") {
-    return composeInkWalkScene(columns, [blurbs[0], blurbs[1]], seed);
-  }
-
-  return composeInkBounceScene(columns, [blurbs[0], blurbs[1], blurbs[2]], seed);
-}
+/** Spin schedule: one entry per stamp drawn along the flights, in order. */
+const SPIN_ANGLES = Array.from({ length: 14 }, (_, index) => index * 38);
 
 export default function AsciiStoryScene({
   blurbs,
   firstLineNumber,
-  kind,
+  logoPath,
+  logoBrightness = 1,
   seed,
   theme,
 }: Props) {
@@ -43,13 +32,30 @@ export default function AsciiStoryScene({
     min: 22,
     step: 2,
   });
-  /* Same deferral trick as WrappedTextOutput: regenerate the scene on an
-     idle follow-up render instead of every resize frame. */
+  /* Same deferral trick as the old wrapped output: regenerate the scene on
+     an idle follow-up render instead of every resize frame. */
   const deferredColumns = useDeferredValue(columns);
-  const rows = useMemo(
-    () => composeScene(kind, deferredColumns, blurbs, seed),
-    [blurbs, deferredColumns, kind, seed],
-  );
+  const logoColumns =
+    Math.round(Math.min(26, Math.max(14, deferredColumns * 0.17)) / 2) * 2;
+  const stamps = useAsciiLogoStamps({
+    angles: SPIN_ANGLES,
+    brightness: logoBrightness,
+    columns: logoColumns,
+    imagePath: logoPath,
+  });
+
+  const rows = useMemo(() => {
+    if (!stamps) {
+      return null;
+    }
+
+    return composeLogoBounceScene({
+      blurbs,
+      columns: deferredColumns,
+      seed,
+      stamps,
+    });
+  }, [blurbs, deferredColumns, seed, stamps]);
 
   return (
     <div
@@ -59,24 +65,34 @@ export default function AsciiStoryScene({
       <span className="modal-terminal-ch-measure" ref={measureRef}>
         000000000000000000000000
       </span>
-      {rows.map((segments, index) => (
+      {rows?.map((segments, index) => (
         <TerminalTranscriptLine
           className="modal-terminal-line-story"
           key={index}
           lineNumber={firstLineNumber + index}
         >
-          {segments.map((segment, segmentIndex) =>
-            segment.className ? (
-              <span
-                className={`modal-ink-${segment.className}`}
-                key={segmentIndex}
-              >
-                {segment.text}
-              </span>
-            ) : (
-              segment.text
-            ),
-          )}
+          {segments.map((segment, segmentIndex) => {
+            if (segment.color) {
+              return (
+                <span key={segmentIndex} style={{ color: segment.color }}>
+                  {segment.text}
+                </span>
+              );
+            }
+
+            if (segment.className) {
+              return (
+                <span
+                  className={`modal-ink-${segment.className}`}
+                  key={segmentIndex}
+                >
+                  {segment.text}
+                </span>
+              );
+            }
+
+            return segment.text;
+          })}
         </TerminalTranscriptLine>
       ))}
     </div>

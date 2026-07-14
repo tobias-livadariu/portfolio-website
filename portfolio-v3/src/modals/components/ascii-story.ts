@@ -1,16 +1,19 @@
 /**
- * Seeded generators for the "ink story" ASCII scenes in the portfolio modal.
+ * Seeded generator for the "logo bounce" ASCII scenes in the portfolio modal.
  *
- * Every scene is a character grid composed from reusable primitives — ink
- * splotches (an implicit radial field warped by low-frequency angular noise,
- * mapped onto a character density ramp), footprint trails, and bouncing-ball
- * trails. All randomness flows from a string seed through a mulberry32 PRNG,
- * so a given (seed, columns) pair always renders the same art: chaotic to the
- * eye, deterministic to the layout.
+ * A company logo (pre-rasterized into rotated ASCII stamps) ricochets between
+ * the terminal's side walls, spinning as it flies and shedding a faint wind
+ * trail. Each wall impact detonates into an outward explosion of directional
+ * rays and debris, with the story blurb boxed in an ASCII border at the
+ * blast's heart. All randomness flows from a string seed through a mulberry32
+ * PRNG, so a given (seed, columns) pair always renders the same art.
  */
+
+import type { AsciiFrame } from "./ascii-image-rows";
 
 export interface SceneSegment {
   className: string | null;
+  color?: string;
   text: string;
 }
 
@@ -46,13 +49,18 @@ function pick<T>(rng: Rng, values: readonly T[]): T {
   return values[Math.min(values.length - 1, Math.floor(rng() * values.length))];
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
 /* ------------------------------------------------------------------ */
 /* Character grid                                                       */
 /* ------------------------------------------------------------------ */
 
+/** Cell metadata: a palette class token, or `c:<css-color>` for logo cells. */
 interface Grid {
   chars: string[][];
-  classes: (string | null)[][];
+  meta: (string | null)[][];
   height: number;
   width: number;
 }
@@ -60,7 +68,7 @@ interface Grid {
 function createGrid(width: number, height: number): Grid {
   return {
     chars: Array.from({ length: height }, () => Array(width).fill(" ")),
-    classes: Array.from({ length: height }, () => Array(width).fill(null)),
+    meta: Array.from({ length: height }, () => Array(width).fill(null)),
     height,
     width,
   };
@@ -71,7 +79,7 @@ function setCell(
   x: number,
   y: number,
   char: string,
-  className: string | null,
+  meta: string | null,
   overwrite = true,
 ) {
   const col = Math.round(x);
@@ -86,33 +94,39 @@ function setCell(
   }
 
   grid.chars[row][col] = char;
-  grid.classes[row][col] = className;
+  grid.meta[row][col] = meta;
 }
 
-/** Merge same-class runs so each rendered line is a handful of spans. */
+/** Merge same-meta runs so each rendered line is a handful of spans. */
 export function gridToRows(grid: Grid): SceneRow[] {
   return grid.chars.map((rowChars, row) => {
     const segments: SceneRow = [];
 
     for (let col = 0; col < rowChars.length; col += 1) {
-      const className = rowChars[col] === " " ? null : grid.classes[row][col];
+      const meta = rowChars[col] === " " ? null : grid.meta[row][col];
       const previous = segments[segments.length - 1];
+      const isColor = meta?.startsWith("c:") ?? false;
 
-      if (previous && previous.className === className) {
+      if (previous && previous.className === (isColor ? null : meta) &&
+          previous.color === (isColor ? meta!.slice(2) : undefined)) {
         previous.text += rowChars[col];
       } else {
-        segments.push({ className, text: rowChars[col] });
+        segments.push({
+          className: isColor ? null : meta,
+          color: isColor ? meta!.slice(2) : undefined,
+          text: rowChars[col],
+        });
       }
     }
 
-    /* Drop the trailing run of blanks so lines don't overflow narrow view-
-       ports with invisible content. */
     const last = segments[segments.length - 1];
-    if (last && last.className === null && !last.text.trim()) {
+    if (last && last.className === null && !last.color && !last.text.trim()) {
       segments.pop();
     }
 
-    return segments.length > 0 ? segments : [{ className: null, text: " " }];
+    return segments.length > 0
+      ? segments
+      : [{ className: null, text: " " }];
   });
 }
 
@@ -144,371 +158,429 @@ function wrapBlurb(text: string, maxCharacters: number) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Ink splotch                                                          */
+/* Logo stamps and wind trail                                           */
 /* ------------------------------------------------------------------ */
 
-const INK_CORE_CHARS = ["@", "#", "%", "&", "8"] as const;
-const INK_MID_CHARS = ["*", "+", "=", "o"] as const;
-const INK_EDGE_CHARS = [":", ".", "'", "`"] as const;
-const DROPLET_NEAR_CHARS = ["*", "o", ":"] as const;
-const DROPLET_FAR_CHARS = [".", ".", "`", ","] as const;
-
-interface Splotch {
-  cx: number;
-  cy: number;
-  /** Interior semi-axes sized around the text block. */
-  rx: number;
-  ry: number;
-  textLines: string[];
+interface DimmableColor {
+  color: string;
+  factor: number;
 }
 
-function measureSplotch(
-  textLines: string[],
-  columns: number,
-): Pick<Splotch, "rx" | "ry"> {
-  const textWidth = Math.max(...textLines.map((line) => line.length));
-  const padX = columns < 52 ? 4 : 7;
+const DIM_COLOR_CACHE = new Map<string, string>();
 
-  return {
-    rx: textWidth / 2 + padX,
-    ry: textLines.length / 2 + 3.4,
-  };
+/** Scale an rgb(...) string toward black for motion-ghost dimming. */
+function dimColor({ color, factor }: DimmableColor) {
+  if (factor >= 0.999) {
+    return color;
+  }
+
+  const key = `${color}|${factor}`;
+  const cached = DIM_COLOR_CACHE.get(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  const dimmed = match
+    ? `rgb(${Math.round(Number(match[1]) * factor)}, ${Math.round(
+        Number(match[2]) * factor,
+      )}, ${Math.round(Number(match[3]) * factor)})`
+    : color;
+
+  DIM_COLOR_CACHE.set(key, dimmed);
+  return dimmed;
 }
 
-/**
- * Boundary radius multiplier for a given angle: 1 plus a few random low-
- * frequency sine harmonics, so the blob bulges organically instead of
- * reading as an ellipse.
- */
-function makeWobble(rng: Rng) {
-  const harmonics = [2, 3, 5].map((frequency) => ({
-    amplitude: 0.06 + rng() * 0.08,
-    frequency,
-    phase: rng() * Math.PI * 2,
-  }));
+function stampFrame(
+  grid: Grid,
+  frame: AsciiFrame,
+  centerX: number,
+  centerY: number,
+  dimFactor: number,
+) {
+  const height = frame.length;
+  const width = frame[0]?.length ?? 0;
+  const left = Math.round(centerX - width / 2);
+  const top = Math.round(centerY - height / 2);
 
-  return (angle: number) =>
-    harmonics.reduce(
-      (sum, harmonic) =>
-        sum +
-        harmonic.amplitude *
-          Math.sin(harmonic.frequency * angle + harmonic.phase),
-      1,
-    );
-}
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
+      const cell = frame[row][col];
 
-function drawSplotch(grid: Grid, splotch: Splotch, rng: Rng) {
-  const { cx, cy, rx, ry, textLines } = splotch;
-  const wobble = makeWobble(rng);
-  const reachX = Math.ceil(rx * 1.6);
-  const reachY = Math.ceil(ry * 1.6);
-
-  for (let row = Math.floor(cy - reachY); row <= cy + reachY; row += 1) {
-    for (let col = Math.floor(cx - reachX); col <= cx + reachX; col += 1) {
-      const dx = (col - cx) / rx;
-      const dy = (row - cy) / ry;
-      const boundary = wobble(Math.atan2(dy, dx));
-      /* Jitter roughens the rim so the iso-line never looks traced. */
-      const depth = Math.hypot(dx, dy) / boundary + (rng() - 0.5) * 0.1;
-
-      if (depth >= 1) {
+      if (cell.char === " ") {
         continue;
       }
 
-      if (depth < 0.7) {
-        if (rng() > 0.04) {
-          setCell(grid, col, row, pick(rng, INK_CORE_CHARS), "ink");
-        }
-      } else if (depth < 0.9) {
-        setCell(grid, col, row, pick(rng, INK_MID_CHARS), "ink");
-      } else {
-        setCell(grid, col, row, pick(rng, INK_EDGE_CHARS), "edge");
-      }
+      setCell(
+        grid,
+        left + col,
+        top + row,
+        cell.char,
+        `c:${dimColor({ color: cell.color, factor: dimFactor })}`,
+      );
     }
   }
-
-  drawDroplets(grid, splotch, rng);
-  drawDrips(grid, splotch, rng);
-
-  /* Knock a clearing out of the ink and lay the blurb into it. */
-  const textWidth = Math.max(...textLines.map((line) => line.length));
-  const clearLeft = Math.round(cx - textWidth / 2) - 1;
-  const clearTop = Math.round(cy - textLines.length / 2);
-
-  for (let row = clearTop; row < clearTop + textLines.length; row += 1) {
-    for (let col = clearLeft; col < clearLeft + textWidth + 2; col += 1) {
-      setCell(grid, col, row, " ", null);
-    }
-  }
-
-  textLines.forEach((line, index) => {
-    const startCol = Math.round(cx - line.length / 2);
-    for (let offset = 0; offset < line.length; offset += 1) {
-      setCell(grid, startCol + offset, clearTop + index, line[offset], "text");
-    }
-  });
 }
 
-/** Short runs of ink bleeding down from the splotch's lower rim. */
-function drawDrips(grid: Grid, splotch: Splotch, rng: Rng) {
-  const { cx, cy, rx, ry } = splotch;
-  const count = 2 + Math.floor(rng() * 3);
+const WIND_CHARS = ["~", "-", "`", "."] as const;
 
-  for (let i = 0; i < count; i += 1) {
-    const col = Math.round(cx + (rng() - 0.5) * rx * 1.1);
-    const startRow = Math.round(cy + ry * (0.95 + rng() * 0.15));
-    const length = 1 + Math.floor(rng() * 3);
+/** Faint streaks shed behind a moving stamp, opposite its velocity. */
+function drawWindTrail(
+  grid: Grid,
+  centerX: number,
+  centerY: number,
+  directionX: number,
+  logoWidth: number,
+  logoHeight: number,
+  rng: Rng,
+) {
+  const back = -Math.sign(directionX) || -1;
+  const streaks = 3;
+
+  for (let i = 0; i < streaks; i += 1) {
+    const row = Math.round(
+      centerY - logoHeight / 2 + 1 + (i * (logoHeight - 2)) / (streaks - 1),
+    );
+    const startX = centerX + back * (logoWidth / 2 + 1 + rng() * 2);
+    const length = 2 + Math.floor(rng() * 3);
 
     for (let step = 0; step < length; step += 1) {
       setCell(
         grid,
-        col,
-        startRow + step,
-        step === length - 1 ? "." : ":",
-        "drop",
+        startX + back * step,
+        row + (rng() < 0.2 ? 1 : 0),
+        pick(rng, WIND_CHARS),
+        "wind",
         false,
       );
     }
   }
 }
 
-function drawDroplets(grid: Grid, splotch: Splotch, rng: Rng) {
-  const { cx, cy, rx, ry } = splotch;
-  const count = Math.round(10 + rng() * 8);
+/* ------------------------------------------------------------------ */
+/* Explosion                                                            */
+/* ------------------------------------------------------------------ */
 
-  for (let i = 0; i < count; i += 1) {
-    const angle = rng() * Math.PI * 2;
-    const reach = 1.08 + rng() * 0.45;
-    const col = cx + Math.cos(angle) * rx * reach;
-    const row = cy + Math.sin(angle) * ry * reach;
-    const chars = reach < 1.22 ? DROPLET_NEAR_CHARS : DROPLET_FAR_CHARS;
+interface ExplosionBox {
+  boxHeight: number;
+  boxWidth: number;
+  centerX: number;
+  centerY: number;
+  textLines: string[];
+}
 
-    setCell(grid, col, row, pick(rng, chars), "drop", false);
+/* Vertical compression applied when drawing radial geometry, so blasts look
+   round despite cells being roughly twice as tall as wide. */
+const BLAST_VERTICAL_SCALE = 0.45;
 
-    /* A few droplets get a tiny companion speck, like split spray. */
-    if (rng() < 0.3) {
+function rayCharFor(dx: number, dy: number, tipness: number, rng: Rng) {
+  if (tipness > 0.78) {
+    return pick(rng, [":", ".", "'"] as const);
+  }
+
+  /* Match the character to the slope the ray is actually drawn at. */
+  const visualSlope = Math.abs(
+    (dy * BLAST_VERTICAL_SCALE * 2) / (dx || 0.0001),
+  );
+
+  if (visualSlope > 2.4) {
+    return pick(rng, ["|", "|", "!"] as const);
+  }
+
+  if (visualSlope > 0.45) {
+    return dx * dy > 0 ? "\\" : "/";
+  }
+
+  return pick(rng, ["-", "=", "-"] as const);
+}
+
+const CORONA_CORE_CHARS = ["@", "#", "%", "&", "8"] as const;
+const CORONA_MID_CHARS = ["*", "+", "=", "o"] as const;
+const CORONA_EDGE_CHARS = [":", ".", "'", "`"] as const;
+
+/**
+ * A violent outward burst centered on the blurb box: a dense white-hot
+ * corona hugging the box rim that decays outward, short slope-matched rays
+ * punching into the open field, debris specks flung further out. `away` is
+ * the horizontal direction pointing off the wall into the terminal.
+ */
+function drawExplosion(grid: Grid, box: ExplosionBox, away: number, rng: Rng) {
+  const { boxHeight, boxWidth, centerX, centerY } = box;
+  const reachX = 8;
+  const reachY = 4;
+
+  /* Corona: fill probability and density decay with rounded-rect distance
+     from the box rim. */
+  for (
+    let y = Math.floor(centerY - boxHeight / 2 - reachY);
+    y <= centerY + boxHeight / 2 + reachY;
+    y += 1
+  ) {
+    for (
+      let x = Math.floor(centerX - boxWidth / 2 - reachX);
+      x <= centerX + boxWidth / 2 + reachX;
+      x += 1
+    ) {
+      const outsideX = Math.max(0, Math.abs(x - centerX) - boxWidth / 2);
+      const outsideY = Math.max(0, Math.abs(y - centerY) - boxHeight / 2);
+      const distance = Math.hypot(outsideX / reachX, outsideY / reachY);
+
+      if (distance <= 0 || distance > 1) {
+        continue;
+      }
+
+      const fill = (1 - distance) ** 1.4 * 0.95 + 0.08;
+
+      if (rng() > fill) {
+        continue;
+      }
+
+      const chars =
+        distance < 0.4
+          ? CORONA_CORE_CHARS
+          : distance < 0.72
+            ? CORONA_MID_CHARS
+            : CORONA_EDGE_CHARS;
+      const meta =
+        distance < 0.4 && rng() < 0.4
+          ? "flash"
+          : distance < 0.72
+            ? "ray"
+            : "debris";
+
+      setCell(grid, x, y, pick(rng, chars), meta);
+    }
+  }
+
+  /* Rays punching out of the corona into the open field. */
+  const rayCount = 13 + Math.floor(rng() * 4);
+
+  for (let i = 0; i < rayCount; i += 1) {
+    /* Fan across the field-facing half, denser near horizontal. */
+    const fan = (i / (rayCount - 1)) * 2 - 1;
+    const angle = fan * 1.2 + (rng() - 0.5) * 0.2;
+    const dx = Math.cos(angle) * away;
+    const dy = Math.sin(angle);
+    const startX = centerX + away * (boxWidth / 2) + dx * (reachX - 2);
+    const startY = centerY + dy * (boxHeight / 2 + reachY - 1);
+    const length = 5 + rng() * 10;
+
+    for (let step = 1; step <= length; step += 1) {
+      const tipness = step / length;
+      const x = startX + dx * step + (rng() - 0.5) * 0.6;
+      const y = startY + dy * step * BLAST_VERTICAL_SCALE;
+
       setCell(
         grid,
-        col + (rng() < 0.5 ? -2 : 2),
-        row + (rng() < 0.5 ? 0 : 1),
-        pick(rng, DROPLET_FAR_CHARS),
-        "drop",
+        x,
+        y,
+        rayCharFor(dx, dy, tipness, rng),
+        tipness > 0.7 ? "debris" : "ray",
         false,
       );
     }
   }
-}
 
-/* ------------------------------------------------------------------ */
-/* Trails                                                               */
-/* ------------------------------------------------------------------ */
+  /* Debris flung past everything, biased into the field. */
+  const debrisCount = 16 + Math.floor(rng() * 8);
 
-/**
- * Alternating heel-and-toe footprint pairs straddling the walk line —
- * the classic "tracks in snow" reading.
- */
-function drawFootprints(
-  grid: Grid,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  rng: Rng,
-) {
-  const distance = Math.hypot(x1 - x0, (y1 - y0) * 2);
-  const steps = Math.max(2, Math.round(distance / 3.4));
+  for (let i = 0; i < debrisCount; i += 1) {
+    const angle = (rng() - 0.5) * Math.PI * 1.5;
+    const reach = 1 + rng() * 0.9;
+    const x =
+      centerX +
+      Math.cos(angle) * away * (boxWidth / 2 + reachX * reach + rng() * 6);
+    const y = centerY + Math.sin(angle) * (boxHeight / 2 + reachY * reach);
 
-  for (let i = 0; i <= steps; i += 1) {
-    const t = i / steps;
-    const jitter = (rng() - 0.5) * 0.6;
-    const x = x0 + (x1 - x0) * t + jitter;
-    const y = y0 + (y1 - y0) * t;
-    const isLeftFoot = i % 2 === 0;
-    const sideOffset = isLeftFoot ? -1 : 1;
-    const mark = isLeftFoot ? "'" : ",";
-
-    setCell(grid, x + sideOffset, y, mark, "trail", false);
-    setCell(grid, x + sideOffset + 1, y, mark, "trail", false);
-
-    /* Occasional scuff behind a step. */
-    if (rng() < 0.22 && i > 0) {
-      setCell(grid, x - sideOffset, y + (isLeftFoot ? 1 : -1), ".", "drop", false);
-    }
-  }
-}
-
-/** Dotted flight line that tightens into bolder marks near the impact end. */
-function drawBallPath(
-  grid: Grid,
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  rng: Rng,
-) {
-  const distance = Math.hypot(x1 - x0, (y1 - y0) * 2);
-  const steps = Math.max(3, Math.round(distance / 2.6));
-
-  for (let i = 0; i <= steps; i += 1) {
-    const t = i / steps;
-    const x = x0 + (x1 - x0) * t;
-    const y = y0 + (y1 - y0) * t + (rng() - 0.5) * 0.5;
-    const nearImpact = t > 0.82;
-    const char = nearImpact ? "o" : pick(rng, [".", ".", ".", "`"] as const);
-
-    setCell(grid, x, y, char, nearImpact ? "ball" : "trail", false);
-  }
-
-  /* The ball itself, streaking in just before the burst. */
-  setCell(grid, x0 + (x1 - x0) * 0.94, y0 + (y1 - y0) * 0.94, "O", "ball");
-}
-
-/* ------------------------------------------------------------------ */
-/* Scenes                                                               */
-/* ------------------------------------------------------------------ */
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function wrapWidthFor(columns: number) {
-  return clamp(columns - 16, 14, 42);
-}
-
-/**
- * `./what-i-built` — footprints walk in from the top-left at ~45°, burst
- * into an ink splotch holding the first blurb, then walk down-LEFT and
- * burst against the left border with the second.
- */
-export function composeInkWalkScene(
-  columns: number,
-  blurbs: readonly [string, string],
-  seed: string,
-): SceneRow[] {
-  const rng = mulberry32(hashSeed(`${seed}:${columns}`));
-  const wrapWidth = wrapWidthFor(columns);
-  const lines1 = wrapBlurb(blurbs[0], wrapWidth);
-  const lines2 = wrapBlurb(blurbs[1], wrapWidth);
-  const size1 = measureSplotch(lines1, columns);
-  const size2 = measureSplotch(lines2, columns);
-
-  const cx1 = clamp(
-    Math.round(columns * 0.64),
-    Math.ceil(size1.rx) + 1,
-    columns - Math.ceil(size1.rx) - 1,
-  );
-  /* Approach at the walk's 2:1 slope, but cap the drop on wide terminals so
-     the stroll doesn't burn thirty near-empty rows before the first burst. */
-  const cy1 = Math.round(
-    clamp(1 + (cx1 - 2) / 2, Math.ceil(size1.ry) + 2, Math.ceil(size1.ry) + 11),
-  );
-  const splotch1: Splotch = { cx: cx1, cy: cy1, ...size1, textLines: lines1 };
-
-  /* Second splotch presses into the left border — the wall it explodes on. */
-  const maxLine2 = Math.max(...lines2.map((line) => line.length));
-  const cx2 = Math.ceil(maxLine2 / 2) + 2;
-  const cy2 = Math.round(cy1 + size1.ry + size2.ry + 4);
-  const splotch2: Splotch = { cx: cx2, cy: cy2, ...size2, textLines: lines2 };
-
-  const height = Math.ceil(cy2 + size2.ry * 1.35 + 1);
-  const grid = createGrid(columns, height);
-
-  drawFootprints(
-    grid,
-    2,
-    1,
-    cx1 - size1.rx * 0.7,
-    cy1 - size1.ry * 0.7,
-    rng,
-  );
-  drawFootprints(
-    grid,
-    cx1 - size1.rx * 0.45,
-    cy1 + size1.ry * 0.95,
-    cx2 + size2.rx * 0.55,
-    cy2 - size2.ry * 0.85,
-    rng,
-  );
-
-  drawSplotch(grid, splotch1, rng);
-  drawSplotch(grid, splotch2, rng);
-
-  return gridToRows(grid);
-}
-
-/**
- * `./what-i-learnt` — a ball ricochets wall to wall, bursting into an ink
- * splotch at each impact: right wall, left wall, right wall, then it
- * bounces away off the bottom of the scene.
- */
-export function composeInkBounceScene(
-  columns: number,
-  blurbs: readonly [string, string, string],
-  seed: string,
-): SceneRow[] {
-  const rng = mulberry32(hashSeed(`${seed}:${columns}`));
-  const wrapWidth = wrapWidthFor(columns);
-  const wrapped = blurbs.map((blurb) => wrapBlurb(blurb, wrapWidth));
-  const sizes = wrapped.map((lines) => measureSplotch(lines, columns));
-
-  /* Impacts alternate right, left, right; centers sit close enough to the
-     wall that each burst clips it. */
-  const centers: Splotch[] = [];
-  let previousBottom = 1;
-
-  wrapped.forEach((lines, index) => {
-    const size = sizes[index];
-    const maxLine = Math.max(...lines.map((line) => line.length));
-    const onRightWall = index % 2 === 0;
-    const cx = onRightWall
-      ? columns - Math.ceil(maxLine / 2) - 3
-      : Math.ceil(maxLine / 2) + 2;
-    const cy = Math.round(previousBottom + size.ry + (index === 0 ? 2 : 3));
-
-    centers.push({ cx, cy, ...size, textLines: lines });
-    previousBottom = cy + size.ry;
-  });
-
-  const last = centers[centers.length - 1];
-  const height = Math.ceil(last.cy + last.ry * 1.35 + 2);
-  const grid = createGrid(columns, height);
-
-  centers.forEach((splotch, index) => {
-    const from =
-      index === 0
-        ? { x: 1, y: 1 }
-        : {
-            x:
-              centers[index - 1].cx +
-              (index % 2 === 0 ? 1 : -1) * centers[index - 1].rx * 0.55,
-            y: centers[index - 1].cy + centers[index - 1].ry * 0.9,
-          };
-
-    drawBallPath(
-      grid,
-      from.x,
-      from.y,
-      splotch.cx + (index % 2 === 0 ? splotch.rx * 0.5 : -splotch.rx * 0.5),
-      splotch.cy - splotch.ry * 0.5,
-      rng,
-    );
-  });
-
-  centers.forEach((splotch) => drawSplotch(grid, splotch, rng));
-
-  /* Bounce away: a short fading arc leaving the final burst, drawn after
-     the splotches so it stays visible against the fringe. */
-  const exitX = last.cx - last.rx * 0.9;
-  for (let i = 0; i < 5; i += 1) {
     setCell(
       grid,
-      exitX - i * 3,
-      last.cy + last.ry * 0.75 + i,
-      i < 2 ? "o" : ".",
-      i < 2 ? "ball" : "trail",
+      x,
+      y,
+      pick(rng, ["*", "o", ".", "`", ",", "'"] as const),
+      "debris",
       false,
     );
   }
+}
+
+/** ASCII-bordered box with the blurb centered inside, drawn over the blast. */
+function drawTextBox(grid: Grid, box: ExplosionBox) {
+  const { boxHeight, boxWidth, centerX, centerY, textLines } = box;
+  const left = Math.round(centerX - boxWidth / 2);
+  const top = Math.round(centerY - boxHeight / 2);
+
+  for (let row = 0; row < boxHeight; row += 1) {
+    for (let col = 0; col < boxWidth; col += 1) {
+      const x = left + col;
+      const y = top + row;
+      const isTopOrBottom = row === 0 || row === boxHeight - 1;
+      const isSide = col === 0 || col === boxWidth - 1;
+
+      if (isTopOrBottom) {
+        setCell(grid, x, y, isSide ? "+" : "=", "border");
+      } else if (isSide) {
+        setCell(grid, x, y, "|", "border");
+      } else {
+        setCell(grid, x, y, " ", null);
+      }
+    }
+  }
+
+  textLines.forEach((line, index) => {
+    const startCol = Math.round(centerX - line.length / 2);
+    for (let offset = 0; offset < line.length; offset += 1) {
+      setCell(grid, startCol + offset, top + 1 + index, line[offset], "text");
+    }
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Scene composition                                                    */
+/* ------------------------------------------------------------------ */
+
+export interface LogoBounceOptions {
+  blurbs: readonly string[];
+  columns: number;
+  seed: string;
+  /** Spin sequence of rotated logo stamps; consumed round-robin. */
+  stamps: readonly AsciiFrame[];
+}
+
+interface FlightPlan {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+}
+
+function drawFlight(
+  grid: Grid,
+  flight: FlightPlan,
+  stamps: readonly AsciiFrame[],
+  spinState: { index: number },
+  rng: Rng,
+  dims: readonly number[],
+) {
+  const logoHeight = stamps[0]?.length ?? 6;
+  const logoWidth = stamps[0]?.[0]?.length ?? 12;
+  const span = Math.abs(flight.toX - flight.fromX);
+  const stampCount = span > logoWidth * 3.2 ? dims.length : dims.length - 1;
+  const usableDims = dims.slice(dims.length - stampCount);
+
+  for (let i = 0; i < stampCount; i += 1) {
+    const t = (i + 1) / (stampCount + 1);
+    const x = flight.fromX + (flight.toX - flight.fromX) * t;
+    const y = flight.fromY + (flight.toY - flight.fromY) * t;
+    const frame = stamps[spinState.index % stamps.length];
+
+    spinState.index += 1;
+
+    drawWindTrail(
+      grid,
+      x,
+      y,
+      flight.toX - flight.fromX,
+      logoWidth,
+      logoHeight,
+      rng,
+    );
+    stampFrame(grid, frame, x, y, usableDims[i]);
+  }
+}
+
+/**
+ * Compose the full scene: the logo enters from the top-left, flies wall to
+ * wall (spinning), and detonates on each wall with one blurb per impact.
+ */
+export function composeLogoBounceScene(options: LogoBounceOptions): SceneRow[] {
+  const { blurbs, columns, seed, stamps } = options;
+  const rng = mulberry32(hashSeed(`${seed}:${columns}`));
+
+  const logoHeight = stamps[0]?.length ?? 6;
+  const logoWidth = stamps[0]?.[0]?.length ?? 12;
+  const wrapWidth = clamp(columns - 18, 14, 40);
+
+  /* Lay out every explosion box first: walls alternate right, left, right… */
+  const boxes: ExplosionBox[] = [];
+  let cursorY = 1;
+
+  blurbs.forEach((blurb, index) => {
+    const textLines = wrapBlurb(blurb, wrapWidth);
+    const innerWidth = Math.max(...textLines.map((line) => line.length)) + 2;
+    const boxWidth = Math.min(innerWidth + 2, columns);
+    const boxHeight = textLines.length + 2;
+    const onRightWall = index % 2 === 0;
+    const centerX = onRightWall ? columns - boxWidth / 2 : boxWidth / 2;
+    /* Flight room above the box: enough rows for the spinning logo. */
+    const flightDrop = Math.max(logoHeight + 4, 8);
+    const centerY = Math.round(cursorY + flightDrop + boxHeight / 2);
+
+    boxes.push({ boxHeight, boxWidth, centerX, centerY, textLines });
+    cursorY = centerY + boxHeight / 2 + 3;
+  });
+
+  const lastBox = boxes[boxes.length - 1];
+  const exitRows = logoHeight;
+  const height = Math.ceil(lastBox.centerY + lastBox.boxHeight / 2 + exitRows);
+  const grid = createGrid(columns, height);
+
+  /* Flights: entry → box 1, box 1 → box 2, …, last box → bounce away. */
+  const spinState = { index: 0 };
+
+  boxes.forEach((box, index) => {
+    const onRightWall = index % 2 === 0;
+    const previous = boxes[index - 1];
+    /* Take off from just below the previous box's outer half, and slam into
+       the wall right above the new box — the full terminal width of travel. */
+    const fromX = previous
+      ? previous.centerX -
+        (onRightWall ? -1 : 1) * (previous.boxWidth / 2 - logoWidth * 0.2)
+      : 2 + logoWidth / 2;
+    const fromY = previous
+      ? previous.centerY + previous.boxHeight / 2 + logoHeight / 2
+      : Math.max(1, logoHeight / 2);
+    const toX = onRightWall
+      ? columns - logoWidth / 2 - 1
+      : logoWidth / 2 + 1;
+    const toY = box.centerY - box.boxHeight / 2 - logoHeight / 2;
+
+    drawFlight(
+      grid,
+      { fromX, fromY, toX, toY },
+      stamps,
+      spinState,
+      rng,
+      [0.4, 0.65, 1],
+    );
+  });
+
+  /* Bounce away from the final blast, fading out. */
+  const lastOnRight = (boxes.length - 1) % 2 === 0;
+  const exitDirection = lastOnRight ? -1 : 1;
+  const exitFromX =
+    lastBox.centerX + exitDirection * (lastBox.boxWidth / 2 + logoWidth * 0.6);
+  const exitFromY = lastBox.centerY + lastBox.boxHeight / 2;
+
+  drawFlight(
+    grid,
+    {
+      fromX: exitFromX,
+      fromY: exitFromY,
+      toX: exitFromX + exitDirection * Math.min(columns * 0.4, logoWidth * 3.5),
+      toY: exitFromY + Math.max(2, exitRows - logoHeight),
+    },
+    stamps,
+    spinState,
+    rng,
+    [0.65, 0.4],
+  );
+
+  /* Explosions last so blasts and text boxes sit above flight overlap. */
+  boxes.forEach((box, index) => {
+    drawExplosion(grid, box, index % 2 === 0 ? -1 : 1, rng);
+    drawTextBox(grid, box);
+  });
 
   return gridToRows(grid);
 }

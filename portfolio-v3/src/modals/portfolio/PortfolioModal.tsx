@@ -2,6 +2,7 @@ import { memo } from "react";
 import AsciiDivider from "../components/AsciiDivider";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
+import IncomingSection from "./IncomingSection";
 import {
   asciiStoryOutput,
   lsOutputRows,
@@ -150,6 +151,8 @@ function PortfolioModal() {
         titlePieces={PORTFOLIO_ASCII_TITLE_PIECES}
       />
 
+      <IncomingSection />
+
       <Terminal
         context={shopifyContext}
         commands={[
@@ -162,8 +165,8 @@ function PortfolioModal() {
             output: [
               asciiStoryOutput({
                 blurbs: SHOPIFY_STORY_BLURBS,
-                kind: "walk",
-                seed: "shopify-walk-v1",
+                logoPath: "/logos/shopify-rmbg.png",
+                seed: "shopify-bounce-v1",
                 theme: "mint",
               }),
             ],
@@ -185,7 +188,7 @@ function PortfolioModal() {
             output: [
               asciiStoryOutput({
                 blurbs: IDEANOTION_STORY_BLURBS,
-                kind: "bounce",
+                logoPath: "/logos/dealerai-modified-rmbg.png",
                 seed: "ideanotion-bounce-v1",
                 theme: "cyan",
               }),
