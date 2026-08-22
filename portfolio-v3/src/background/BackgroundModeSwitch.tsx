@@ -3,26 +3,22 @@ import { type BackgroundMode, useBackgroundMode } from "./background-mode-core";
 import "./background-mode.css";
 
 const MODE_OPTIONS: ReadonlyArray<{
-  description: string;
   label: string;
   mode: BackgroundMode;
   sigil: string;
 }> = [
   {
-    description: "perspective starfield",
-    label: "DEPTH",
+    label: "DEEP",
     mode: "3d",
     sigil: "$",
   },
   {
-    description: "orthographic plane",
     label: "FLAT",
     mode: "2d",
     sigil: "#",
   },
   {
-    description: "glyph rasterizer",
-    label: "ASCII",
+    label: "CHAR",
     mode: "ascii",
     sigil: "@",
   },
@@ -129,12 +125,11 @@ export default function BackgroundModeSwitch({
                 type="button"
               >
                 <span className="bg-mode-option-index">
-                  {String(index + 1).padStart(2, "0")}
+                  {String(index).padStart(2, "0")}
                 </span>
                 <span className="bg-mode-option-sigil">{option.sigil}</span>
                 <span className="bg-mode-option-copy">
                   <strong>{option.label}</strong>
-                  <small>{option.description}</small>
                 </span>
                 <span aria-hidden="true" className="bg-mode-option-marker">
                   {isActive ? "[X]" : "[  ]"}
