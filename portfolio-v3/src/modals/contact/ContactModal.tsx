@@ -83,11 +83,11 @@ function ContactOpenPanel() {
           {CONTACT_NOTE_BRACKET.join("\n")}
         </pre>
         <div className="modal-contact-note-copy">
-          <span>I am easiest to reach by email</span>
+          <span>I am easiest to reach by email.</span>
           <div className="modal-contact-note-copy-subspans">
             <span>Open to software engineering internships,</span>
             <span>project conversations,</span>
-            <span>and direct technical feedback</span>
+            <span>and direct technical feedback.</span>
           </div>
         </div>
         <pre

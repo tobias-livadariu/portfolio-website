@@ -105,10 +105,7 @@ export default function BackgroundModeSwitch({
         <div aria-hidden="true" className="bg-mode-panel-art">
           ┌─ RENDER.MODE ─────────┐
         </div>
-        <div className="bg-mode-panel-status">
-          <span>SELECT PIPELINE</span>
-          <span>{String(MODE_OPTIONS.length).padStart(2, "0")} AVAILABLE</span>
-        </div>
+        <div className="bg-mode-panel-status" />
         <div className="bg-mode-options">
           {MODE_OPTIONS.map((option, index) => {
             const isActive = targetMode === option.mode;
