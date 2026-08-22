@@ -103,7 +103,7 @@ export default function BackgroundModeSwitch({
         role="menu"
       >
         <div aria-hidden="true" className="bg-mode-panel-art">
-          ┌─ RENDER.MODE ─────────┐
+          ┌─ RENDER.MODE ─────────────────────────────────────┐
         </div>
         <div className="bg-mode-panel-status" />
         <div className="bg-mode-options">
