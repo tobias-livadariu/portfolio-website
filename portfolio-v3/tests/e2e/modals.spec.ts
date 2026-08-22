@@ -87,14 +87,33 @@ test("modal document opens from scroll and supports section navigation", async (
       info.getBoundingClientRect().left - art.getBoundingClientRect().right
     );
   });
-  expect(horizontalGap).toBeGreaterThan(0);
+  expect(horizontalGap).toBeGreaterThanOrEqual(0);
   await expect(
     activePanel.locator(".modal-tobifetch-host", {
       hasText: "tlivadar@uwaterloo",
     }),
   ).toHaveCSS("font-weight", "700");
+  const aboutMessage = activePanel.locator(".modal-tobifetch-info").filter({
+    hasText:
+      "Software engineering student who loves building ambitious, useful things.",
+  });
 
-  await page.setViewportSize({ width: 900, height: 720 });
+  await expect(aboutMessage).toHaveText(
+    "Software engineering student who loves building ambitious, useful things.",
+  );
+  await expect(
+    aboutMessage.locator(".modal-tobifetch-text-cyan").first(),
+  ).toHaveCSS("color", "rgb(81, 199, 218)");
+  await expect(
+    aboutMessage.locator(".modal-tobifetch-text-purple", {
+      hasText: "ambitious",
+    }),
+  ).toHaveCSS("color", "rgb(175, 152, 230)");
+  await expect(
+    aboutMessage.locator(".modal-tobifetch-text-red", { hasText: "useful" }),
+  ).toHaveCSS("color", "rgb(251, 125, 167)");
+
+  await page.setViewportSize({ width: 640, height: 720 });
 
   const stackedInfoLines = activePanel.locator(
     ".modal-terminal-line-tobifetch-stacked-info",

@@ -43,42 +43,207 @@ const TOBIFETCH_MIN_SIDE_BY_SIDE_PORTRAIT_COLUMNS = 48;
    every 1ch fluctuation as the user drags the window. */
 const TOBIFETCH_COLUMN_STEP = 4;
 
-interface TobifetchLine {
-  key?: string;
-  kind?: "host" | "rule";
-  value: string;
-}
+type TobifetchMessagePart =
+  | string
+  | { textCyan: string }
+  | { textPurple: string }
+  | { textRed: string };
 
-/* One entry per rendered line — a `key` renders colored, then the value.
-   Values must be single lines so their exact column width is predictable. */
+type TobifetchLine =
+  | { kind: "field"; key: string; value: string }
+  | { kind: "host"; value: string }
+  | { kind: "message"; parts: readonly TobifetchMessagePart[] }
+  | { kind: "rule"; value: string }
+  | { kind: "spacer" };
+
+/* Message parts render in array order. Plain strings use cyan by default;
+   textCyan, textPurple, and textRed add explicit color spans on one line. */
 const TOBIFETCH_LINES: readonly TobifetchLine[] = [
   { kind: "host", value: "tlivadar@uwaterloo" },
   { kind: "rule", value: "------------------" },
-  { key: "Program:", value: "Software Engineering @ UW" },
-  { key: "Name:", value: "Tobias Livadariu" },
-  { value: "" },
-  { key: "Languages:", value: "Python, Ruby, C#, C++, PHP" },
-  { key: "Frontend:", value: "React, TypeScript, Redux, Tailwind, Three.js" },
   {
+    kind: "field",
+    key: "Program:",
+    value: "Software Engineering @ UW",
+  },
+  { kind: "field", key: "Name:", value: "Tobias Livadariu" },
+  { kind: "spacer" },
+  {
+    kind: "message",
+    parts: [
+      "Hello dear reader! \\n",
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textPurple: "My name is Tobi \\n" },
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textRed: "and I deeply appreciate you taking the time \\n" },
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textPurple: "to check out my website. \\n" },
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      ":) \\n\\n",
+    ],
+  },
+  { kind: "spacer" },
+  {
+    kind: "message",
+    parts: [
+      "I've included \\n",
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textPurple: "a brief summary \\n" }
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      "of my technical skills \\n",
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textPurple: "below: \\n\\n"},
+    ],
+  },
+  { kind: "spacer" },
+  {
+    kind: "field",
+    key: "Languages:",
+    value: "Python, Ruby, C#, C++, PHP",
+  },
+  {
+    kind: "field",
+    key: "Frontend:",
+    value: "React, TypeScript, Redux, Tailwind, Three.js",
+  },
+  {
+    kind: "field",
     key: "Backend:",
     value: "Node, Express, .NET, Rails, Flask, FastAPI, GraphQL, Laravel",
   },
-  { key: "Cloud:", value: "Azure, GCP, Docker" },
-  { key: "Tools:", value: "Git, WordPress, Figma, Flink" },
+  { kind: "field", key: "Cloud:", value: "Azure, GCP, Docker" },
   {
-    key: "Data",
+    kind: "field",
+    key: "Tools:",
+    value: "Git, WordPress, Figma, Flink",
+  },
+  {
+    kind: "field",
+    key: "Data:",
     value: "SQL, PostgreSQL, MySQL, MongoDB, BigQuery",
   },
   {
-    key: "Agents",
+    kind: "field",
+    key: "Agents:",
     value: "LangChain, LangGraph",
   },
-  { value: "" },
-  { key: "Open to:", value: "Internships & mentorship" },
+  { kind: "spacer" },
+  {
+    kind: "message",
+    parts: [
+      "Further down, \\n",
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textPurple: "you can find information \\n" }
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textRed: "about my past experience, \\n" }
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textPurple: "future goals, \\n" }
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      "and curret resume. \\n\\n",
+    ],
+  },
+  { kind: "spacer" },
+  {
+    kind: "message",
+    parts: [
+      { textRed: "Thanks again, \\n" }
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textRed: "and I hope you have \\n" }
+    ],
+  },
+  {
+    kind: "message",
+    parts: [
+      { textRed: "a wonderful day. ^D" }
+    ],
+  },
 ];
 
+function tobifetchMessagePartText(part: TobifetchMessagePart) {
+  if (typeof part === "string") {
+    return part;
+  }
+
+  if ("textCyan" in part) {
+    return part.textCyan;
+  }
+
+  if ("textPurple" in part) {
+    return part.textPurple;
+  }
+
+  return part.textRed;
+}
+
+function tobifetchMessagePartColor(part: TobifetchMessagePart) {
+  if (typeof part === "string" || "textCyan" in part) {
+    return "cyan";
+  }
+
+  return "textPurple" in part ? "purple" : "red";
+}
+
 function tobifetchLineWidth(line: TobifetchLine) {
-  return line.value.length + (line.key ? line.key.length + 1 : 0);
+  if (line.kind === "spacer") {
+    return 0;
+  }
+
+  if (line.kind === "message") {
+    return line.parts.reduce(
+      (width, part) => width + tobifetchMessagePartText(part).length,
+      0,
+    );
+  }
+
+  return line.value.length + (line.kind === "field" ? line.key.length + 1 : 0);
 }
 
 const TOBIFETCH_INFO_COLUMNS = Math.max(
@@ -94,8 +259,19 @@ function tobifetchInfoContent(line: TobifetchLine): ReactNode {
     return <span className="modal-tobifetch-rule">{line.value}</span>;
   }
 
-  if (!line.key) {
-    return line.value === "" ? " " : line.value;
+  if (line.kind === "spacer") {
+    return " ";
+  }
+
+  if (line.kind === "message") {
+    return line.parts.map((part, index) => (
+      <span
+        className={`modal-tobifetch-text-${tobifetchMessagePartColor(part)}`}
+        key={index}
+      >
+        {tobifetchMessagePartText(part)}
+      </span>
+    ));
   }
 
   return (

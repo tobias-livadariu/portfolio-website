@@ -516,11 +516,24 @@
 
 .modal-tobifetch-rule {
   color: var(--dragon-comment);
+  font-weight: 700;
 }
 
 .modal-tobifetch-key {
   color: var(--dragon-yellow);
   font-weight: 700;
+}
+
+.modal-tobifetch-text-cyan {
+  color: var(--dragon-cyan);
+}
+
+.modal-tobifetch-text-purple {
+  color: var(--dragon-lavender);
+}
+
+.modal-tobifetch-text-red {
+  color: var(--dragon-pink);
 }
 
 .modal-bat {
