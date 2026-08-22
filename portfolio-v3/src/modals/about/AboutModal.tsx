@@ -28,14 +28,14 @@ const ABOUT_RIGHT_SPRITE = {
   alt: "ASCII island planet",
 } as const;
 
-const TOBIFETCH_IMAGE_PATH = "/images/happier-photo-of-me.png";
+const TOBIFETCH_IMAGE_PATH = "/images/cool-photo-of-me.png";
 /* Luminance multiplier applied when rasterizing the portrait — raise to
    brighten the ASCII art, lower toward 1 for the original exposure. */
 const TOBIFETCH_BRIGHTNESS = 1.25;
 const TOBIFETCH_MIN_COLUMNS = 32;
 /* Side-by-side mode reserves the exact info width and a fixed gutter. It is
    only used while the remaining portrait is still large enough to read. */
-const TOBIFETCH_INFO_GAP_COLUMNS = 3;
+const TOBIFETCH_INFO_GAP_COLUMNS = 0;
 const TOBIFETCH_INFO_MARGIN_TOP_ROWS = 1;
 const TOBIFETCH_MIN_SIDE_BY_SIDE_PORTRAIT_COLUMNS = 48;
 /* Snap the measured terminal column count to multiples of this value so the
@@ -66,8 +66,12 @@ const TOBIFETCH_LINES: readonly TobifetchLine[] = [
   { key: "Cloud:", value: "Azure, GCP, Docker" },
   { key: "Tools:", value: "Git, WordPress, Figma, Flink" },
   {
-    key: "Data & Agents:",
-    value: "SQL, PostgreSQL, MySQL, MongoDB, BigQuery, LangChain, LangGraph",
+    key: "Data",
+    value: "SQL, PostgreSQL, MySQL, MongoDB, BigQuery",
+  },
+  {
+    key: "Agents",
+    value: "LangChain, LangGraph",
   },
   { value: "" },
   { key: "Open to:", value: "Internships & mentorship" },
