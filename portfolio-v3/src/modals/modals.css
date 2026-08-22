@@ -494,14 +494,19 @@
   white-space: pre-wrap;
 }
 
-/* Stacked mode (below 1050px): info lines render above the art. Info gets
-   a comfortable line-height; art keeps tight line-height for proportions. */
+/* When the measured terminal columns cannot hold both regions, info lines
+   render above the full-width art. */
 .modal-terminal-line-tobifetch-stacked-info {
   line-height: 1.32;
 }
 
 .modal-terminal-line-tobifetch-stacked-info .modal-terminal-line-content {
   white-space: pre-wrap;
+}
+
+.modal-terminal-line-tobifetch-side-by-side .modal-tobifetch-info {
+  line-height: 1;
+  white-space: pre;
 }
 
 .modal-tobifetch-host {

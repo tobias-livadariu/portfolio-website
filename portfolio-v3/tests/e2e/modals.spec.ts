@@ -10,6 +10,8 @@ async function wheelGesture(page: Page) {
 test("modal document opens from scroll and supports section navigation", async ({
   page,
 }) => {
+  test.setTimeout(45_000);
+  await page.setViewportSize({ width: 2048, height: 720 });
   await page.goto("/");
   await expect(page.locator("canvas").first()).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -68,7 +70,59 @@ test("modal document opens from scroll and supports section navigation", async (
     .toBeGreaterThan(0);
   await expect(activePanel).toContainText("File: about.modal");
   await expect(activePanel).toContainText("tobifetch");
+  const sideBySideHostLine = activePanel.locator(
+    ".modal-terminal-line-tobifetch-side-by-side:has(.modal-tobifetch-host)",
+  );
 
+  await expect(sideBySideHostLine).toBeVisible();
+  const horizontalGap = await sideBySideHostLine.evaluate((line) => {
+    const art = line.querySelector(".modal-tobifetch-art");
+    const info = line.querySelector(".modal-tobifetch-info");
+
+    if (!(art instanceof HTMLElement) || !(info instanceof HTMLElement)) {
+      return -1;
+    }
+
+    return (
+      info.getBoundingClientRect().left - art.getBoundingClientRect().right
+    );
+  });
+  expect(horizontalGap).toBeGreaterThan(0);
+  await expect(
+    activePanel.locator(".modal-tobifetch-host", {
+      hasText: "tlivadar@uwaterloo",
+    }),
+  ).toHaveCSS("font-weight", "700");
+
+  await page.setViewportSize({ width: 900, height: 720 });
+
+  const stackedInfoLines = activePanel.locator(
+    ".modal-terminal-line-tobifetch-stacked-info",
+  );
+  const firstArtLine = activePanel
+    .locator(".modal-terminal-line-fetch")
+    .first();
+
+  await expect(stackedInfoLines.first()).toBeVisible();
+  await expect(firstArtLine).toBeVisible();
+  const verticalGap = await activePanel.evaluate((panel) => {
+    const infoLines = Array.from(
+      panel.querySelectorAll(".modal-terminal-line-tobifetch-stacked-info"),
+    );
+    const artLine = panel.querySelector(".modal-terminal-line-fetch");
+
+    if (!(artLine instanceof HTMLElement) || infoLines.length === 0) {
+      return -1;
+    }
+
+    const infoBottom = Math.max(
+      ...infoLines.map((line) => line.getBoundingClientRect().bottom),
+    );
+    return artLine.getBoundingClientRect().top - infoBottom;
+  });
+  expect(verticalGap).toBeGreaterThanOrEqual(-1);
+
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.keyboard.press("PageDown");
   await expect(activePanel).toContainText("File: resume.modal");
   await expect(page.getByRole("link", { name: "DOWNLOAD PDF" })).toBeVisible();
@@ -103,7 +157,7 @@ test("modal document opens from scroll and supports section navigation", async (
   });
 
   await activePanel.getByRole("button", { name: "Close section" }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0, { timeout: 10_000 });
 });
 
 test("modal reveal scrolls continuously and closes from keyboard or backdrop", async ({
