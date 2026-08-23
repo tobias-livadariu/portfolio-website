@@ -16,6 +16,7 @@ import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { CANVAS_DPR } from "../../scene/canvas.constants";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
+import { DRAGON_LUCY } from "../modals.constants";
 
 const ASCII_GLYPHS = " .:-=+*#%@";
 /* On-screen cell size (CSS px) — finer than the background AsciiPass since
@@ -213,10 +214,12 @@ function IncomingText({
   children,
   color,
   meshRef,
+  isMain = true,
 }: {
   children: string;
   color: string;
   meshRef: React.RefObject<Mesh | null>;
+  isMain?: boolean;
 }) {
   return (
     <Text3D
@@ -229,7 +232,12 @@ function IncomingText({
       visible={false}
     >
       {children}
-      <meshStandardMaterial color={color} toneMapped={false} />
+      <meshStandardMaterial
+        color={color}
+        toneMapped={false}
+        emissive={color}
+        emissiveIntensity={isMain ? 0.4 : 0.3}
+      />
     </Text3D>
   );
 }
@@ -432,7 +440,7 @@ function IncomingContent() {
 
   return (
     <group ref={groupRef}>
-      <IncomingText color="#dcd7ba" meshRef={wideTitleRef}>
+      <IncomingText color={DRAGON_LUCY.cyan} meshRef={wideTitleRef}>
         INCOMING @
       </IncomingText>
       <IncomingText color="#dcd7ba" meshRef={narrowTitleRef}>
@@ -442,7 +450,7 @@ function IncomingContent() {
         @
       </IncomingText>
       <FintaLogo meshRef={logoRef} />
-      <IncomingText color="#51c7da" meshRef={seasonRef}>
+      <IncomingText color="#51c7da" meshRef={seasonRef} isMain={false}>
         (F26)
       </IncomingText>
     </group>
