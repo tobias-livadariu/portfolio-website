@@ -397,7 +397,7 @@
 /* INCOMING @ Finta — a transparent ASCII-filtered three.js strip. No border
    or background of its own so the glyphs float directly on the modal. */
 .modal-incoming {
-  height: clamp(500px, 62vw, 900px);
+  aspect-ratio: 1.35;
   margin: 0.5rem 0 1.25rem;
 }
 

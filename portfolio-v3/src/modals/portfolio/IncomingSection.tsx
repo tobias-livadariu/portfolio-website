@@ -1,4 +1,11 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text3D, useTexture } from "@react-three/drei";
 import type { Group, Mesh } from "three";
@@ -28,13 +35,18 @@ const CELL_HEIGHT = 10;
 const GLYPH_WIDTH = 12;
 const GLYPH_HEIGHT = 20;
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
-const FINTA_LOGO_SIDE = 3.1;
-/* These are visual proportions, not font metrics. Each Text3D geometry is
-   measured at runtime and scaled to these widths relative to the logo. */
-const TITLE_WIDTH_IN_LOGOS = 3.7;
-const SEASON_WIDTH_IN_LOGOS = 0.95;
-const STACK_GAP_IN_LOGOS = 0.12;
-const VIEWPORT_FILL = 0.94;
+
+/* Incoming-section tuning knobs. Logo width is a fraction of INCOMING's
+   rendered width. A season-text size of 1 gives it the same glyph size as
+   INCOMING; lower values keep it visually subordinate. Changing either
+   value grows the section vertically without reducing the title size. */
+const FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE = 0.27;
+const SEASON_TEXT_SIZE_RELATIVE_TO_TITLE = 0.8;
+
+const TITLE_LAYOUT_WIDTH = 1;
+const STACK_GAP_RELATIVE_TO_TITLE = 0.032;
+const TITLE_VIEWPORT_WIDTH = 0.9;
+const MOTION_HEIGHT_PADDING = 1.08;
 const FINE_ASCII_MAX_WIDTH_PX = 620;
 
 function createGlyphTexture() {
@@ -211,12 +223,10 @@ function IncomingText({
   children,
   color,
   meshRef,
-  isMain = true,
 }: {
   children: string;
   color: string;
   meshRef: React.RefObject<Mesh | null>;
-  isMain?: boolean;
 }) {
   return (
     <Text3D
@@ -229,12 +239,7 @@ function IncomingText({
       visible={false}
     >
       {children}
-      <meshStandardMaterial
-        color={color}
-        toneMapped={false}
-        emissive={color}
-        emissiveIntensity={isMain ? 0.4 : 0.3}
-      />
+      <meshBasicMaterial color={color} toneMapped={false} />
     </Text3D>
   );
 }
@@ -250,7 +255,6 @@ interface MeasuredItem {
 interface StackLayout {
   height: number;
   items: MeasuredItem[];
-  width: number;
 }
 
 function measureItemAtScale(mesh: Mesh | null, scale: number) {
@@ -296,30 +300,22 @@ function createStack(items: Array<MeasuredItem | null>): StackLayout | null {
   }
 
   const measuredItems = items as MeasuredItem[];
-  const gap = FINTA_LOGO_SIDE * STACK_GAP_IN_LOGOS;
+  const gap = TITLE_LAYOUT_WIDTH * STACK_GAP_RELATIVE_TO_TITLE;
 
   return {
     height:
       measuredItems.reduce((total, item) => total + item.height, 0) +
       gap * Math.max(0, measuredItems.length - 1),
     items: measuredItems,
-    width: Math.max(...measuredItems.map((item) => item.width)),
   };
 }
 
-function fitScale(
-  layout: StackLayout,
-  viewportWidth: number,
-  viewportHeight: number,
-) {
-  return Math.min(
-    (viewportWidth * VIEWPORT_FILL) / layout.width,
-    (viewportHeight * VIEWPORT_FILL) / layout.height,
-  );
+function fitTitleToWidth(viewportWidth: number) {
+  return (viewportWidth * TITLE_VIEWPORT_WIDTH) / TITLE_LAYOUT_WIDTH;
 }
 
 function placeStack(layout: StackLayout) {
-  const gap = FINTA_LOGO_SIDE * STACK_GAP_IN_LOGOS;
+  const gap = TITLE_LAYOUT_WIDTH * STACK_GAP_RELATIVE_TO_TITLE;
   let top = layout.height / 2;
 
   for (const item of layout.items) {
@@ -336,7 +332,11 @@ function placeStack(layout: StackLayout) {
   }
 }
 
-function IncomingContent() {
+function IncomingContent({
+  onLayoutAspectRatioChange,
+}: {
+  onLayoutAspectRatioChange: (aspectRatio: number) => void;
+}) {
   const groupRef = useRef<Group>(null);
   const titleRef = useRef<Mesh>(null);
   const atRef = useRef<Mesh>(null);
@@ -384,14 +384,14 @@ function IncomingContent() {
     ].join("|");
 
     if (layoutSignature !== layoutSignatureRef.current) {
-      const title = measureItem(
-        titleRef.current,
-        FINTA_LOGO_SIDE * TITLE_WIDTH_IN_LOGOS,
+      const title = measureItem(titleRef.current, TITLE_LAYOUT_WIDTH);
+      const logo = measureItem(
+        logoRef.current,
+        TITLE_LAYOUT_WIDTH * FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE,
       );
-      const logo = measureItem(logoRef.current, FINTA_LOGO_SIDE);
-      const season = measureItem(
+      const season = measureItemAtScale(
         seasonRef.current,
-        FINTA_LOGO_SIDE * SEASON_WIDTH_IN_LOGOS,
+        (title?.scale ?? 1) * SEASON_TEXT_SIZE_RELATIVE_TO_TITLE,
       );
       const layout = createStack([
         title,
@@ -402,8 +402,9 @@ function IncomingContent() {
 
       if (layout) {
         placeStack(layout);
-        group.scale.setScalar(
-          fitScale(layout, viewport.width, viewport.height),
+        group.scale.setScalar(fitTitleToWidth(viewport.width));
+        onLayoutAspectRatioChange(
+          TITLE_LAYOUT_WIDTH / (layout.height * MOTION_HEIGHT_PADDING),
         );
         layoutSignatureRef.current = layoutSignature;
       }
@@ -427,7 +428,7 @@ function IncomingContent() {
         @
       </IncomingText>
       <FintaLogo meshRef={logoRef} />
-      <IncomingText color="#51c7da" meshRef={seasonRef} isMain={false}>
+      <IncomingText color={DRAGON_LUCY.cyan} meshRef={seasonRef}>
         (F26)
       </IncomingText>
     </group>
@@ -443,6 +444,14 @@ function IncomingContent() {
 export default function IncomingSection() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isOnScreen, setIsOnScreen] = useState(false);
+  const [layoutAspectRatio, setLayoutAspectRatio] = useState<number>();
+  const handleLayoutAspectRatioChange = useCallback((aspectRatio: number) => {
+    setLayoutAspectRatio((current) =>
+      current !== undefined && Math.abs(current - aspectRatio) < 0.0001
+        ? current
+        : aspectRatio,
+    );
+  }, []);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -464,6 +473,7 @@ export default function IncomingSection() {
       className="modal-incoming"
       aria-label="Incoming: Finta, Fall 2026"
       ref={wrapperRef}
+      style={{ aspectRatio: layoutAspectRatio }}
     >
       <Canvas
         dpr={CANVAS_DPR}
@@ -472,10 +482,10 @@ export default function IncomingSection() {
         gl={{ alpha: true, antialias: true }}
         camera={{ fov: 42, position: [0, 0, 9.5] }}
       >
-        <ambientLight intensity={1.1} />
-        <directionalLight intensity={1.4} position={[3, 4, 6]} />
         <Suspense fallback={null}>
-          <IncomingContent />
+          <IncomingContent
+            onLayoutAspectRatioChange={handleLayoutAspectRatioChange}
+          />
         </Suspense>
         <TransparentAsciiRenderer />
       </Canvas>
