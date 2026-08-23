@@ -31,13 +31,10 @@ const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
 const FINTA_LOGO_SIDE = 3.1;
 /* These are visual proportions, not font metrics. Each Text3D geometry is
    measured at runtime and scaled to these widths relative to the logo. */
-const WIDE_TITLE_WIDTH_IN_LOGOS = 3.7;
-const NARROW_TITLE_WIDTH_IN_LOGOS = 2.65;
-const NARROW_AT_WIDTH_IN_LOGOS = 0.24;
+const TITLE_WIDTH_IN_LOGOS = 3.7;
 const SEASON_WIDTH_IN_LOGOS = 0.95;
 const STACK_GAP_IN_LOGOS = 0.12;
 const VIEWPORT_FILL = 0.94;
-const NARROW_LAYOUT_SCALE_ADVANTAGE = 1.08;
 const FINE_ASCII_MAX_WIDTH_PX = 620;
 
 function createGlyphTexture() {
@@ -256,7 +253,7 @@ interface StackLayout {
   width: number;
 }
 
-function measureItem(mesh: Mesh | null, targetWidth: number) {
+function measureItemAtScale(mesh: Mesh | null, scale: number) {
   if (!mesh) {
     return null;
   }
@@ -274,15 +271,23 @@ function measureItem(mesh: Mesh | null, targetWidth: number) {
     return null;
   }
 
-  const scale = targetWidth / naturalSize.x;
-
   return {
     center: bounds.getCenter(new Vector3()),
     height: naturalSize.y * scale,
     mesh,
     scale,
-    width: targetWidth,
+    width: naturalSize.x * scale,
   } satisfies MeasuredItem;
+}
+
+function measureItem(mesh: Mesh | null, targetWidth: number) {
+  const naturalItem = measureItemAtScale(mesh, 1);
+
+  if (!naturalItem) {
+    return null;
+  }
+
+  return measureItemAtScale(mesh, targetWidth / naturalItem.width);
 }
 
 function createStack(items: Array<MeasuredItem | null>): StackLayout | null {
@@ -333,9 +338,8 @@ function placeStack(layout: StackLayout) {
 
 function IncomingContent() {
   const groupRef = useRef<Group>(null);
-  const wideTitleRef = useRef<Mesh>(null);
-  const narrowTitleRef = useRef<Mesh>(null);
-  const narrowAtRef = useRef<Mesh>(null);
+  const titleRef = useRef<Mesh>(null);
+  const atRef = useRef<Mesh>(null);
   const logoRef = useRef<Mesh>(null);
   const seasonRef = useRef<Mesh>(null);
   const pointer = useRef({ x: 0, y: 0 });
@@ -373,58 +377,34 @@ function IncomingContent() {
     const layoutSignature = [
       viewport.width,
       viewport.height,
-      wideTitleRef.current?.geometry.uuid,
-      narrowTitleRef.current?.geometry.uuid,
-      narrowAtRef.current?.geometry.uuid,
+      titleRef.current?.geometry.uuid,
+      atRef.current?.geometry.uuid,
       logoRef.current?.geometry.uuid,
       seasonRef.current?.geometry.uuid,
     ].join("|");
 
     if (layoutSignature !== layoutSignatureRef.current) {
+      const title = measureItem(
+        titleRef.current,
+        FINTA_LOGO_SIDE * TITLE_WIDTH_IN_LOGOS,
+      );
       const logo = measureItem(logoRef.current, FINTA_LOGO_SIDE);
       const season = measureItem(
         seasonRef.current,
         FINTA_LOGO_SIDE * SEASON_WIDTH_IN_LOGOS,
       );
-      const wideLayout = createStack([
-        measureItem(
-          wideTitleRef.current,
-          FINTA_LOGO_SIDE * WIDE_TITLE_WIDTH_IN_LOGOS,
-        ),
-        logo,
-        season,
-      ]);
-      const narrowLayout = createStack([
-        measureItem(
-          narrowTitleRef.current,
-          FINTA_LOGO_SIDE * NARROW_TITLE_WIDTH_IN_LOGOS,
-        ),
-        measureItem(
-          narrowAtRef.current,
-          FINTA_LOGO_SIDE * NARROW_AT_WIDTH_IN_LOGOS,
-        ),
+      const layout = createStack([
+        title,
+        measureItemAtScale(atRef.current, title?.scale ?? 1),
         logo,
         season,
       ]);
 
-      if (wideLayout && narrowLayout) {
-        const wideScale = fitScale(wideLayout, viewport.width, viewport.height);
-        const narrowScale = fitScale(
-          narrowLayout,
-          viewport.width,
-          viewport.height,
-        );
-        const useNarrow =
-          narrowScale > wideScale * NARROW_LAYOUT_SCALE_ADVANTAGE;
-        const layout = useNarrow ? narrowLayout : wideLayout;
-
-        wideTitleRef.current!.visible = !useNarrow;
-        narrowTitleRef.current!.visible = useNarrow;
-        narrowAtRef.current!.visible = useNarrow;
-        logoRef.current!.visible = false;
-        seasonRef.current!.visible = false;
+      if (layout) {
         placeStack(layout);
-        group.scale.setScalar(useNarrow ? narrowScale : wideScale);
+        group.scale.setScalar(
+          fitScale(layout, viewport.width, viewport.height),
+        );
         layoutSignatureRef.current = layoutSignature;
       }
     }
@@ -440,13 +420,10 @@ function IncomingContent() {
 
   return (
     <group ref={groupRef}>
-      <IncomingText color={DRAGON_LUCY.cyan} meshRef={wideTitleRef}>
-        INCOMING @
-      </IncomingText>
-      <IncomingText color="#dcd7ba" meshRef={narrowTitleRef}>
+      <IncomingText color={DRAGON_LUCY.cyan} meshRef={titleRef}>
         INCOMING
       </IncomingText>
-      <IncomingText color="#dcd7ba" meshRef={narrowAtRef}>
+      <IncomingText color={DRAGON_LUCY.cyan} meshRef={atRef}>
         @
       </IncomingText>
       <FintaLogo meshRef={logoRef} />
