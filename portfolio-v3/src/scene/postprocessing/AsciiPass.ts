@@ -6,6 +6,7 @@ import {
   Vector2,
 } from "three";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { getResponsiveAsciiGlyphSize } from "../../utility/ascii-glyph-size";
 
 const ASCII_GLYPHS = " .:-=+*#%@";
 const GLYPH_WIDTH = 8;
@@ -122,6 +123,12 @@ export default class AsciiPass extends ShaderPass {
 
   override setSize(width: number, height: number) {
     this.uniforms?.resolution.value.set(width, height);
+    const glyphSize = getResponsiveAsciiGlyphSize(width, {
+      baseHeight: GLYPH_HEIGHT,
+      baseWidth: GLYPH_WIDTH,
+    });
+
+    this.uniforms?.cellSize.value.set(glyphSize.width, glyphSize.height);
   }
 
   override dispose() {

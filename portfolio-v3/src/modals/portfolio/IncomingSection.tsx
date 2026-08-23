@@ -21,13 +21,14 @@ import {
 } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { CANVAS_DPR } from "../../scene/canvas.constants";
+import { useAsciiGlyphSize } from "../../scene/hooks/useAsciiGlyphSize";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { DRAGON_LUCY } from "../modals.constants";
 
 const ASCII_GLYPHS = " .:-=+*#%@";
-/* On-screen cell size (CSS px) — finer than the background AsciiPass since
-   this strip is small and has to stay legible. */
+/* Base on-screen cell size at the shared reference width — finer than the
+   background AsciiPass since this strip is small and has to stay legible. */
 const CELL_WIDTH = 6;
 const CELL_HEIGHT = 10;
 /* Glyph atlas resolution per cell; sampled by UV so it can exceed the
@@ -54,7 +55,6 @@ const BASE_WHITESPACE_RELATIVE_TO_STACK = 0.04;
 const FALLBACK_LAYOUT_ASPECT_RATIO = 1.35;
 const BASE_TOP_MARGIN_REM = 0.5;
 const BASE_BOTTOM_MARGIN_REM = 1.25;
-const FINE_ASCII_MAX_WIDTH_PX = 620;
 
 function createGlyphTexture() {
   const canvas = document.createElement("canvas");
@@ -158,6 +158,13 @@ function createAsciiMaterial(glyphTexture: CanvasTexture) {
  */
 function TransparentAsciiRenderer() {
   const { gl, scene, camera, size } = useThree();
+  const pixelRatio = gl.getPixelRatio();
+  const glyphSize = useAsciiGlyphSize({
+    baseHeight: CELL_HEIGHT,
+    baseWidth: CELL_WIDTH,
+    pixelRatio,
+    viewportWidth: size.width,
+  });
   const resources = useMemo(() => {
     const glyphTexture = createGlyphTexture();
     const material = createAsciiMaterial(glyphTexture);
@@ -183,20 +190,16 @@ function TransparentAsciiRenderer() {
   }, [resources]);
 
   useEffect(() => {
-    const pixelRatio = gl.getPixelRatio();
     const width = Math.max(1, Math.round(size.width * pixelRatio));
     const height = Math.max(1, Math.round(size.height * pixelRatio));
-    /* Finer cells on narrow canvases so the type keeps enough resolution. */
-    const cellScale = size.width < FINE_ASCII_MAX_WIDTH_PX ? 0.8 : 1;
 
     resources.target.setSize(width, height);
     resources.material.uniforms.resolution.value.set(width, height);
-    /* Keep glyphs the same on-screen size regardless of device pixel ratio. */
     resources.material.uniforms.cellSize.value.set(
-      Math.round(CELL_WIDTH * cellScale * pixelRatio),
-      Math.round(CELL_HEIGHT * cellScale * pixelRatio),
+      glyphSize.width,
+      glyphSize.height,
     );
-  }, [gl, resources, size.height, size.width]);
+  }, [glyphSize.height, glyphSize.width, pixelRatio, resources, size]);
 
   useFrame(() => {
     const previousTarget = gl.getRenderTarget();

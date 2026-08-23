@@ -938,10 +938,6 @@
     justify-content: flex-start;
   }
 
-  .modal-section-content {
-    --modal-header-ascii-font-size: 0.49rem;
-  }
-
   .modal-panel-body {
     padding: 0.8rem;
   }

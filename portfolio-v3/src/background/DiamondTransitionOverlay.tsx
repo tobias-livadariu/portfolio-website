@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { COLOR_PALETTE_STR } from "../theme/colors";
+import { getResponsiveAsciiGlyphSize } from "../utility/ascii-glyph-size";
 import { useBackgroundMode } from "./background-mode-core";
 import {
   buildDiamondField,
@@ -179,12 +180,16 @@ export default function DiamondTransitionOverlay() {
             ctx.restore();
           }
         } else {
-          const cellWidth = 18;
-          const cellHeight = 22;
+          const glyphSize = getResponsiveAsciiGlyphSize(width, {
+            baseHeight: 22,
+            baseWidth: 18,
+          });
+          const cellWidth = glyphSize.width;
+          const cellHeight = glyphSize.height;
           const columns = Math.ceil(width / cellWidth);
           const rows = Math.ceil(height / cellHeight);
           const maxDistance = Math.hypot(width, height);
-          ctx.font = '700 13px "Iosevka Term Web", monospace';
+          ctx.font = `700 ${Math.max(1, 13 * glyphSize.scale)}px "Iosevka Term Web", monospace`;
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
 
