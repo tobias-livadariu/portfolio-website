@@ -4,13 +4,10 @@ import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
 import IncomingSection from "./IncomingSection";
 import {
-  asciiStoryOutput,
+  holographicStoryOutput,
   lsOutputRows,
 } from "../components/terminal-outputs";
-import {
-  IDEANOTION_STORY_BLURBS,
-  SHOPIFY_STORY_BLURBS,
-} from "./portfolio-stories";
+import { IDEANOTION_STORY, SHOPIFY_STORY } from "./portfolio-stories";
 import {
   PORTFOLIO_ASCII_TITLE_PIECES,
   PORTFOLIO_DIVIDER,
@@ -70,7 +67,7 @@ const ideaNotionRows = [
     date: "Aug 28 17:42",
   },
   {
-    name: "what-i-learnt",
+    name: "what-i-built",
     type: "exec",
     size: "3.8k",
     date: "May 14 22:12",
@@ -162,14 +159,7 @@ function PortfolioModal() {
           },
           {
             command: "./what-i-built",
-            output: [
-              asciiStoryOutput({
-                blurbs: SHOPIFY_STORY_BLURBS,
-                logoPath: "/logos/shopify-rmbg.png",
-                seed: "shopify-bounce-v1",
-                theme: "mint",
-              }),
-            ],
+            output: [holographicStoryOutput(SHOPIFY_STORY)],
           },
         ]}
       />
@@ -184,15 +174,8 @@ function PortfolioModal() {
             output: lsOutputRows(ideaNotionRows),
           },
           {
-            command: "./what-i-learnt",
-            output: [
-              asciiStoryOutput({
-                blurbs: IDEANOTION_STORY_BLURBS,
-                logoPath: "/logos/dealerai-modified-rmbg.png",
-                seed: "ideanotion-bounce-v1",
-                theme: "cyan",
-              }),
-            ],
+            command: "./what-i-built",
+            output: [holographicStoryOutput(IDEANOTION_STORY)],
           },
         ]}
       />

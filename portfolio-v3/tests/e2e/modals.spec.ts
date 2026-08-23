@@ -93,24 +93,20 @@ test("modal document opens from scroll and supports section navigation", async (
       hasText: "tlivadar@uwaterloo",
     }),
   ).toHaveCSS("font-weight", "700");
-  const aboutMessage = activePanel.locator(".modal-tobifetch-info").filter({
-    hasText:
-      "Software engineering student who loves building ambitious, useful things.",
-  });
-
-  await expect(aboutMessage).toHaveText(
-    "Software engineering student who loves building ambitious, useful things.",
-  );
   await expect(
-    aboutMessage.locator(".modal-tobifetch-text-cyan").first(),
+    activePanel.locator(".modal-tobifetch-text-cyan", {
+      hasText: "Hello dear reader!",
+    }),
   ).toHaveCSS("color", "rgb(81, 199, 218)");
   await expect(
-    aboutMessage.locator(".modal-tobifetch-text-purple", {
-      hasText: "ambitious",
+    activePanel.locator(".modal-tobifetch-text-purple", {
+      hasText: "My name is Tobi",
     }),
   ).toHaveCSS("color", "rgb(175, 152, 230)");
   await expect(
-    aboutMessage.locator(".modal-tobifetch-text-red", { hasText: "useful" }),
+    activePanel.locator(".modal-tobifetch-text-red", {
+      hasText: "I deeply appreciate",
+    }),
   ).toHaveCSS("color", "rgb(251, 125, 167)");
 
   await page.setViewportSize({ width: 640, height: 720 });
@@ -159,6 +155,21 @@ test("modal document opens from scroll and supports section navigation", async (
   await expect(activePanel).toContainText("File: portfolio.modal");
   await expect(activePanel).toContainText("work/shopify | main");
   await expect(activePanel).toContainText("personal/projects | main");
+  await expect(
+    activePanel.getByRole("heading", { name: "SHOPIFY: what I built" }),
+  ).toBeAttached();
+  await expect(
+    activePanel.getByRole("heading", { name: "IDEANOTION: what I built" }),
+  ).toBeAttached();
+  await expect(
+    activePanel.getByText("./what-i-built", { exact: true }),
+  ).toHaveCount(2);
+  await expect(
+    activePanel.getByText("./what-i-learnt", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    activePanel.getByRole("button", { name: "Pause hologram motion" }),
+  ).toHaveCount(2);
   await expect(
     page.getByRole("link", { name: /portfolio-website/ }),
   ).toBeVisible();

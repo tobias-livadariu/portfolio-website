@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 
 const MODE_LABELS = {
   "2d": /FLAT/,
-  "3d": /DEPTH/,
-  ascii: /ASCII/,
+  "3d": /DEEP/,
+  ascii: /CHAR/,
 } as const;
 
 test("render menu selects every mode and refresh resets to 3D", async ({
@@ -17,6 +17,7 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   await page.goto("/");
 
   const trigger = page.getByRole("button", {
+    includeHidden: true,
     name: "Choose background render mode",
   });
   const transition = page.locator(".bg-transition-overlay");

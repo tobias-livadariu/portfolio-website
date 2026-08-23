@@ -193,72 +193,6 @@ export async function loadImageSize(imagePath: string) {
   return { height: image.naturalHeight, width: image.naturalWidth };
 }
 
-/**
- * Rasterize an image into a `columns`-wide ASCII stamp, rotated by an
- * arbitrary angle. The image is drawn at a fixed 1/sqrt(2) scale so every
- * rotation of a square logo fits the stamp without clipping — which also
- * keeps the apparent size steady across a spin sequence.
- */
-export async function loadAsciiStamp(options: {
-  brightness?: number;
-  columns: number;
-  imagePath: string;
-  rotationDegrees: number;
-}) {
-  const { brightness = 1, columns, imagePath, rotationDegrees } = options;
-  const image = await loadImage(imagePath);
-  const aspect = image.naturalHeight / image.naturalWidth;
-  const rows = Math.max(
-    1,
-    Math.round(columns * aspect * CHARACTER_CELL_ASPECT),
-  );
-
-  /* Rotate in square pixel space first (a rotation inside the squashed
-     terminal-cell space would shear the image), then squash vertically. */
-  const squareSide = Math.max(8, columns * 2);
-  const square = document.createElement("canvas");
-  const squareContext = square.getContext("2d");
-
-  square.width = squareSide;
-  square.height = squareSide;
-
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-
-  canvas.width = columns;
-  canvas.height = rows;
-
-  if (!context || !squareContext) {
-    return [] as AsciiFrame;
-  }
-
-  const fitScale = squareSide / Math.max(image.naturalWidth, image.naturalHeight);
-  const drawWidth = image.naturalWidth * fitScale * (1 / Math.SQRT2);
-  const drawHeight = image.naturalHeight * fitScale * (1 / Math.SQRT2);
-
-  squareContext.clearRect(0, 0, squareSide, squareSide);
-  squareContext.imageSmoothingEnabled = true;
-  squareContext.save();
-  squareContext.translate(squareSide / 2, squareSide / 2);
-  squareContext.rotate((rotationDegrees * Math.PI) / 180);
-  squareContext.drawImage(
-    image,
-    -drawWidth / 2,
-    -drawHeight / 2,
-    drawWidth,
-    drawHeight,
-  );
-  squareContext.restore();
-
-  context.clearRect(0, 0, columns, rows);
-  context.imageSmoothingEnabled = true;
-  context.drawImage(square, 0, 0, squareSide, squareSide, 0, 0, columns, rows);
-
-  const pixels = context.getImageData(0, 0, columns, rows).data;
-
-  return pixelsToAscii(pixels, columns, rows, brightness);
-}
-
 export async function loadAsciiFrames(props: {
   atlasKey?: string;
   brightness?: number;
@@ -326,51 +260,6 @@ export function useImageSize(imagePath: string) {
   }, [imagePath]);
 
   return size;
-}
-
-const STAMP_CACHE = new Map<string, Promise<AsciiFrame[]>>();
-
-/**
- * Load a spin sequence of ASCII stamps for one image: `angles[i]` degrees of
- * rotation at a fixed `columns` width. Returns null until every stamp is
- * rasterized.
- */
-export function useAsciiLogoStamps(options: {
-  angles: readonly number[];
-  brightness?: number;
-  columns: number;
-  imagePath: string;
-}) {
-  const { angles, brightness = 1, columns, imagePath } = options;
-  const [stamps, setStamps] = useState<AsciiFrame[] | null>(null);
-  const cacheKey = `${imagePath}|${columns}|${brightness}|${angles.join(",")}`;
-
-  useEffect(() => {
-    let isMounted = true;
-    let promise = STAMP_CACHE.get(cacheKey);
-
-    if (!promise) {
-      promise = Promise.all(
-        angles.map((rotationDegrees) =>
-          loadAsciiStamp({ brightness, columns, imagePath, rotationDegrees }),
-        ),
-      );
-      STAMP_CACHE.set(cacheKey, promise);
-    }
-
-    void promise.then((frames) => {
-      if (isMounted) {
-        setStamps(frames);
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- angles is folded into cacheKey
-  }, [brightness, cacheKey, columns, imagePath]);
-
-  return stamps;
 }
 
 export function buildRowRuns(row: AsciiCell[]): ColoredRun[] {
@@ -456,7 +345,9 @@ export function useAsciiImageFrame(props: {
   }, [flipX, flipY, frames, rotateQuarterTurns]);
 }
 
-export function useAsciiImageRows(props: Parameters<typeof useAsciiImageFrame>[0]) {
+export function useAsciiImageRows(
+  props: Parameters<typeof useAsciiImageFrame>[0],
+) {
   const displayFrame = useAsciiImageFrame(props);
 
   return useMemo(() => displayFrame.map(buildRowRuns), [displayFrame]);

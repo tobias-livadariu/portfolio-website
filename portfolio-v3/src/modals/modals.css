@@ -272,6 +272,8 @@
 }
 
 .modal-terminal-body {
+  --modal-terminal-gutter-width: 6.35ch;
+
   display: grid;
   color: var(--dragon-fg);
   font-size: clamp(0.76rem, 0.95vw, 0.95rem);
@@ -280,7 +282,7 @@
 
 .modal-terminal-line {
   display: grid;
-  grid-template-columns: 6.35ch minmax(0, 1fr);
+  grid-template-columns: var(--modal-terminal-gutter-width) minmax(0, 1fr);
   min-width: 0;
 }
 
@@ -409,46 +411,111 @@
   display: block;
 }
 
-/* Ink story scenes (./what-i-built, ./what-i-learnt). Each theme sets the
-   scene's ink hue; ranks below it are derived by dimming toward the
-   terminal background so the splotch reads as one pigment. */
+/* Holographic company stories. The canvas spans a ledger of blank transcript
+   rows, keeping every gutter number aligned with the terminal grid. */
 .modal-terminal-line-story .modal-terminal-line-content {
   white-space: pre;
   overflow-wrap: normal;
 }
 
-.modal-ascii-story-mint {
-  --story-ink: var(--dragon-mint);
+.modal-holographic-story {
+  position: relative;
+  min-width: 0;
 }
 
-.modal-ascii-story-cyan {
-  --story-ink: var(--dragon-cyan);
+.modal-holographic-story-mint {
+  --story-primary: var(--dragon-mint);
+  --story-accent: var(--dragon-yellow);
 }
 
-.modal-ink-ray {
-  color: var(--story-ink);
+.modal-holographic-story-cyan {
+  --story-primary: var(--dragon-cyan);
+  --story-accent: var(--dragon-lavender);
 }
 
-.modal-ink-flash {
-  color: color-mix(in srgb, var(--story-ink) 45%, var(--dragon-fg-bright));
+.modal-story-hero {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.modal-terminal-line-story-blank .modal-terminal-line-content {
+  user-select: none;
+}
+
+.modal-story-canvas-shell {
+  position: absolute;
+  inset: 0 0 0 var(--modal-terminal-gutter-width);
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.modal-story-canvas-shell::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 4px,
+    color-mix(in srgb, var(--story-primary) 13%, transparent) 5px
+  );
+  opacity: 0.24;
+  pointer-events: none;
+}
+
+.modal-story-canvas-shell canvas {
+  display: block;
+}
+
+.modal-story-motion-toggle {
+  position: absolute;
+  right: 0.5ch;
+  bottom: 0.25em;
+  z-index: 2;
+  padding: 0;
+  color: color-mix(in srgb, var(--story-primary) 68%, var(--dragon-comment));
+  font: inherit;
+  font-size: 0.72em;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  opacity: 0.82;
+}
+
+.modal-story-motion-toggle:hover,
+.modal-story-motion-toggle:focus-visible {
+  color: var(--story-accent);
+  outline: none;
+  opacity: 1;
+}
+
+.modal-story-cards {
+  margin-top: 0.15em;
+}
+
+.modal-story-frame {
+  color: color-mix(in srgb, var(--story-primary) 78%, var(--dragon-fg-bright));
+}
+
+.modal-story-heading {
+  color: var(--story-accent);
   font-weight: 700;
 }
 
-.modal-ink-debris {
-  color: color-mix(in srgb, var(--story-ink) 52%, var(--dragon-bg));
-}
-
-.modal-ink-wind {
-  color: color-mix(in srgb, var(--story-ink) 38%, var(--dragon-bg));
-}
-
-.modal-ink-border {
-  color: color-mix(in srgb, var(--story-ink) 78%, var(--dragon-fg-bright));
-  font-weight: 700;
-}
-
-.modal-ink-text {
+.modal-story-body {
   color: var(--dragon-fg-bright);
+}
+
+.modal-story-meta-label {
+  color: var(--story-primary);
+  font-weight: 700;
+}
+
+.modal-story-meta {
+  color: var(--dragon-fg-dim);
 }
 
 .modal-terminal-wrapped-output {
@@ -461,6 +528,19 @@
   visibility: hidden;
   pointer-events: none;
   white-space: pre;
+}
+
+.modal-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .modal-terminal-note {
@@ -977,11 +1057,13 @@
   }
 
   .modal-terminal-body {
+    --modal-terminal-gutter-width: 5.4ch;
+
     font-size: clamp(0.62rem, 2.25vw, 0.82rem);
   }
 
   .modal-terminal-line {
-    grid-template-columns: 5.4ch minmax(0, 1fr);
+    grid-template-columns: var(--modal-terminal-gutter-width) minmax(0, 1fr);
   }
 
   .modal-terminal-gutter {

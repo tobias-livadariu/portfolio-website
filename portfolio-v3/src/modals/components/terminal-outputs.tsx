@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { TerminalOutputBlock, TerminalOutputLine } from "../modal.types";
-import AsciiStoryScene from "./AsciiStoryScene";
+import HolographicStoryScene from "./HolographicStoryScene";
+import type { HolographicStoryDefinition } from "./HolographicStoryScene";
 import { LsOutputLine, type LsRow } from "./terminal-internals";
 
 export type { LsRow };
@@ -23,18 +24,17 @@ export function plainTextRows(
   }));
 }
 
-export function asciiStoryOutput(options: {
-  blurbs: readonly string[];
-  logoPath: string;
-  logoBrightness?: number;
-  seed: string;
-  theme: "mint" | "cyan";
-}): TerminalOutputBlock {
+export function holographicStoryOutput(
+  definition: HolographicStoryDefinition,
+): TerminalOutputBlock {
   return {
     kind: "block",
     lineCount: 0,
     render: (firstLineNumber) => (
-      <AsciiStoryScene firstLineNumber={firstLineNumber} {...options} />
+      <HolographicStoryScene
+        definition={definition}
+        firstLineNumber={firstLineNumber}
+      />
     ),
   };
 }
