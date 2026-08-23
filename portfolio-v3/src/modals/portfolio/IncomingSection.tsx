@@ -36,17 +36,24 @@ const GLYPH_WIDTH = 12;
 const GLYPH_HEIGHT = 20;
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
 
-/* Incoming-section tuning knobs. Logo width is a fraction of INCOMING's
+/* Incoming-section tuning knobs. SECTION_SIZE_MULTIPLIER uniformly scales
+   the complete centered stack. Logo width is a fraction of INCOMING's
    rendered width. A season-text size of 1 gives it the same glyph size as
-   INCOMING; lower values keep it visually subordinate. Changing either
-   value grows the section vertically without reducing the title size. */
-const FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE = 0.27;
+   INCOMING; lower values keep it visually subordinate. The whitespace
+   multipliers independently adjust the breathing room above and below. */
+const SECTION_SIZE_MULTIPLIER = 0.78;
+const FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE = 0.36;
 const SEASON_TEXT_SIZE_RELATIVE_TO_TITLE = 0.8;
+const TOP_WHITESPACE_MULTIPLIER = 0;
+const BOTTOM_WHITESPACE_MULTIPLIER = 0;
 
 const TITLE_LAYOUT_WIDTH = 1;
 const STACK_GAP_RELATIVE_TO_TITLE = 0.032;
 const TITLE_VIEWPORT_WIDTH = 0.9;
-const MOTION_HEIGHT_PADDING = 1.08;
+const BASE_WHITESPACE_RELATIVE_TO_STACK = 0.04;
+const FALLBACK_LAYOUT_ASPECT_RATIO = 1.35;
+const BASE_TOP_MARGIN_REM = 0.5;
+const BASE_BOTTOM_MARGIN_REM = 1.25;
 const FINE_ASCII_MAX_WIDTH_PX = 620;
 
 function createGlyphTexture() {
@@ -311,10 +318,13 @@ function createStack(items: Array<MeasuredItem | null>): StackLayout | null {
 }
 
 function fitTitleToWidth(viewportWidth: number) {
-  return (viewportWidth * TITLE_VIEWPORT_WIDTH) / TITLE_LAYOUT_WIDTH;
+  return (
+    (viewportWidth * TITLE_VIEWPORT_WIDTH * SECTION_SIZE_MULTIPLIER) /
+    TITLE_LAYOUT_WIDTH
+  );
 }
 
-function placeStack(layout: StackLayout) {
+function placeStack(layout: StackLayout, verticalOffset: number) {
   const gap = TITLE_LAYOUT_WIDTH * STACK_GAP_RELATIVE_TO_TITLE;
   let top = layout.height / 2;
 
@@ -324,7 +334,7 @@ function placeStack(layout: StackLayout) {
     item.mesh.scale.setScalar(item.scale);
     item.mesh.position.set(
       -item.center.x * item.scale,
-      centerY - item.center.y * item.scale,
+      centerY + verticalOffset - item.center.y * item.scale,
       -item.center.z * item.scale,
     );
     item.mesh.visible = true;
@@ -377,6 +387,11 @@ function IncomingContent({
     const layoutSignature = [
       viewport.width,
       viewport.height,
+      SECTION_SIZE_MULTIPLIER,
+      FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE,
+      SEASON_TEXT_SIZE_RELATIVE_TO_TITLE,
+      TOP_WHITESPACE_MULTIPLIER,
+      BOTTOM_WHITESPACE_MULTIPLIER,
       titleRef.current?.geometry.uuid,
       atRef.current?.geometry.uuid,
       logoRef.current?.geometry.uuid,
@@ -401,10 +416,17 @@ function IncomingContent({
       ]);
 
       if (layout) {
-        placeStack(layout);
+        const baseWhitespace =
+          layout.height * BASE_WHITESPACE_RELATIVE_TO_STACK;
+        const topWhitespace = baseWhitespace * TOP_WHITESPACE_MULTIPLIER;
+        const bottomWhitespace = baseWhitespace * BOTTOM_WHITESPACE_MULTIPLIER;
+
+        placeStack(layout, (bottomWhitespace - topWhitespace) / 2);
         group.scale.setScalar(fitTitleToWidth(viewport.width));
         onLayoutAspectRatioChange(
-          TITLE_LAYOUT_WIDTH / (layout.height * MOTION_HEIGHT_PADDING),
+          TITLE_LAYOUT_WIDTH /
+            ((layout.height + topWhitespace + bottomWhitespace) *
+              SECTION_SIZE_MULTIPLIER),
         );
         layoutSignatureRef.current = layoutSignature;
       }
@@ -438,13 +460,16 @@ function IncomingContent({
 /**
  * "INCOMING @ [finta] (F26)" — a three.js canvas with a transparent ASCII
  * filter, so only the glyphs render, floating over the modal. The whole
- * group tilts subtly toward the cursor. The frame loop only runs while the
- * strip is actually on screen.
+ * group tilts subtly toward the cursor. Off-screen rendering runs on demand
+ * so layout can initialize with the page, then continuous animation starts
+ * only while the strip is actually visible.
  */
 export default function IncomingSection() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [isOnScreen, setIsOnScreen] = useState(false);
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number>();
+  const fallbackAspectRatio =
+    FALLBACK_LAYOUT_ASPECT_RATIO / SECTION_SIZE_MULTIPLIER;
   const handleLayoutAspectRatioChange = useCallback((aspectRatio: number) => {
     setLayoutAspectRatio((current) =>
       current !== undefined && Math.abs(current - aspectRatio) < 0.0001
@@ -473,12 +498,16 @@ export default function IncomingSection() {
       className="modal-incoming"
       aria-label="Incoming: Finta, Fall 2026"
       ref={wrapperRef}
-      style={{ aspectRatio: layoutAspectRatio }}
+      style={{
+        aspectRatio: layoutAspectRatio ?? fallbackAspectRatio,
+        marginBottom: `${BASE_BOTTOM_MARGIN_REM * SECTION_SIZE_MULTIPLIER * BOTTOM_WHITESPACE_MULTIPLIER}rem`,
+        marginTop: `${BASE_TOP_MARGIN_REM * SECTION_SIZE_MULTIPLIER * TOP_WHITESPACE_MULTIPLIER}rem`,
+      }}
     >
       <Canvas
         dpr={CANVAS_DPR}
         flat
-        frameloop={isOnScreen ? "always" : "never"}
+        frameloop={isOnScreen ? "always" : "demand"}
         gl={{ alpha: true, antialias: true }}
         camera={{ fov: 42, position: [0, 0, 9.5] }}
       >
