@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Center, Text3D, useTexture } from "@react-three/drei";
-import type { Group } from "three";
+import { Text3D, useTexture } from "@react-three/drei";
+import type { Group, Mesh } from "three";
 import {
   CanvasTexture,
   LinearFilter,
@@ -9,6 +9,7 @@ import {
   NearestFilter,
   ShaderMaterial,
   Vector2,
+  Vector3,
   WebGLRenderTarget,
 } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
@@ -26,6 +27,17 @@ const CELL_HEIGHT = 10;
 const GLYPH_WIDTH = 12;
 const GLYPH_HEIGHT = 20;
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
+const FINTA_LOGO_SIDE = 3.1;
+/* These are visual proportions, not font metrics. Each Text3D geometry is
+   measured at runtime and scaled to these widths relative to the logo. */
+const WIDE_TITLE_WIDTH_IN_LOGOS = 3.7;
+const NARROW_TITLE_WIDTH_IN_LOGOS = 2.65;
+const NARROW_AT_WIDTH_IN_LOGOS = 0.24;
+const SEASON_WIDTH_IN_LOGOS = 0.95;
+const STACK_GAP_IN_LOGOS = 0.12;
+const VIEWPORT_FILL = 0.94;
+const NARROW_LAYOUT_SCALE_ADVANTAGE = 1.08;
+const FINE_ASCII_MAX_WIDTH_PX = 620;
 
 function createGlyphTexture() {
   const canvas = document.createElement("canvas");
@@ -158,7 +170,7 @@ function TransparentAsciiRenderer() {
     const width = Math.max(1, Math.round(size.width * pixelRatio));
     const height = Math.max(1, Math.round(size.height * pixelRatio));
     /* Finer cells on narrow canvases so the type keeps enough resolution. */
-    const cellScale = size.width < INCOMING_NARROW_PX ? 0.8 : 1;
+    const cellScale = size.width < FINE_ASCII_MAX_WIDTH_PX ? 0.8 : 1;
 
     resources.target.setSize(width, height);
     resources.material.uniforms.resolution.value.set(width, height);
@@ -186,56 +198,141 @@ function TransparentAsciiRenderer() {
   return null;
 }
 
-function FintaLogo({ side = 3.1, y = -0.1 }: { side?: number; y?: number }) {
+function FintaLogo({ meshRef }: { meshRef: React.RefObject<Mesh | null> }) {
   const texture = useTexture(FINTA_LOGO_PATH);
 
   return (
-    <mesh position={[0, y, 0]}>
-      <planeGeometry args={[side, side]} />
+    <mesh ref={meshRef} visible={false}>
+      <planeGeometry args={[1, 1]} />
       <meshBasicMaterial map={texture} transparent toneMapped={false} />
     </mesh>
   );
 }
 
-const INCOMING_DESIGN_WIDTH = 16;
-const INCOMING_DESIGN_HEIGHT = 7;
-/* Below this canvas width the one-line title would shrink into unreadable
-   cells, so the layout stacks INCOMING / @ / logo / (F26) vertically. */
-const INCOMING_NARROW_PX = 620;
-const INCOMING_NARROW_DESIGN_WIDTH = 8.8;
-const INCOMING_NARROW_DESIGN_HEIGHT = 7.6;
-
 function IncomingText({
   children,
   color,
-  size,
-  y,
+  meshRef,
 }: {
   children: string;
   color: string;
-  size: number;
-  y: number;
+  meshRef: React.RefObject<Mesh | null>;
 }) {
   return (
-    <Center position={[0, y, 0]}>
-      <Text3D
-        font={THREE_FONTS.pixAntiqua}
-        size={size}
-        height={size * 0.14}
-        curveSegments={2}
-        bevelEnabled={false}
-      >
-        {children}
-        <meshStandardMaterial color={color} toneMapped={false} />
-      </Text3D>
-    </Center>
+    <Text3D
+      bevelEnabled={false}
+      curveSegments={2}
+      font={THREE_FONTS.pixelEmulator}
+      height={0.14}
+      ref={meshRef}
+      size={1}
+      visible={false}
+    >
+      {children}
+      <meshStandardMaterial color={color} toneMapped={false} />
+    </Text3D>
   );
+}
+
+interface MeasuredItem {
+  center: Vector3;
+  height: number;
+  mesh: Mesh;
+  scale: number;
+  width: number;
+}
+
+interface StackLayout {
+  height: number;
+  items: MeasuredItem[];
+  width: number;
+}
+
+function measureItem(mesh: Mesh | null, targetWidth: number) {
+  if (!mesh) {
+    return null;
+  }
+
+  mesh.geometry.computeBoundingBox();
+  const bounds = mesh.geometry.boundingBox;
+
+  if (!bounds) {
+    return null;
+  }
+
+  const naturalSize = bounds.getSize(new Vector3());
+
+  if (naturalSize.x <= 0 || naturalSize.y <= 0) {
+    return null;
+  }
+
+  const scale = targetWidth / naturalSize.x;
+
+  return {
+    center: bounds.getCenter(new Vector3()),
+    height: naturalSize.y * scale,
+    mesh,
+    scale,
+    width: targetWidth,
+  } satisfies MeasuredItem;
+}
+
+function createStack(items: Array<MeasuredItem | null>): StackLayout | null {
+  if (items.some((item) => item === null)) {
+    return null;
+  }
+
+  const measuredItems = items as MeasuredItem[];
+  const gap = FINTA_LOGO_SIDE * STACK_GAP_IN_LOGOS;
+
+  return {
+    height:
+      measuredItems.reduce((total, item) => total + item.height, 0) +
+      gap * Math.max(0, measuredItems.length - 1),
+    items: measuredItems,
+    width: Math.max(...measuredItems.map((item) => item.width)),
+  };
+}
+
+function fitScale(
+  layout: StackLayout,
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  return Math.min(
+    (viewportWidth * VIEWPORT_FILL) / layout.width,
+    (viewportHeight * VIEWPORT_FILL) / layout.height,
+  );
+}
+
+function placeStack(layout: StackLayout) {
+  const gap = FINTA_LOGO_SIDE * STACK_GAP_IN_LOGOS;
+  let top = layout.height / 2;
+
+  for (const item of layout.items) {
+    const centerY = top - item.height / 2;
+
+    item.mesh.scale.setScalar(item.scale);
+    item.mesh.position.set(
+      -item.center.x * item.scale,
+      centerY - item.center.y * item.scale,
+      -item.center.z * item.scale,
+    );
+    item.mesh.visible = true;
+    top -= item.height + gap;
+  }
 }
 
 function IncomingContent() {
   const groupRef = useRef<Group>(null);
+  const wideTitleRef = useRef<Mesh>(null);
+  const narrowTitleRef = useRef<Mesh>(null);
+  const narrowAtRef = useRef<Mesh>(null);
+  const logoRef = useRef<Mesh>(null);
+  const seasonRef = useRef<Mesh>(null);
   const pointer = useRef({ x: 0, y: 0 });
-  const { gl, size, viewport } = useThree();
+  const layoutSignatureRef = useRef("");
+  const { gl, viewport } = useThree();
 
   /* Track the cursor across the whole window (the canvas is just one strip
      of the modal), normalized against the canvas center. */
@@ -265,50 +362,87 @@ function IncomingContent() {
       return;
     }
 
+    const layoutSignature = [
+      viewport.width,
+      viewport.height,
+      wideTitleRef.current?.geometry.uuid,
+      narrowTitleRef.current?.geometry.uuid,
+      narrowAtRef.current?.geometry.uuid,
+      logoRef.current?.geometry.uuid,
+      seasonRef.current?.geometry.uuid,
+    ].join("|");
+
+    if (layoutSignature !== layoutSignatureRef.current) {
+      const logo = measureItem(logoRef.current, FINTA_LOGO_SIDE);
+      const season = measureItem(
+        seasonRef.current,
+        FINTA_LOGO_SIDE * SEASON_WIDTH_IN_LOGOS,
+      );
+      const wideLayout = createStack([
+        measureItem(
+          wideTitleRef.current,
+          FINTA_LOGO_SIDE * WIDE_TITLE_WIDTH_IN_LOGOS,
+        ),
+        logo,
+        season,
+      ]);
+      const narrowLayout = createStack([
+        measureItem(
+          narrowTitleRef.current,
+          FINTA_LOGO_SIDE * NARROW_TITLE_WIDTH_IN_LOGOS,
+        ),
+        measureItem(
+          narrowAtRef.current,
+          FINTA_LOGO_SIDE * NARROW_AT_WIDTH_IN_LOGOS,
+        ),
+        logo,
+        season,
+      ]);
+
+      if (wideLayout && narrowLayout) {
+        const wideScale = fitScale(wideLayout, viewport.width, viewport.height);
+        const narrowScale = fitScale(
+          narrowLayout,
+          viewport.width,
+          viewport.height,
+        );
+        const useNarrow =
+          narrowScale > wideScale * NARROW_LAYOUT_SCALE_ADVANTAGE;
+        const layout = useNarrow ? narrowLayout : wideLayout;
+
+        wideTitleRef.current!.visible = !useNarrow;
+        narrowTitleRef.current!.visible = useNarrow;
+        narrowAtRef.current!.visible = useNarrow;
+        logoRef.current!.visible = false;
+        seasonRef.current!.visible = false;
+        placeStack(layout);
+        group.scale.setScalar(useNarrow ? narrowScale : wideScale);
+        layoutSignatureRef.current = layoutSignature;
+      }
+    }
+
     const damping = 1 - Math.exp(-delta * 5);
     const idle = Math.sin(state.clock.elapsedTime * 0.7) * 0.03;
 
     group.rotation.y +=
       (pointer.current.x * 0.24 + idle - group.rotation.y) * damping;
-    group.rotation.x +=
-      (pointer.current.y * 0.12 - group.rotation.x) * damping;
-    group.position.y =
-      Math.sin(state.clock.elapsedTime * 0.8) * 0.06;
+    group.rotation.x += (pointer.current.y * 0.12 - group.rotation.x) * damping;
+    group.position.y = Math.sin(state.clock.elapsedTime * 0.8) * 0.06;
   });
 
-  const isNarrow = size.width < INCOMING_NARROW_PX;
-  const scale = Math.min(
-    1,
-    viewport.width /
-      (isNarrow ? INCOMING_NARROW_DESIGN_WIDTH : INCOMING_DESIGN_WIDTH),
-    viewport.height /
-      (isNarrow ? INCOMING_NARROW_DESIGN_HEIGHT : INCOMING_DESIGN_HEIGHT),
-  );
-
-  if (isNarrow) {
-    return (
-      <group ref={groupRef} scale={scale}>
-        <IncomingText color="#dcd7ba" size={1.15} y={3.05}>
-          INCOMING
-        </IncomingText>
-        <IncomingText color="#dcd7ba" size={0.85} y={1.85}>
-          @
-        </IncomingText>
-        <FintaLogo side={2.9} y={-0.55} />
-        <IncomingText color="#51c7da" size={0.75} y={-2.9}>
-          (F26)
-        </IncomingText>
-      </group>
-    );
-  }
-
   return (
-    <group ref={groupRef} scale={scale}>
-      <IncomingText color="#dcd7ba" size={1.45} y={2.55}>
+    <group ref={groupRef}>
+      <IncomingText color="#dcd7ba" meshRef={wideTitleRef}>
         INCOMING @
       </IncomingText>
-      <FintaLogo />
-      <IncomingText color="#51c7da" size={0.95} y={-2.65}>
+      <IncomingText color="#dcd7ba" meshRef={narrowTitleRef}>
+        INCOMING
+      </IncomingText>
+      <IncomingText color="#dcd7ba" meshRef={narrowAtRef}>
+        @
+      </IncomingText>
+      <FintaLogo meshRef={logoRef} />
+      <IncomingText color="#51c7da" meshRef={seasonRef}>
         (F26)
       </IncomingText>
     </group>

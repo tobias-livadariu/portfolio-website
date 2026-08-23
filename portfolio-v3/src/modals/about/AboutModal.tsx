@@ -183,7 +183,7 @@ const TOBIFETCH_LINES: readonly TobifetchLine[] = [
   {
     kind: "message",
     parts: [
-      "and curret resume. \\n\\n",
+      "and current resume. \\n\\n",
     ],
   },
   { kind: "spacer" },
