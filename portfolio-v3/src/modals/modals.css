@@ -399,6 +399,10 @@
 .modal-incoming {
   aspect-ratio: 1.35;
   margin: 0.5rem 0 1.25rem;
+  /* The R3F canvas writes its measured dimensions inline. Without this,
+     flexbox treats the previous canvas height as the item's intrinsic
+     minimum after a live resize and the aspect ratio cannot shrink it. */
+  min-height: 0;
 }
 
 .modal-incoming canvas {
