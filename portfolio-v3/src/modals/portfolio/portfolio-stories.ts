@@ -5,14 +5,14 @@ export const SHOPIFY_STORY = {
   highlights: [
     {
       body: "Fixed crashes across three marketing reports by handling shops without access to the underlying analytics context.",
-      frame: "bracket",
+      frame: "double",
       impact: "roughly 150 shops affected each day",
-      stack: "React / TypeScript / loader tests",
+      stack: "React / TypeScript",
       title: "REPORT RELIABILITY",
     },
     {
       body: "Moved marketing reports off a legacy data pipeline and onto request-time sales queries behind a beta flag.",
-      frame: "double",
+      frame: "bracket",
       impact:
         "enabled retirement of infrastructure tied to 15% of team on-call incidents and 50% of monthly costs",
       stack: "React / TypeScript / Ruby / Rails",
@@ -29,7 +29,7 @@ export const SHOPIFY_STORY = {
       body: "Detected a silent GCP permissions failure that blocked new analytics pipeline jobs before automated monitoring caught it.",
       frame: "bracket",
       impact: "prevented days of stale merchant data",
-      stack: "GCP / ETL / production diagnostics",
+      stack: "GCP / ETL",
       title: "INCIDENT RESPONSE",
     },
     {
@@ -74,7 +74,7 @@ export const IDEANOTION_STORY = {
     },
     {
       body: "Migrated five .NET controllers and 62 endpoints from a legacy project to EF Core, with 55 DTOs and five typed client APIs.",
-      frame: "circuit",
+      frame: "bracket",
       impact:
         "gave Food Banks Canada staff type-safe access to rebuilt admin workflows",
       stack: ".NET / EF Core / SQL / RTK Query",
@@ -82,7 +82,7 @@ export const IDEANOTION_STORY = {
     },
     {
       body: "Built more than 15 reusable WordPress content blocks and updated more than 20 English and French pages from Figma designs.",
-      frame: "bracket",
+      frame: "circuit",
       impact:
         "shipped responsive layouts and repaired sliders across three pages",
       stack: "PHP / WordPress / ACF / Figma",
