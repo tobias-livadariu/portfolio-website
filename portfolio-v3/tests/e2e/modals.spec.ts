@@ -182,7 +182,7 @@ test("modal document opens from scroll and supports section navigation", async (
         "xpath=ancestor::div[contains(@class, 'modal-terminal-line-story')]",
       )
       .locator(".modal-story-meta-accent"),
-  ).toHaveText(["r", "a"]);
+  ).toHaveText(["r", "150", "a"]);
   await expect(
     shopifyCards
       .locator(".modal-story-meta-label", { hasText: "STACK" })
@@ -192,6 +192,16 @@ test("modal document opens from scroll and supports section navigation", async (
       )
       .locator(".modal-story-meta-accent"),
   ).toHaveText(["R", "T"]);
+  const ideaNotionCards = activePanel.locator(".modal-story-cards").nth(1);
+  await expect(
+    ideaNotionCards
+      .locator(".modal-story-meta-label", { hasText: "STACK" })
+      .first()
+      .locator(
+        "xpath=ancestor::div[contains(@class, 'modal-terminal-line-story')]",
+      )
+      .locator(".modal-story-meta-accent"),
+  ).toHaveText(["R", ".N", "O", "C"]);
   await expect(
     page.getByRole("link", { name: /portfolio-website/ }),
   ).toBeVisible();

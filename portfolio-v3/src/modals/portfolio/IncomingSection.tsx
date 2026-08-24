@@ -14,57 +14,50 @@ const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
 /* Finta-scene tuning knobs. The values are grouped so the full composition
    can be adjusted from one place without modifying layout or animation code. */
 const INCOMING_SCENE_TUNING = {
-  backdropDepth: -0.42,
-  backdropFloatAmount: 0.035,
-  backdropLogoOpacity: 0.38,
-  backdropLogoWidthRelativeToTitle: 0.3,
-  backdropTwistDegrees: 7,
   baseBottomMarginRem: 1.25,
   baseTopMarginRem: 0.5,
   baseWhitespaceRelativeToStack: 0.04,
   bottomWhitespaceMultiplier: 0,
+  decoratorDepth: -0.12,
+  decoratorFloatAmount: 0.035,
   decoratorSizeMultiplier: 1,
+  decoratorTwistDegrees: 7,
+  decoratorWidthRelativeToTitle: 0.3,
   fallbackLayoutAspectRatio: 1.35,
-  fintaStageHeightRelativeToTitle: 0.52,
-  fintaTextDepth: 0.18,
-  fintaTextWidthRelativeToTitle: 0.64,
   glyphCellHeight: 10,
   glyphCellWidth: 6,
   idleTwistDegrees: 1.7,
+  innerSquareSizeRelativeToTitle: 0.5,
   logoBlue: "#2a42ff",
+  logoDepth: 0.18,
+  logoStageHeightRelativeToTitle: 0.48,
+  logoWidthRelativeToTitle: 0.3,
   mainFloatAmount: 0.06,
   maxPointerTwistDegrees: 13.5,
   motionDamping: 5,
+  outerSquareInitialRotationDegrees: 45,
+  outerSquareSizeRelativeToTitle: 0.68,
   pointerPitchRatio: 0.5,
   seasonTextSizeRelativeToTitle: 0.8,
   sectionSizeMultiplier: 0.78,
+  squareBorderRelativeToTitle: 0.012,
+  squareColor: "#172a82",
+  squareDepth: -0.56,
+  squareOpacity: 0.52,
+  squareSpinDegreesPerSecond: 3.6,
   stackGapRelativeToTitle: 0.032,
   titleLayoutWidth: 1,
   titleViewportWidth: 0.9,
   topWhitespaceMultiplier: 0,
-  wordmarkBlue: "#344bc4",
 } as const;
 
-function FintaBackdrop({
+function FintaDecorators({
   groupRef,
 }: {
   groupRef: React.RefObject<Group | null>;
 }) {
-  const texture = useTexture(FINTA_LOGO_PATH);
-
   return (
     <group ref={groupRef} visible={false}>
-      <mesh position={[0, 0, 0.04]}>
-        <planeGeometry args={[0.88, 0.88]} />
-        <meshBasicMaterial
-          depthWrite={false}
-          map={texture}
-          opacity={INCOMING_SCENE_TUNING.backdropLogoOpacity}
-          transparent
-          toneMapped={false}
-        />
-      </mesh>
-
       <group scale={INCOMING_SCENE_TUNING.decoratorSizeMultiplier}>
         <mesh position={[0, 0, -0.04]}>
           <ringGeometry args={[0.56, 0.59, 72]} />
@@ -122,6 +115,70 @@ function FintaBackdrop({
         ))}
       </group>
     </group>
+  );
+}
+
+function HollowSquare({ size }: { size: number }) {
+  const border = INCOMING_SCENE_TUNING.squareBorderRelativeToTitle;
+  const material = (
+    <meshBasicMaterial
+      color={INCOMING_SCENE_TUNING.squareColor}
+      depthWrite={false}
+      opacity={INCOMING_SCENE_TUNING.squareOpacity}
+      toneMapped={false}
+      transparent
+    />
+  );
+
+  return (
+    <>
+      {[-1, 1].map((side) => (
+        <mesh key={`horizontal-${side}`} position={[0, (side * size) / 2, 0]}>
+          <planeGeometry args={[size, border]} />
+          {material}
+        </mesh>
+      ))}
+      {[-1, 1].map((side) => (
+        <mesh key={`vertical-${side}`} position={[(side * size) / 2, 0, 0]}>
+          <planeGeometry args={[border, size]} />
+          {material}
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+function SquareField({
+  innerRef,
+  outerRef,
+}: {
+  innerRef: React.RefObject<Group | null>;
+  outerRef: React.RefObject<Group | null>;
+}) {
+  return (
+    <group position={[0, 0, INCOMING_SCENE_TUNING.squareDepth]}>
+      <group ref={outerRef}>
+        <HollowSquare
+          size={INCOMING_SCENE_TUNING.outerSquareSizeRelativeToTitle}
+        />
+      </group>
+      <group ref={innerRef}>
+        <HollowSquare
+          size={INCOMING_SCENE_TUNING.innerSquareSizeRelativeToTitle}
+        />
+      </group>
+    </group>
+  );
+}
+
+function FintaLogo({ meshRef }: { meshRef: React.RefObject<Mesh | null> }) {
+  const texture = useTexture(FINTA_LOGO_PATH);
+
+  return (
+    <mesh ref={meshRef} visible={false}>
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial map={texture} toneMapped={false} transparent />
+    </mesh>
   );
 }
 
@@ -257,13 +314,15 @@ function IncomingContent({
   onLayoutAspectRatioChange: (aspectRatio: number) => void;
 }) {
   const groupRef = useRef<Group>(null);
-  const backdropRef = useRef<Group>(null);
+  const decoratorRef = useRef<Group>(null);
+  const innerSquareRef = useRef<Group>(null);
+  const outerSquareRef = useRef<Group>(null);
   const titleRef = useRef<Mesh>(null);
   const atRef = useRef<Mesh>(null);
-  const fintaRef = useRef<Mesh>(null);
+  const logoRef = useRef<Mesh>(null);
   const seasonRef = useRef<Mesh>(null);
   const pointer = useRef({ x: 0, y: 0 });
-  const backdropBaseY = useRef(0);
+  const decoratorBaseY = useRef(0);
   const layoutSignatureRef = useRef("");
   const { gl, viewport } = useThree();
 
@@ -299,15 +358,15 @@ function IncomingContent({
       viewport.width,
       viewport.height,
       INCOMING_SCENE_TUNING.sectionSizeMultiplier,
-      INCOMING_SCENE_TUNING.fintaTextWidthRelativeToTitle,
-      INCOMING_SCENE_TUNING.backdropLogoWidthRelativeToTitle,
+      INCOMING_SCENE_TUNING.logoWidthRelativeToTitle,
+      INCOMING_SCENE_TUNING.decoratorWidthRelativeToTitle,
       INCOMING_SCENE_TUNING.decoratorSizeMultiplier,
       INCOMING_SCENE_TUNING.seasonTextSizeRelativeToTitle,
       INCOMING_SCENE_TUNING.topWhitespaceMultiplier,
       INCOMING_SCENE_TUNING.bottomWhitespaceMultiplier,
       titleRef.current?.geometry.uuid,
       atRef.current?.geometry.uuid,
-      fintaRef.current?.geometry.uuid,
+      logoRef.current?.geometry.uuid,
       seasonRef.current?.geometry.uuid,
     ].join("|");
 
@@ -316,18 +375,18 @@ function IncomingContent({
         titleRef.current,
         INCOMING_SCENE_TUNING.titleLayoutWidth,
       );
-      const finta = measureItem(
-        fintaRef.current,
+      const logo = measureItem(
+        logoRef.current,
         INCOMING_SCENE_TUNING.titleLayoutWidth *
-          INCOMING_SCENE_TUNING.fintaTextWidthRelativeToTitle,
+          INCOMING_SCENE_TUNING.logoWidthRelativeToTitle,
       );
-      const fintaStage = finta
+      const logoStage = logo
         ? {
-            ...finta,
+            ...logo,
             height: Math.max(
-              finta.height,
+              logo.height,
               INCOMING_SCENE_TUNING.titleLayoutWidth *
-                INCOMING_SCENE_TUNING.fintaStageHeightRelativeToTitle,
+                INCOMING_SCENE_TUNING.logoStageHeightRelativeToTitle,
             ),
           }
         : null;
@@ -339,11 +398,11 @@ function IncomingContent({
       const layout = createStack([
         title,
         measureItemAtScale(atRef.current, title?.scale ?? 1),
-        fintaStage,
+        logoStage,
         season,
       ]);
 
-      if (layout && fintaStage && backdropRef.current) {
+      if (layout && logoStage && decoratorRef.current) {
         const baseWhitespace =
           layout.height * INCOMING_SCENE_TUNING.baseWhitespaceRelativeToStack;
         const topWhitespace =
@@ -355,20 +414,20 @@ function IncomingContent({
           layout,
           (bottomWhitespace - topWhitespace) / 2,
         );
-        const fintaCenter = itemCenters.get(fintaStage.mesh) ?? 0;
+        const logoCenter = itemCenters.get(logoStage.mesh) ?? 0;
 
-        fintaStage.mesh.position.z = INCOMING_SCENE_TUNING.fintaTextDepth;
-        backdropRef.current.position.set(
+        logoStage.mesh.position.z = INCOMING_SCENE_TUNING.logoDepth;
+        decoratorRef.current.position.set(
           0,
-          fintaCenter,
-          INCOMING_SCENE_TUNING.backdropDepth,
+          logoCenter,
+          INCOMING_SCENE_TUNING.decoratorDepth,
         );
-        backdropRef.current.scale.setScalar(
+        decoratorRef.current.scale.setScalar(
           INCOMING_SCENE_TUNING.titleLayoutWidth *
-            INCOMING_SCENE_TUNING.backdropLogoWidthRelativeToTitle,
+            INCOMING_SCENE_TUNING.decoratorWidthRelativeToTitle,
         );
-        backdropRef.current.visible = true;
-        backdropBaseY.current = fintaCenter;
+        decoratorRef.current.visible = true;
+        decoratorBaseY.current = logoCenter;
         group.scale.setScalar(fitTitleToWidth(viewport.width));
         onLayoutAspectRatioChange(
           INCOMING_SCENE_TUNING.titleLayoutWidth /
@@ -400,35 +459,41 @@ function IncomingContent({
     group.position.y =
       Math.sin(time * 0.8) * INCOMING_SCENE_TUNING.mainFloatAmount;
 
-    if (backdropRef.current) {
-      const backdropTwist = MathUtils.degToRad(
-        INCOMING_SCENE_TUNING.backdropTwistDegrees,
+    if (decoratorRef.current) {
+      const decoratorTwist = MathUtils.degToRad(
+        INCOMING_SCENE_TUNING.decoratorTwistDegrees,
       );
 
-      backdropRef.current.rotation.y = Math.sin(time * 0.47) * backdropTwist;
-      backdropRef.current.rotation.z =
-        Math.cos(time * 0.39) * backdropTwist * 0.32;
-      backdropRef.current.position.y =
-        backdropBaseY.current +
-        Math.sin(time * 0.56) * INCOMING_SCENE_TUNING.backdropFloatAmount;
+      decoratorRef.current.rotation.y = Math.sin(time * 0.47) * decoratorTwist;
+      decoratorRef.current.position.y =
+        decoratorBaseY.current +
+        Math.sin(time * 0.56) * INCOMING_SCENE_TUNING.decoratorFloatAmount;
+    }
+
+    if (outerSquareRef.current && innerSquareRef.current) {
+      const spin = MathUtils.degToRad(
+        time * INCOMING_SCENE_TUNING.squareSpinDegreesPerSecond,
+      );
+
+      outerSquareRef.current.rotation.z =
+        MathUtils.degToRad(
+          INCOMING_SCENE_TUNING.outerSquareInitialRotationDegrees,
+        ) + spin;
+      innerSquareRef.current.rotation.z = -spin;
     }
   });
 
   return (
     <group ref={groupRef}>
-      <FintaBackdrop groupRef={backdropRef} />
+      <SquareField innerRef={innerSquareRef} outerRef={outerSquareRef} />
+      <FintaDecorators groupRef={decoratorRef} />
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={titleRef}>
         INCOMING
       </IncomingText>
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={atRef}>
         @
       </IncomingText>
-      <IncomingText
-        color={INCOMING_SCENE_TUNING.wordmarkBlue}
-        meshRef={fintaRef}
-      >
-        FINTA
-      </IncomingText>
+      <FintaLogo meshRef={logoRef} />
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={seasonRef}>
         (F26)
       </IncomingText>

@@ -18,11 +18,11 @@ const STORY_SCENE_TUNING = {
   decoratorSizeMultiplier: 1,
   glyphCellHeight: 9,
   glyphCellWidth: 5,
-  heroLinesNarrow: 24,
-  heroLinesRegular: 26,
+  heroLinesNarrow: 20,
+  heroLinesRegular: 21,
   heroLinesWide: 28,
-  heroNarrowMaxColumns: 40,
-  heroRegularMaxColumns: 72,
+  heroNarrowMaxWidthPx: 520,
+  heroRegularMaxWidthPx: 900,
   logoFloatAmount: 0.05,
   logoMaxHeightRelativeToViewport: 0.32,
   logoTwistDegrees: { x: 4, y: 9.2, z: 1.4 },
@@ -30,11 +30,12 @@ const STORY_SCENE_TUNING = {
   logoYRelativeToViewport: -0.29,
   motionDamping: 5,
   railScaleRelativeToViewport: 0.13,
-  railYRelativeToViewport: -0.13,
+  railYOffsetRelativeToLogo: 0,
   subtitleDepth: 0.12,
   subtitleFloatAmount: 0.025,
   subtitleMaxHeightRelativeToViewport: 0.13,
   subtitleOffsetRelativeToViewport: 0.095,
+  subtitleScaleRelativeToTitle: 0.9,
   subtitleWidthRelativeToViewport: 0.82,
   titleCursorActivationDistance: 0.075,
   titleCursorBlendDistance: 0.14,
@@ -133,29 +134,6 @@ const FRAME_CHARACTERS: Record<StoryFrame, FrameCharacters> = {
   },
 };
 
-function wrapWords(text: string, width: number) {
-  const words = text.trim().split(/\s+/);
-  const lines: string[] = [];
-  let line = "";
-
-  for (const word of words) {
-    if (!line) {
-      line = word;
-    } else if (`${line} ${word}`.length <= width) {
-      line = `${line} ${word}`;
-    } else {
-      lines.push(line);
-      line = word;
-    }
-  }
-
-  if (line) {
-    lines.push(line);
-  }
-
-  return lines;
-}
-
 function wrapWordsWithOffsets(text: string, width: number) {
   const source = text.trim();
   const words = Array.from(source.matchAll(/\S+/g));
@@ -194,10 +172,10 @@ function wrapWordsWithOffsets(text: string, width: number) {
 }
 
 function impactAccentIndices(labelLength: number, impact: string) {
-  const normalized = impact.trim().replace(/\s+/g, " ");
+  const source = impact.trim();
   const indices = new Set<number>();
 
-  for (const wordMatch of normalized.matchAll(/\S+/g)) {
+  for (const wordMatch of source.matchAll(/\S+/g)) {
     const word = wordMatch[0];
     const wordCharacters = word.match(/[A-Za-z0-9]/g)?.length ?? 0;
     const firstCharacter = word.search(/[A-Za-z0-9]/);
@@ -211,18 +189,51 @@ function impactAccentIndices(labelLength: number, impact: string) {
 }
 
 function stackAccentIndices(labelLength: number, stack: string) {
-  const normalized = stack.trim().replace(/\s+/g, " ");
+  const source = stack.trim();
   const indices = new Set<number>();
 
-  for (const technologyMatch of normalized.matchAll(/[^/]+/g)) {
-    const firstCharacter = technologyMatch[0].search(/[A-Za-z0-9]/);
+  for (const technologyMatch of source.matchAll(/[^/]+/g)) {
+    const technology = technologyMatch[0];
+    const firstVisibleCharacter = technology.search(/\S/);
+    const firstAlphanumericCharacter = technology.search(/[A-Za-z0-9]/);
 
-    if (firstCharacter >= 0) {
-      indices.add(labelLength + technologyMatch.index + firstCharacter);
+    if (firstVisibleCharacter < 0 || firstAlphanumericCharacter < 0) {
+      continue;
+    }
+
+    for (
+      let index = firstVisibleCharacter;
+      index <= firstAlphanumericCharacter;
+      index += 1
+    ) {
+      if (!"()[]{}".includes(technology[index])) {
+        indices.add(labelLength + technologyMatch.index + index);
+      }
     }
   }
 
   return indices;
+}
+
+function numericAccentIndices(labelLength: number, text: string) {
+  const source = text.trim();
+  const indices = new Set<number>();
+
+  /* Keep punctuation attached to a number in the same accent span: 4,500+,
+     15%, 6–10, and similar measurements should read as one visual token. */
+  for (const numberMatch of source.matchAll(
+    /[+\-−–—.,%$#~<>]*\d[\d+\-−–—.,:%$#~<>/]*/g,
+  )) {
+    for (let index = 0; index < numberMatch[0].length; index += 1) {
+      indices.add(labelLength + numberMatch.index + index);
+    }
+  }
+
+  return indices;
+}
+
+function mergeAccentIndices(...sets: ReadonlySet<number>[]) {
+  return new Set(sets.flatMap((set) => Array.from(set)));
 }
 
 function styledContentSegments({
@@ -332,15 +343,25 @@ function buildHighlightRows(
     ],
   ];
 
-  for (const line of wrapWords(highlight.body, innerWidth)) {
-    rows.push(framedTextRow({ characters, content: line, indent, innerWidth }));
+  const bodyAccents = numericAccentIndices(0, highlight.body);
+  for (const line of wrapWordsWithOffsets(highlight.body, innerWidth)) {
+    rows.push(
+      framedTextRow({
+        accentIndices: bodyAccents,
+        characters,
+        content: line.text,
+        indent,
+        innerWidth,
+        lineStart: line.start,
+      }),
+    );
   }
 
   const impactLabel = "IMPACT // ";
   const impactText = `${impactLabel}${highlight.impact}`;
-  const impactAccents = impactAccentIndices(
-    impactLabel.length,
-    highlight.impact,
+  const impactAccents = mergeAccentIndices(
+    impactAccentIndices(impactLabel.length, highlight.impact),
+    numericAccentIndices(impactLabel.length, highlight.impact),
   );
   for (const line of wrapWordsWithOffsets(impactText, innerWidth)) {
     rows.push(
@@ -359,7 +380,10 @@ function buildHighlightRows(
 
   const stackLabel = "STACK  // ";
   const stackText = `${stackLabel}${highlight.stack}`;
-  const stackAccents = stackAccentIndices(stackLabel.length, highlight.stack);
+  const stackAccents = mergeAccentIndices(
+    stackAccentIndices(stackLabel.length, highlight.stack),
+    numericAccentIndices(stackLabel.length, highlight.stack),
+  );
   for (const line of wrapWordsWithOffsets(stackText, innerWidth)) {
     rows.push(
       framedTextRow({
@@ -399,31 +423,36 @@ function centerMeshAtWidth(
   mesh: Mesh | null,
   targetWidth: number,
   maximumHeight = Number.POSITIVE_INFINITY,
+  maximumScale = Number.POSITIVE_INFINITY,
 ) {
   if (!mesh) {
-    return false;
+    return null;
   }
 
   mesh.geometry.computeBoundingBox();
   const bounds = mesh.geometry.boundingBox;
 
   if (!bounds) {
-    return false;
+    return null;
   }
 
   const size = bounds.getSize(new Vector3());
 
   if (size.x <= 0 || size.y <= 0) {
-    return false;
+    return null;
   }
 
   const center = bounds.getCenter(new Vector3());
-  const scale = Math.min(targetWidth / size.x, maximumHeight / size.y);
+  const scale = Math.min(
+    targetWidth / size.x,
+    maximumHeight / size.y,
+    maximumScale,
+  );
 
   mesh.scale.setScalar(scale);
   mesh.position.set(-center.x * scale, -center.y * scale, -center.z * scale);
   mesh.visible = true;
-  return true;
+  return scale;
 }
 
 function HologramText({
@@ -601,17 +630,22 @@ function HologramContent({
         viewport.width * STORY_SCENE_TUNING.titleWidthRelativeToViewport,
         viewport.height * STORY_SCENE_TUNING.titleMaxHeightRelativeToViewport,
       );
+      const maximumSubtitleScale =
+        (titleReady ?? Number.POSITIVE_INFINITY) *
+        STORY_SCENE_TUNING.subtitleScaleRelativeToTitle;
       const subtitleTopReady = centerMeshAtWidth(
         subtitleTopRef.current,
         viewport.width * STORY_SCENE_TUNING.subtitleWidthRelativeToViewport,
         viewport.height *
           STORY_SCENE_TUNING.subtitleMaxHeightRelativeToViewport,
+        maximumSubtitleScale,
       );
       const subtitleBottomReady = centerMeshAtWidth(
         subtitleBottomRef.current,
         viewport.width * STORY_SCENE_TUNING.subtitleWidthRelativeToViewport,
         viewport.height *
           STORY_SCENE_TUNING.subtitleMaxHeightRelativeToViewport,
+        maximumSubtitleScale,
       );
 
       if (
@@ -647,7 +681,8 @@ function HologramContent({
         logoRef.current.visible = true;
         railGroup.position.set(
           0,
-          viewport.height * STORY_SCENE_TUNING.railYRelativeToViewport,
+          logoY +
+            viewport.height * STORY_SCENE_TUNING.railYOffsetRelativeToLogo,
           -0.06,
         );
         railGroup.scale.setScalar(
@@ -816,20 +851,22 @@ export default function HolographicStoryScene({
   definition: HolographicStoryDefinition;
   firstLineNumber: number;
 }) {
-  const { columns, measureRef, wrapperRef } = useTerminalContentColumns({
-    fallback: 88,
-    min: 22,
-    step: 2,
-  });
+  const { columns, contentWidth, measureRef, wrapperRef } =
+    useTerminalContentColumns({
+      fallback: 88,
+      min: 22,
+      step: 2,
+    });
   const heroRef = useRef<HTMLDivElement>(null);
   const [isOnScreen, setIsOnScreen] = useState(false);
   const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
   const motionEnabled = motionOverride ?? !prefersReducedMotion;
+  const measuredHeroWidth = contentWidth || Number.POSITIVE_INFINITY;
   const heroLineCount =
-    columns < STORY_SCENE_TUNING.heroNarrowMaxColumns
+    measuredHeroWidth < STORY_SCENE_TUNING.heroNarrowMaxWidthPx
       ? STORY_SCENE_TUNING.heroLinesNarrow
-      : columns < STORY_SCENE_TUNING.heroRegularMaxColumns
+      : measuredHeroWidth < STORY_SCENE_TUNING.heroRegularMaxWidthPx
         ? STORY_SCENE_TUNING.heroLinesRegular
         : STORY_SCENE_TUNING.heroLinesWide;
   const rows = useMemo(
