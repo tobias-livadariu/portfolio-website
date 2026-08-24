@@ -7,6 +7,7 @@ import TransparentAsciiRenderer from "../../scene/ascii/TransparentAsciiRenderer
 import { CANVAS_DPR } from "../../scene/canvas.constants";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
+import { useScenePointer } from "../components/use-scene-pointer";
 import { DRAGON_LUCY } from "../modals.constants";
 
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
@@ -459,39 +460,13 @@ function IncomingContent({
   const atRef = useRef<Mesh>(null);
   const logoRef = useRef<Mesh>(null);
   const seasonRef = useRef<Mesh>(null);
-  const pointer = useRef({ x: 0, y: 0 });
   const decoratorBaseY = useRef(0);
   const layoutSignatureRef = useRef("");
   const { gl, viewport } = useThree();
-
-  /* Track the cursor across the whole window (the canvas is just one strip
-     of the modal), normalized against the canvas center. */
-  useEffect(() => {
-    const handleMove = (event: PointerEvent) => {
-      const rect = gl.domElement.getBoundingClientRect();
-
-      if (rect.width <= 0 || rect.height <= 0) {
-        return;
-      }
-
-      const x = (event.clientX - rect.left - rect.width / 2) / rect.width;
-      const y = (event.clientY - rect.top - rect.height / 2) / rect.height;
-
-      pointer.current.x = MathUtils.clamp(
-        x,
-        -INCOMING_SCENE_TUNING.pointerClampX,
-        INCOMING_SCENE_TUNING.pointerClampX,
-      );
-      pointer.current.y = MathUtils.clamp(
-        y,
-        -INCOMING_SCENE_TUNING.pointerClampY,
-        INCOMING_SCENE_TUNING.pointerClampY,
-      );
-    };
-
-    window.addEventListener("pointermove", handleMove, { passive: true });
-    return () => window.removeEventListener("pointermove", handleMove);
-  }, [gl]);
+  const pointer = useScenePointer(gl.domElement, {
+    clampX: INCOMING_SCENE_TUNING.pointerClampX,
+    clampY: INCOMING_SCENE_TUNING.pointerClampY,
+  });
 
   useFrame((state, delta) => {
     const group = groupRef.current;

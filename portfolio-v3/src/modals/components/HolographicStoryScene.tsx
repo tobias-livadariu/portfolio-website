@@ -9,6 +9,7 @@ import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { DRAGON_LUCY } from "../modals.constants";
 import { TerminalTranscriptLine } from "./Terminal";
+import { useScenePointer } from "./use-scene-pointer";
 import { useTerminalContentColumns } from "./use-terminal-content-columns";
 
 /* Complete art-direction panel for both company story scenes. Every visual
@@ -791,41 +792,14 @@ function HologramContent({
   const subtitleTopRef = useRef<Mesh>(null);
   const subtitleBottomRef = useRef<Mesh>(null);
   const logoRef = useRef<Mesh>(null);
-  const pointer = useRef({ isInsideCanvas: false, x: 0, y: 0 });
   const basePositions = useRef({ logoY: 0, subtitleY: 0, titleY: 0 });
   const layoutSignatureRef = useRef("");
   const { gl, viewport } = useThree();
   const palette = PALETTES[definition.theme];
-
-  useEffect(() => {
-    const handleMove = (event: PointerEvent) => {
-      const rect = gl.domElement.getBoundingClientRect();
-
-      if (rect.width <= 0 || rect.height <= 0) {
-        return;
-      }
-
-      const x = (event.clientX - rect.left - rect.width / 2) / rect.width;
-      const y = (event.clientY - rect.top - rect.height / 2) / rect.height;
-
-      pointer.current = {
-        isInsideCanvas: x >= -0.5 && x <= 0.5 && y >= -0.5 && y <= 0.5,
-        x: MathUtils.clamp(
-          x,
-          -STORY_SCENE_TUNING.pointerClampX,
-          STORY_SCENE_TUNING.pointerClampX,
-        ),
-        y: MathUtils.clamp(
-          y,
-          -STORY_SCENE_TUNING.pointerClampY,
-          STORY_SCENE_TUNING.pointerClampY,
-        ),
-      };
-    };
-
-    window.addEventListener("pointermove", handleMove, { passive: true });
-    return () => window.removeEventListener("pointermove", handleMove);
-  }, [gl]);
+  const pointer = useScenePointer(gl.domElement, {
+    clampX: STORY_SCENE_TUNING.pointerClampX,
+    clampY: STORY_SCENE_TUNING.pointerClampY,
+  });
 
   useFrame((state, delta) => {
     const titleGroup = titleGroupRef.current;
