@@ -9,7 +9,7 @@ import {
   WebGLRenderTarget,
 } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
-import { useAsciiGlyphSize } from "../hooks/useAsciiGlyphSize";
+import { usePortfolioAsciiGlyphSize } from "../hooks/usePortfolioAsciiGlyphSize";
 
 const ASCII_GLYPHS = " .:-=+*#%@";
 const GLYPH_WIDTH = 12;
@@ -120,7 +120,7 @@ export default function TransparentAsciiRenderer({
 }: Props) {
   const { camera, gl, scene, size } = useThree();
   const pixelRatio = gl.getPixelRatio();
-  const glyphSize = useAsciiGlyphSize({
+  const glyphSize = usePortfolioAsciiGlyphSize({
     baseHeight: baseCellHeight,
     baseWidth: baseCellWidth,
     pixelRatio,

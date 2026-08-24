@@ -9,28 +9,50 @@ import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { getResponsiveAsciiGlyphSize } from "../../utility/ascii-glyph-size";
 
 const ASCII_GLYPHS = " .:-=+*#%@";
-const GLYPH_WIDTH = 8;
-const GLYPH_HEIGHT = 14;
+const GLYPH_ATLAS_CELL_WIDTH_PX = 8;
+const GLYPH_ATLAS_CELL_HEIGHT_PX = 14;
+
+/**
+ * Art-direction knobs for the full-page R3F ASCII filter. They are separate
+ * from the transparent portfolio-modal renderer so the two systems can use
+ * different glyph densities and responsive growth curves.
+ */
+export const ASCII_FILTER_GLYPH_SIZE_TUNING = {
+  // Glyph-cell height at the reference render-target width. Lower is denser.
+  baseCellHeightPx: 5,
+  // Glyph-cell width at the reference render-target width. Lower is denser.
+  baseCellWidthPx: 3,
+  // Hard cap on cell growth. Lower values add more glyphs on very wide screens.
+  maximumScale: 1.2,
+  // Smallest cell height allowed on narrow render targets.
+  minimumCellHeightPx: 3,
+  // Smallest cell width allowed on narrow render targets.
+  minimumCellWidthPx: 2,
+  // Render-target width at which the base cell dimensions are used exactly.
+  referenceRenderWidthPx: 1920,
+  // 1 is linear; lower values make cells grow more slowly as screens get wider.
+  renderWidthScaleExponent: 0.64,
+} as const;
 
 function createGlyphTexture() {
   const canvas = document.createElement("canvas");
-  canvas.width = GLYPH_WIDTH * ASCII_GLYPHS.length;
-  canvas.height = GLYPH_HEIGHT;
+  canvas.width = GLYPH_ATLAS_CELL_WIDTH_PX * ASCII_GLYPHS.length;
+  canvas.height = GLYPH_ATLAS_CELL_HEIGHT_PX;
 
   const context = canvas.getContext("2d");
 
   if (context) {
     context.clearRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#fff";
-    context.font = `700 ${Math.floor(GLYPH_HEIGHT * 0.82)}px "Iosevka Term Web", monospace`;
+    context.font = `700 ${Math.floor(GLYPH_ATLAS_CELL_HEIGHT_PX * 0.82)}px "Iosevka Term Web", monospace`;
     context.textAlign = "center";
     context.textBaseline = "middle";
 
     for (let index = 0; index < ASCII_GLYPHS.length; index += 1) {
       context.fillText(
         ASCII_GLYPHS[index],
-        index * GLYPH_WIDTH + GLYPH_WIDTH / 2,
-        GLYPH_HEIGHT / 2,
+        index * GLYPH_ATLAS_CELL_WIDTH_PX + GLYPH_ATLAS_CELL_WIDTH_PX / 2,
+        GLYPH_ATLAS_CELL_HEIGHT_PX / 2,
       );
     }
   }
@@ -53,10 +75,18 @@ export default class AsciiPass extends ShaderPass {
       name: "PortfolioAsciiShader",
       uniforms: {
         backgroundColor: { value: new Color("#02040a") },
-        cellSize: { value: new Vector2(GLYPH_WIDTH, GLYPH_HEIGHT) },
+        cellSize: {
+          value: new Vector2(
+            ASCII_FILTER_GLYPH_SIZE_TUNING.baseCellWidthPx,
+            ASCII_FILTER_GLYPH_SIZE_TUNING.baseCellHeightPx,
+          ),
+        },
         glyphCount: { value: ASCII_GLYPHS.length },
         glyphResolution: {
-          value: new Vector2(GLYPH_WIDTH * ASCII_GLYPHS.length, GLYPH_HEIGHT),
+          value: new Vector2(
+            GLYPH_ATLAS_CELL_WIDTH_PX * ASCII_GLYPHS.length,
+            GLYPH_ATLAS_CELL_HEIGHT_PX,
+          ),
         },
         resolution: { value: new Vector2(1, 1) },
         tDiffuse: { value: null },
@@ -124,8 +154,13 @@ export default class AsciiPass extends ShaderPass {
   override setSize(width: number, height: number) {
     this.uniforms?.resolution.value.set(width, height);
     const glyphSize = getResponsiveAsciiGlyphSize(width, {
-      baseHeight: GLYPH_HEIGHT,
-      baseWidth: GLYPH_WIDTH,
+      baseHeight: ASCII_FILTER_GLYPH_SIZE_TUNING.baseCellHeightPx,
+      baseWidth: ASCII_FILTER_GLYPH_SIZE_TUNING.baseCellWidthPx,
+      maxScale: ASCII_FILTER_GLYPH_SIZE_TUNING.maximumScale,
+      minHeight: ASCII_FILTER_GLYPH_SIZE_TUNING.minimumCellHeightPx,
+      minWidth: ASCII_FILTER_GLYPH_SIZE_TUNING.minimumCellWidthPx,
+      referenceWidth: ASCII_FILTER_GLYPH_SIZE_TUNING.referenceRenderWidthPx,
+      scaleExponent: ASCII_FILTER_GLYPH_SIZE_TUNING.renderWidthScaleExponent,
     });
 
     this.uniforms?.cellSize.value.set(glyphSize.width, glyphSize.height);

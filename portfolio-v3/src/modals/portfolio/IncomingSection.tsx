@@ -50,9 +50,9 @@ const INCOMING_SCENE_TUNING = {
   // Initial aspect ratio used before the measured stack becomes available.
   fallbackLayoutAspectRatio: 1.35,
   // Vertical pixel size of one output glyph in the ASCII renderer.
-  glyphCellHeight: 10,
+  asciiGlyphCellHeightPx: 10,
   // Horizontal pixel size of one output glyph in the ASCII renderer.
-  glyphCellWidth: 6,
+  asciiGlyphCellWidthPx: 6,
   // Idle Y-axis twist amplitude of the complete composition, in degrees.
   idleTwistDegrees: 1.7,
   // Angular frequency of the complete composition's idle twist.
@@ -690,8 +690,8 @@ export default function IncomingSection() {
           />
         </Suspense>
         <TransparentAsciiRenderer
-          baseCellHeight={INCOMING_SCENE_TUNING.glyphCellHeight}
-          baseCellWidth={INCOMING_SCENE_TUNING.glyphCellWidth}
+          baseCellHeight={INCOMING_SCENE_TUNING.asciiGlyphCellHeightPx}
+          baseCellWidth={INCOMING_SCENE_TUNING.asciiGlyphCellWidthPx}
         />
       </Canvas>
     </div>

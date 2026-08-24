@@ -2,12 +2,14 @@ export const ASCII_GLYPH_REFERENCE_WIDTH_PX = 1920;
 export const ASCII_GLYPH_MIN_WIDTH_PX = 3;
 export const ASCII_GLYPH_MIN_HEIGHT_PX = 5;
 
-interface ResponsiveAsciiGlyphSizeOptions {
+export interface ResponsiveAsciiGlyphSizeOptions {
   baseHeight: number;
   baseWidth: number;
+  maxScale?: number;
   minHeight?: number;
   minWidth?: number;
   referenceWidth?: number;
+  scaleExponent?: number;
 }
 
 export interface ResponsiveAsciiGlyphSize {
@@ -18,25 +20,35 @@ export interface ResponsiveAsciiGlyphSize {
 
 /**
  * Scales a pixel-grid glyph cell with render-target width. At the reference
- * width the base dimensions are used; at half that width both dimensions are
- * halved, keeping the approximate number of glyph columns stable.
+ * width the base dimensions are used. An exponent of 1 keeps the approximate
+ * number of glyph columns stable; lower exponents add proportionally more
+ * glyphs as the render target grows.
  */
 export function getResponsiveAsciiGlyphSize(
   renderWidth: number,
   {
     baseHeight,
     baseWidth,
+    maxScale = Number.POSITIVE_INFINITY,
     minHeight = ASCII_GLYPH_MIN_HEIGHT_PX,
     minWidth = ASCII_GLYPH_MIN_WIDTH_PX,
     referenceWidth = ASCII_GLYPH_REFERENCE_WIDTH_PX,
+    scaleExponent = 1,
   }: ResponsiveAsciiGlyphSizeOptions,
 ): ResponsiveAsciiGlyphSize {
   const safeReferenceWidth = Math.max(1, referenceWidth);
-  const responsiveScale = Math.max(0, renderWidth) / safeReferenceWidth;
-  const scale = Math.max(
-    responsiveScale,
+  const safeScaleExponent = Math.max(0, scaleExponent);
+  const responsiveScale = Math.pow(
+    Math.max(0, renderWidth) / safeReferenceWidth,
+    safeScaleExponent,
+  );
+  const minimumScale = Math.max(
     minWidth / Math.max(1, baseWidth),
     minHeight / Math.max(1, baseHeight),
+  );
+  const scale = Math.min(
+    Math.max(responsiveScale, minimumScale),
+    Math.max(minimumScale, maxScale),
   );
 
   return {
