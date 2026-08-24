@@ -91,6 +91,6 @@ export const IDEANOTION_STORY = {
   ],
   logoPath: "/logos/dealerai-modified-rmbg.png",
   motionPhase: 1.9,
-  subtitle: ["FULL STACK", "AI + WEB"],
+  subtitle: ["FULL-STACK", "AI+WEB"],
   theme: "cyan",
 } as const satisfies HolographicStoryDefinition;
