@@ -11,43 +11,140 @@ import { DRAGON_LUCY } from "../modals.constants";
 
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
 
-/* Finta-scene tuning knobs. The values are grouped so the full composition
-   can be adjusted from one place without modifying layout or animation code. */
+/* Complete art-direction panel for INCOMING @ Finta. Geometry that is useful
+   to tweak is named here instead of being hidden inside the JSX. */
 const INCOMING_SCENE_TUNING = {
+  // Base CSS margin below the canvas before whitespace multipliers are applied.
   baseBottomMarginRem: 1.25,
+  // Base CSS margin above the canvas before whitespace multipliers are applied.
   baseTopMarginRem: 0.5,
+  // Base internal whitespace as a fraction of the measured vertical stack.
   baseWhitespaceRelativeToStack: 0.04,
+  // Multiplier for bottom internal whitespace and the bottom CSS margin.
   bottomWhitespaceMultiplier: 0,
+  // Perspective field of view for the three.js camera, in degrees.
+  cameraFieldOfViewDegrees: 42,
+  // Camera distance from the scene along the positive Z axis.
+  cameraZPosition: 9.5,
+  // Distance of each cardinal crosshair tick from the logo center.
+  crosshairTickOffset: 0.77,
+  // Length of each cardinal crosshair tick.
+  crosshairTickLength: 0.22,
+  // Thickness of each cardinal crosshair tick.
+  crosshairTickThickness: 0.026,
+  // Z depth of the logo reticle/decorator group.
   decoratorDepth: -0.12,
+  // Vertical floating distance of the logo reticle group.
   decoratorFloatAmount: 0.035,
+  // Angular frequency of the reticle's vertical float.
+  decoratorFloatSpeed: 0.56,
+  // Master scale for rings, ticks, rails, and telemetry blocks.
   decoratorSizeMultiplier: 1,
+  // Maximum Y-axis reticle twist, in degrees.
   decoratorTwistDegrees: 7,
+  // Angular frequency of reticle twisting.
+  decoratorTwistSpeed: 0.47,
+  // Reticle width relative to the INCOMING title width.
   decoratorWidthRelativeToTitle: 0.3,
+  // Initial aspect ratio used before the measured stack becomes available.
   fallbackLayoutAspectRatio: 1.35,
+  // Vertical pixel size of one output glyph in the ASCII renderer.
   glyphCellHeight: 10,
+  // Horizontal pixel size of one output glyph in the ASCII renderer.
   glyphCellWidth: 6,
+  // Idle Y-axis twist amplitude of the complete composition, in degrees.
   idleTwistDegrees: 1.7,
+  // Angular frequency of the complete composition's idle twist.
+  idleTwistSpeed: 0.7,
+  // Side length of the inner rotating square relative to title width.
   innerSquareSizeRelativeToTitle: 0.5,
+  // Color used by the Finta logo reticle and telemetry boxes.
   logoBlue: "#2a42ff",
+  // Z depth of the bright Finta logo plane.
   logoDepth: 0.18,
+  // Reserved vertical height around the logo relative to title width.
   logoStageHeightRelativeToTitle: 0.48,
+  // Finta logo width relative to the INCOMING title width.
   logoWidthRelativeToTitle: 0.3,
+  // Vertical floating distance of the complete composition.
   mainFloatAmount: 0.06,
+  // Angular frequency of the complete composition's vertical float.
+  mainFloatSpeed: 0.8,
+  // Maximum pointer-driven composition twist, in degrees.
   maxPointerTwistDegrees: 13.5,
+  // Exponential damping strength used while following the pointer.
   motionDamping: 5,
+  // Initial Z rotation of the outer square, in degrees.
   outerSquareInitialRotationDegrees: 45,
+  // Side length of the outer rotating square relative to title width.
   outerSquareSizeRelativeToTitle: 0.68,
+  // Maximum normalized pointer X value used by the scene.
+  pointerClampX: 1.2,
+  // Maximum normalized pointer Y value used by the scene.
+  pointerClampY: 1.6,
+  // X-axis pointer tilt relative to the maximum Y-axis twist.
   pointerPitchRatio: 0.5,
+  // Glyph scale of (F26) relative to the INCOMING title glyph scale.
   seasonTextSizeRelativeToTitle: 0.8,
+  // Master multiplier for the whole scene, including its calculated height.
   sectionSizeMultiplier: 0.78,
-  squareBorderRelativeToTitle: 0.012,
-  squareColor: "#172a82",
+  // Thickness of both hollow square outlines relative to title width.
+  squareBorderRelativeToTitle: 0.018,
+  // Dark blue color shared by both rotating square outlines.
+  squareColor: "#2037a3",
+  // Z depth of the rotating squares behind the complete composition.
   squareDepth: -0.56,
-  squareOpacity: 0.52,
+  // Opacity of both square outlines; raise this for a more defined frame.
+  squareOpacity: 0.72,
+  // Equal-and-opposite rotation speed of the two squares, in degrees/second.
   squareSpinDegreesPerSecond: 3.6,
+  // Vertical gap between INCOMING, @, logo, and (F26), relative to title width.
   stackGapRelativeToTitle: 0.032,
+  // Extrusion-depth curve subdivision count used by the Text3D meshes.
+  textCurveSegments: 2,
+  // Front-to-back extrusion depth of INCOMING, @, and (F26).
+  textExtrusionDepth: 0.14,
+  // Natural unscaled font size passed into Text3D.
+  textNaturalSize: 1,
+  // Vertical spacing between each telemetry-box row.
+  telemetryBoxRowSpacing: 0.18,
+  // Horizontal distance of the telemetry boxes from the logo center.
+  telemetryBoxX: 1.18,
+  // Width and height of each of the six telemetry boxes.
+  telemetryBoxSize: 0.095,
+  // Horizontal distance of each telemetry rail's center from the logo center.
+  telemetryRailCenterX: 0.94,
+  // Z depth of the telemetry rails inside the reticle group.
+  telemetryRailDepth: -0.03,
+  // Length of each left and right telemetry rail segment.
+  telemetryRailLength: 0.56,
+  // Opacity of the telemetry rail segments.
+  telemetryRailOpacity: 0.78,
+  // Thickness of each telemetry rail; this is the primary rail-weight knob.
+  telemetryRailThickness: 0.04,
+  // Inner radius of the blue reticle ring around the Finta logo.
+  reticleInnerBlueRadius: 0.56,
+  // Outer radius of the blue reticle ring around the Finta logo.
+  reticleOuterBlueRadius: 0.59,
+  // Opacity of the blue reticle ring.
+  reticleBlueOpacity: 0.72,
+  // Inner radius of the cyan secondary reticle ring.
+  reticleInnerCyanRadius: 0.67,
+  // Outer radius of the cyan secondary reticle ring.
+  reticleOuterCyanRadius: 0.685,
+  // Opacity of the cyan secondary reticle ring.
+  reticleCyanOpacity: 0.42,
+  // Segment count used to make both circular reticles smooth.
+  reticleSegments: 72,
+  // Local Z depth of the blue reticle ring.
+  reticleBlueDepth: -0.04,
+  // Local Z depth of the cyan reticle ring.
+  reticleCyanDepth: -0.05,
+  // Natural layout width used as the reference for relative measurements.
   titleLayoutWidth: 1,
+  // Width of INCOMING as a fraction of the canvas viewport.
   titleViewportWidth: 0.9,
+  // Multiplier for top internal whitespace and the top CSS margin.
   topWhitespaceMultiplier: 0,
 } as const;
 
@@ -59,41 +156,70 @@ function FintaDecorators({
   return (
     <group ref={groupRef} visible={false}>
       <group scale={INCOMING_SCENE_TUNING.decoratorSizeMultiplier}>
-        <mesh position={[0, 0, -0.04]}>
-          <ringGeometry args={[0.56, 0.59, 72]} />
+        <mesh position={[0, 0, INCOMING_SCENE_TUNING.reticleBlueDepth]}>
+          <ringGeometry
+            args={[
+              INCOMING_SCENE_TUNING.reticleInnerBlueRadius,
+              INCOMING_SCENE_TUNING.reticleOuterBlueRadius,
+              INCOMING_SCENE_TUNING.reticleSegments,
+            ]}
+          />
           <meshBasicMaterial
             color={INCOMING_SCENE_TUNING.logoBlue}
-            opacity={0.72}
+            opacity={INCOMING_SCENE_TUNING.reticleBlueOpacity}
             transparent
             toneMapped={false}
           />
         </mesh>
-        <mesh position={[0, 0, -0.05]}>
-          <ringGeometry args={[0.67, 0.685, 72]} />
+        <mesh position={[0, 0, INCOMING_SCENE_TUNING.reticleCyanDepth]}>
+          <ringGeometry
+            args={[
+              INCOMING_SCENE_TUNING.reticleInnerCyanRadius,
+              INCOMING_SCENE_TUNING.reticleOuterCyanRadius,
+              INCOMING_SCENE_TUNING.reticleSegments,
+            ]}
+          />
           <meshBasicMaterial
             color={DRAGON_LUCY.cyan}
-            opacity={0.42}
+            opacity={INCOMING_SCENE_TUNING.reticleCyanOpacity}
             transparent
             toneMapped={false}
           />
         </mesh>
 
         {[
-          [0, 0.77, 0],
-          [0, -0.77, 0],
-          [0.77, 0, Math.PI / 2],
-          [-0.77, 0, Math.PI / 2],
+          [0, INCOMING_SCENE_TUNING.crosshairTickOffset, 0],
+          [0, -INCOMING_SCENE_TUNING.crosshairTickOffset, 0],
+          [INCOMING_SCENE_TUNING.crosshairTickOffset, 0, Math.PI / 2],
+          [-INCOMING_SCENE_TUNING.crosshairTickOffset, 0, Math.PI / 2],
         ].map(([x, y, rotation], index) => (
           <mesh key={index} position={[x, y, 0]} rotation={[0, 0, rotation]}>
-            <planeGeometry args={[0.22, 0.026]} />
+            <planeGeometry
+              args={[
+                INCOMING_SCENE_TUNING.crosshairTickLength,
+                INCOMING_SCENE_TUNING.crosshairTickThickness,
+              ]}
+            />
             <meshBasicMaterial color={DRAGON_LUCY.cyan} toneMapped={false} />
           </mesh>
         ))}
 
-        {[-0.18, 0, 0.18].flatMap((y, rowIndex) =>
+        {[
+          -INCOMING_SCENE_TUNING.telemetryBoxRowSpacing,
+          0,
+          INCOMING_SCENE_TUNING.telemetryBoxRowSpacing,
+        ].flatMap((y, rowIndex) =>
           [-1, 1].map((side) => (
-            <mesh key={`${rowIndex}-${side}`} position={[side * 1.18, y, 0]}>
-              <planeGeometry args={[0.095, 0.095]} />
+            <mesh
+              key={`${rowIndex}-${side}`}
+              position={[side * INCOMING_SCENE_TUNING.telemetryBoxX, y, 0]}
+            >
+              <planeGeometry
+                args={[
+                  INCOMING_SCENE_TUNING.telemetryBoxSize,
+                  INCOMING_SCENE_TUNING.telemetryBoxSize,
+                ]}
+              />
               <meshBasicMaterial
                 color={INCOMING_SCENE_TUNING.logoBlue}
                 toneMapped={false}
@@ -103,11 +229,23 @@ function FintaDecorators({
         )}
 
         {[-1, 1].map((side) => (
-          <mesh key={side} position={[side * 0.94, 0, -0.03]}>
-            <planeGeometry args={[0.56, 0.025]} />
+          <mesh
+            key={side}
+            position={[
+              side * INCOMING_SCENE_TUNING.telemetryRailCenterX,
+              0,
+              INCOMING_SCENE_TUNING.telemetryRailDepth,
+            ]}
+          >
+            <planeGeometry
+              args={[
+                INCOMING_SCENE_TUNING.telemetryRailLength,
+                INCOMING_SCENE_TUNING.telemetryRailThickness,
+              ]}
+            />
             <meshBasicMaterial
               color={DRAGON_LUCY.cyan}
-              opacity={0.68}
+              opacity={INCOMING_SCENE_TUNING.telemetryRailOpacity}
               transparent
               toneMapped={false}
             />
@@ -194,11 +332,11 @@ function IncomingText({
   return (
     <Text3D
       bevelEnabled={false}
-      curveSegments={2}
+      curveSegments={INCOMING_SCENE_TUNING.textCurveSegments}
       font={THREE_FONTS.pixelEmulator}
-      height={0.14}
+      height={INCOMING_SCENE_TUNING.textExtrusionDepth}
       ref={meshRef}
-      size={1}
+      size={INCOMING_SCENE_TUNING.textNaturalSize}
       visible={false}
     >
       {children}
@@ -339,8 +477,16 @@ function IncomingContent({
       const x = (event.clientX - rect.left - rect.width / 2) / rect.width;
       const y = (event.clientY - rect.top - rect.height / 2) / rect.height;
 
-      pointer.current.x = MathUtils.clamp(x, -1.2, 1.2);
-      pointer.current.y = MathUtils.clamp(y, -1.6, 1.6);
+      pointer.current.x = MathUtils.clamp(
+        x,
+        -INCOMING_SCENE_TUNING.pointerClampX,
+        INCOMING_SCENE_TUNING.pointerClampX,
+      );
+      pointer.current.y = MathUtils.clamp(
+        y,
+        -INCOMING_SCENE_TUNING.pointerClampY,
+        INCOMING_SCENE_TUNING.pointerClampY,
+      );
     };
 
     window.addEventListener("pointermove", handleMove, { passive: true });
@@ -441,7 +587,7 @@ function IncomingContent({
     const damping = 1 - Math.exp(-delta * INCOMING_SCENE_TUNING.motionDamping);
     const time = state.clock.elapsedTime;
     const idle =
-      Math.sin(time * 0.7) *
+      Math.sin(time * INCOMING_SCENE_TUNING.idleTwistSpeed) *
       MathUtils.degToRad(INCOMING_SCENE_TUNING.idleTwistDegrees);
     const maximumPointerTwist = MathUtils.degToRad(
       INCOMING_SCENE_TUNING.maxPointerTwistDegrees,
@@ -457,17 +603,21 @@ function IncomingContent({
         group.rotation.x) *
       damping;
     group.position.y =
-      Math.sin(time * 0.8) * INCOMING_SCENE_TUNING.mainFloatAmount;
+      Math.sin(time * INCOMING_SCENE_TUNING.mainFloatSpeed) *
+      INCOMING_SCENE_TUNING.mainFloatAmount;
 
     if (decoratorRef.current) {
       const decoratorTwist = MathUtils.degToRad(
         INCOMING_SCENE_TUNING.decoratorTwistDegrees,
       );
 
-      decoratorRef.current.rotation.y = Math.sin(time * 0.47) * decoratorTwist;
+      decoratorRef.current.rotation.y =
+        Math.sin(time * INCOMING_SCENE_TUNING.decoratorTwistSpeed) *
+        decoratorTwist;
       decoratorRef.current.position.y =
         decoratorBaseY.current +
-        Math.sin(time * 0.56) * INCOMING_SCENE_TUNING.decoratorFloatAmount;
+        Math.sin(time * INCOMING_SCENE_TUNING.decoratorFloatSpeed) *
+          INCOMING_SCENE_TUNING.decoratorFloatAmount;
     }
 
     if (outerSquareRef.current && innerSquareRef.current) {
@@ -554,7 +704,10 @@ export default function IncomingSection() {
         flat
         frameloop={isOnScreen ? "always" : "demand"}
         gl={{ alpha: true, antialias: true }}
-        camera={{ fov: 42, position: [0, 0, 9.5] }}
+        camera={{
+          fov: INCOMING_SCENE_TUNING.cameraFieldOfViewDegrees,
+          position: [0, 0, INCOMING_SCENE_TUNING.cameraZPosition],
+        }}
       >
         <Suspense fallback={null}>
           <IncomingContent

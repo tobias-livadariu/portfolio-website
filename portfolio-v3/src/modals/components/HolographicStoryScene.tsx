@@ -11,42 +11,206 @@ import { DRAGON_LUCY } from "../modals.constants";
 import { TerminalTranscriptLine } from "./Terminal";
 import { useTerminalContentColumns } from "./use-terminal-content-columns";
 
-/* Shared story-scene tuning knobs. These are intentionally collected here so
-   the hologram can be art-directed without hunting through render code. */
+/* Complete art-direction panel for both company story scenes. Every visual
+   tuning value used by the scene lives here; units are included in names when
+   a value is not a dimensionless multiplier. */
 const STORY_SCENE_TUNING = {
-  cardMaxColumns: 96,
-  decoratorSizeMultiplier: 1,
-  glyphCellHeight: 9,
-  glyphCellWidth: 5,
-  heroLinesNarrow: 20,
-  heroLinesRegular: 21,
-  heroLinesWide: 28,
+  // Number of empty terminal rows inserted before each story card.
+  cardGapRows: 1,
+  // Number of columns consumed by a card's two borders and inner spaces.
+  cardInnerWidthReservedColumns: 4,
+  // Number of digits used for the zero-based card index (for example, 00).
+  cardIndexDigits: 2,
+  // Minimum alphanumeric length whose first letter gets an IMPACT accent.
+  cardImpactLongWordMinimumCharacters: 7,
+  // Widest a story card may grow, measured in terminal character columns.
+  cardMaximumWidthColumns: 96,
+  // Narrowest a story card may shrink, measured in terminal columns.
+  cardMinimumWidthColumns: 22,
+  // Columns reserved for title framing while fitting the card heading.
+  cardTitleFitReservedColumns: 6,
+  // Columns reserved for the heading's corners, spaces, and separator glyphs.
+  cardTitleFillReservedColumns: 5,
+
+  // Fallback column count used before the terminal has been measured.
+  contentFallbackColumns: 88,
+  // Lowest column count returned by the responsive terminal measurement.
+  contentMinimumColumns: 22,
+  // Column increment used to reduce re-renders during continuous resizing.
+  contentSnapStepColumns: 2,
+  // Character count in the hidden sample used to calculate one monospace cell.
+  contentWidthSampleCharacters: 24,
+
+  // Horizontal pixel size of one output glyph in the ASCII renderer.
+  asciiGlyphCellWidthPx: 5,
+  // Vertical pixel size of one output glyph in the ASCII renderer.
+  asciiGlyphCellHeightPx: 9,
+
+  // Perspective field of view for the three.js camera, in degrees.
+  cameraFieldOfViewDegrees: 42,
+  // Camera distance from the scene along the positive Z axis.
+  cameraZPosition: 9.5,
+
+  // Master scale applied to reticles, ticks, rails, and telemetry blocks.
+  decoratorScaleMultiplier: 1,
+
+  // Terminal-row height of the hero below the narrow-width breakpoint.
+  heroNarrowLineCount: 20,
+  // CSS-pixel width below which the narrow hero height is selected.
   heroNarrowMaxWidthPx: 520,
+  // Terminal-row height of the hero between narrow and regular breakpoints.
+  heroRegularLineCount: 21,
+  // CSS-pixel width below which the regular hero height is selected.
   heroRegularMaxWidthPx: 900,
-  logoFloatAmount: 0.05,
+  // Terminal-row height of the hero at wide widths.
+  heroWideLineCount: 28,
+
+  // Vertical distance that the logo floats in scene-world units.
+  logoFloatAmplitude: 0.05,
+  // Angular frequency of the logo's vertical float, in radians per second.
+  logoFloatSpeed: 0.5,
+  // Maximum logo height as a fraction of the canvas viewport height.
   logoMaxHeightRelativeToViewport: 0.32,
-  logoTwistDegrees: { x: 4, y: 9.2, z: 1.4 },
+  // Natural width and height of the square logo plane before group scaling.
+  logoPlaneSize: 0.86,
+  // Maximum idle rotation amplitudes for the logo, in degrees.
+  logoTwistDegrees: {
+    // Up/down tilt around the X axis.
+    x: 4,
+    // Left/right turn around the Y axis.
+    y: 9.2,
+    // Clockwise/counterclockwise roll around the Z axis.
+    z: 1.4,
+  },
+  // Angular frequencies of the logo twist, in radians per second.
+  logoTwistSpeeds: {
+    // Speed of X-axis tilt.
+    x: 0.46,
+    // Speed of Y-axis turning.
+    y: 0.4,
+    // Speed of Z-axis roll.
+    z: 0.34,
+  },
+  // Target logo width as a fraction of the canvas viewport width.
   logoWidthRelativeToViewport: 0.28,
+  // Vertical logo center as a fraction of viewport height; negative is down.
   logoYRelativeToViewport: -0.29,
+
+  // Depth of the logo reticle behind the logo plane.
+  logoReticleDepth: -0.08,
+  // Inner radius of the thin circular logo reticle in logo-local units.
+  logoReticleInnerRadius: 0.58,
+  // Outer radius of the thin circular logo reticle in logo-local units.
+  logoReticleOuterRadius: 0.61,
+  // Opacity of the circular logo reticle.
+  logoReticleOpacity: 0.58,
+  // Segment count used to make the circular logo reticle smooth.
+  logoReticleSegments: 72,
+  // Distance from the logo center to each cardinal reticle tick.
+  logoReticleTickOffset: 0.7,
+  // Length of each cardinal reticle tick.
+  logoReticleTickLength: 0.18,
+  // Thickness of each cardinal reticle tick.
+  logoReticleTickThickness: 0.025,
+
+  // Exponential damping strength used when motion follows a target value.
   motionDamping: 5,
-  railScaleRelativeToViewport: 0.13,
-  railYOffsetRelativeToLogo: 0,
+
+  // Maximum normalized pointer X value used by title tracking.
+  pointerClampX: 1.2,
+  // Maximum normalized pointer Y value used by title tracking.
+  pointerClampY: 1.4,
+  // Distance from the title region at which pointer tracking is fully active.
+  pointerTitleActivationDistance: 0.075,
+  // Distance over which title motion blends from pointer-following to idle.
+  pointerTitleBlendDistance: 0.14,
+  // Half-height of the normalized rectangular title interaction region.
+  pointerTitleRegionHalfHeight: 0.145,
+  // Half-width of the normalized rectangular title interaction region.
+  pointerTitleRegionHalfWidth: 0.47,
+
+  // Side-to-side spacing added between the three telemetry blocks per side.
+  telemetryBlockLocalSpread: 0.53,
+  // Multiplier converting block spread into horizontal position changes.
+  telemetryBlockPositionMultiplier: 0.34,
+  // Base horizontal distance of telemetry blocks from the scene center.
+  telemetryBlockPositionX: 2.52,
+  // Width and height of each square telemetry block.
+  telemetryBlockSize: 0.085,
+  // Depth of the complete rail and telemetry-block group.
+  telemetryDepth: -0.06,
+  // Horizontal distance from center to each rail segment's center.
+  telemetryRailCenterX: 1.52,
+  // Length of each left and right telemetry rail segment.
+  telemetryRailLength: 1.7,
+  // Master rail size as a fraction of viewport width.
+  telemetryRailScaleRelativeToViewport: 0.13,
+  // Thickness of each telemetry rail segment.
+  telemetryRailThickness: 0.025,
+  // Vertical rail offset from the logo center as a viewport-height fraction.
+  telemetryRailYOffsetRelativeToLogo: 0,
+  // Maximum Z-axis wobble of the rail group, in radians.
+  telemetryWobbleAmplitudeRadians: 0.008,
+  // Angular frequency of rail wobble, in radians per second.
+  telemetryWobbleSpeed: 0.24,
+
+  // Z depth of the role subtitle; positive values render toward the camera.
   subtitleDepth: 0.12,
-  subtitleFloatAmount: 0.025,
+  // Vertical distance that the subtitle floats in scene-world units.
+  subtitleFloatAmplitude: 0.025,
+  // Angular frequency of the subtitle's vertical float.
+  subtitleFloatSpeed: 0.7,
+  // Maximum subtitle height as a fraction of viewport height.
   subtitleMaxHeightRelativeToViewport: 0.13,
-  subtitleOffsetRelativeToViewport: 0.095,
+  // Maximum subtitle glyph scale relative to the company title glyph scale.
   subtitleScaleRelativeToTitle: 0.9,
+  // Angular frequencies of the subtitle's idle twist.
+  subtitleTwistSpeeds: {
+    // Speed of X-axis tilt.
+    x: 0.72,
+    // Speed of Y-axis turning.
+    y: 0.51,
+    // Speed of Z-axis roll.
+    z: 0.63,
+  },
+  // Rotation amplitudes relative to the configured idle twist amount.
+  subtitleTwistRatios: {
+    // Fraction of idle twist applied to Y-axis turning.
+    y: 0.55,
+    // Fraction of idle twist applied to Z-axis roll.
+    z: 0.6,
+  },
+  // Distance of each subtitle line from center as a viewport-height fraction.
+  subtitleVerticalLineOffsetRelativeToViewport: 0.095,
+  // Target subtitle width as a fraction of viewport width.
   subtitleWidthRelativeToViewport: 0.82,
-  titleCursorActivationDistance: 0.075,
-  titleCursorBlendDistance: 0.14,
-  titleCursorRegionHalfHeight: 0.145,
-  titleCursorRegionHalfWidth: 0.47,
+  // Vertical subtitle-group center as a fraction of viewport height.
+  subtitleYRelativeToViewport: 0,
+
+  // Curve subdivision count used when constructing title/subtitle geometry.
+  textCurveSegments: 2,
+  // Front-to-back extrusion depth of title/subtitle geometry.
+  textExtrusionDepth: 0.12,
+  // Natural unscaled font size passed into Text3D.
+  textNaturalSize: 1,
+
+  // Z depth of the company title; negative values keep it behind the subtitle.
   titleDepth: -1.1,
-  titleFloatAmount: 0.035,
+  // Vertical distance that the company title floats in scene-world units.
+  titleFloatAmplitude: 0.035,
+  // Angular frequency of the company title's vertical float.
+  titleFloatSpeed: 0.58,
+  // Idle twist amplitude shared by the subtitle and inverse-moving title.
   titleIdleTwistDegrees: 4.3,
+  // Maximum title height as a fraction of viewport height.
   titleMaxHeightRelativeToViewport: 0.225,
+  // Maximum pointer-driven title rotation, in degrees.
   titleMaxTwistDegrees: 12,
+  // X-axis pointer rotation relative to the maximum title twist.
+  titlePointerPitchRatio: 0.48,
+  // Target title width as a fraction of viewport width.
   titleWidthRelativeToViewport: 0.94,
+  // Vertical title center as a viewport-height fraction; positive is up.
   titleYRelativeToViewport: 0.315,
 } as const;
 
@@ -180,7 +344,11 @@ function impactAccentIndices(labelLength: number, impact: string) {
     const wordCharacters = word.match(/[A-Za-z0-9]/g)?.length ?? 0;
     const firstCharacter = word.search(/[A-Za-z0-9]/);
 
-    if (wordCharacters > 6 && firstCharacter >= 0) {
+    if (
+      wordCharacters >=
+        STORY_SCENE_TUNING.cardImpactLongWordMinimumCharacters &&
+      firstCharacter >= 0
+    ) {
       indices.add(labelLength + wordMatch.index + firstCharacter);
     }
   }
@@ -324,16 +492,20 @@ function buildHighlightRows(
 ): StoryRow[] {
   const characters = FRAME_CHARACTERS[highlight.frame];
   const cardWidth = Math.max(
-    22,
-    Math.min(columns, STORY_SCENE_TUNING.cardMaxColumns),
+    STORY_SCENE_TUNING.cardMinimumWidthColumns,
+    Math.min(columns, STORY_SCENE_TUNING.cardMaximumWidthColumns),
   );
   const indent = Math.max(0, Math.floor((columns - cardWidth) / 2));
-  const innerWidth = cardWidth - 4;
+  const innerWidth =
+    cardWidth - STORY_SCENE_TUNING.cardInnerWidthReservedColumns;
   const title = fitText(
-    `${String(index).padStart(2, "0")} // ${highlight.title}`,
-    cardWidth - 6,
+    `${String(index).padStart(STORY_SCENE_TUNING.cardIndexDigits, "0")} // ${highlight.title}`,
+    cardWidth - STORY_SCENE_TUNING.cardTitleFitReservedColumns,
   );
-  const titleFill = Math.max(0, cardWidth - title.length - 5);
+  const titleFill = Math.max(
+    0,
+    cardWidth - title.length - STORY_SCENE_TUNING.cardTitleFillReservedColumns,
+  );
   const rows: StoryRow[] = [
     [
       {
@@ -414,7 +586,10 @@ function buildStoryRows(
   columns: number,
 ) {
   return highlights.flatMap((highlight, index) => [
-    [{ text: " " }],
+    ...Array.from(
+      { length: STORY_SCENE_TUNING.cardGapRows },
+      (): StoryRow => [{ text: " " }],
+    ),
     ...buildHighlightRows(highlight, index, columns),
   ]);
 }
@@ -467,11 +642,11 @@ function HologramText({
   return (
     <Text3D
       bevelEnabled={false}
-      curveSegments={2}
+      curveSegments={STORY_SCENE_TUNING.textCurveSegments}
       font={THREE_FONTS.pixelEmulator}
-      height={0.12}
+      height={STORY_SCENE_TUNING.textExtrusionDepth}
       ref={meshRef}
-      size={1}
+      size={STORY_SCENE_TUNING.textNaturalSize}
       visible={false}
     >
       {children}
@@ -493,30 +668,46 @@ function HologramLogo({
 
   return (
     <>
-      <group scale={STORY_SCENE_TUNING.decoratorSizeMultiplier}>
-        <mesh position={[0, 0, -0.08]}>
-          <ringGeometry args={[0.58, 0.61, 72]} />
+      <group scale={STORY_SCENE_TUNING.decoratorScaleMultiplier}>
+        <mesh position={[0, 0, STORY_SCENE_TUNING.logoReticleDepth]}>
+          <ringGeometry
+            args={[
+              STORY_SCENE_TUNING.logoReticleInnerRadius,
+              STORY_SCENE_TUNING.logoReticleOuterRadius,
+              STORY_SCENE_TUNING.logoReticleSegments,
+            ]}
+          />
           <meshBasicMaterial
             color={accent}
-            opacity={0.58}
+            opacity={STORY_SCENE_TUNING.logoReticleOpacity}
             toneMapped={false}
             transparent
           />
         </mesh>
         {[
-          [0, 0.7, 0, 0.18],
-          [0, -0.7, 0, 0.18],
-          [0.7, 0, Math.PI / 2, 0.18],
-          [-0.7, 0, Math.PI / 2, 0.18],
-        ].map(([x, y, rotation, width], index) => (
+          [0, STORY_SCENE_TUNING.logoReticleTickOffset, 0],
+          [0, -STORY_SCENE_TUNING.logoReticleTickOffset, 0],
+          [STORY_SCENE_TUNING.logoReticleTickOffset, 0, Math.PI / 2],
+          [-STORY_SCENE_TUNING.logoReticleTickOffset, 0, Math.PI / 2],
+        ].map(([x, y, rotation], index) => (
           <mesh key={index} position={[x, y, 0]} rotation={[0, 0, rotation]}>
-            <planeGeometry args={[width, 0.025]} />
+            <planeGeometry
+              args={[
+                STORY_SCENE_TUNING.logoReticleTickLength,
+                STORY_SCENE_TUNING.logoReticleTickThickness,
+              ]}
+            />
             <meshBasicMaterial color={accent} toneMapped={false} />
           </mesh>
         ))}
       </group>
       <mesh ref={meshRef} visible={false}>
-        <planeGeometry args={[0.86, 0.86]} />
+        <planeGeometry
+          args={[
+            STORY_SCENE_TUNING.logoPlaneSize,
+            STORY_SCENE_TUNING.logoPlaneSize,
+          ]}
+        />
         <meshBasicMaterial map={texture} toneMapped={false} transparent />
       </mesh>
     </>
@@ -537,21 +728,46 @@ function distanceFromRectangle(
 function TelemetryRail({ color }: { color: string }) {
   return (
     <group>
-      <mesh position={[-1.52, 0, 0]}>
-        <planeGeometry args={[1.7, 0.025]} />
+      <mesh position={[-STORY_SCENE_TUNING.telemetryRailCenterX, 0, 0]}>
+        <planeGeometry
+          args={[
+            STORY_SCENE_TUNING.telemetryRailLength,
+            STORY_SCENE_TUNING.telemetryRailThickness,
+          ]}
+        />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
-      <mesh position={[1.52, 0, 0]}>
-        <planeGeometry args={[1.7, 0.025]} />
+      <mesh position={[STORY_SCENE_TUNING.telemetryRailCenterX, 0, 0]}>
+        <planeGeometry
+          args={[
+            STORY_SCENE_TUNING.telemetryRailLength,
+            STORY_SCENE_TUNING.telemetryRailThickness,
+          ]}
+        />
         <meshBasicMaterial color={color} toneMapped={false} />
       </mesh>
-      {[-0.53, 0, 0.53].flatMap((offset, sideIndex) =>
+      {[
+        -STORY_SCENE_TUNING.telemetryBlockLocalSpread,
+        0,
+        STORY_SCENE_TUNING.telemetryBlockLocalSpread,
+      ].flatMap((offset, sideIndex) =>
         [-1, 1].map((side) => (
           <mesh
             key={`${sideIndex}-${side}`}
-            position={[side * (2.52 + offset * 0.34), 0, 0]}
+            position={[
+              side *
+                (STORY_SCENE_TUNING.telemetryBlockPositionX +
+                  offset * STORY_SCENE_TUNING.telemetryBlockPositionMultiplier),
+              0,
+              0,
+            ]}
           >
-            <planeGeometry args={[0.085, 0.085]} />
+            <planeGeometry
+              args={[
+                STORY_SCENE_TUNING.telemetryBlockSize,
+                STORY_SCENE_TUNING.telemetryBlockSize,
+              ]}
+            />
             <meshBasicMaterial color={color} toneMapped={false} />
           </mesh>
         )),
@@ -594,8 +810,16 @@ function HologramContent({
 
       pointer.current = {
         isInsideCanvas: x >= -0.5 && x <= 0.5 && y >= -0.5 && y <= 0.5,
-        x: MathUtils.clamp(x, -1.2, 1.2),
-        y: MathUtils.clamp(y, -1.4, 1.4),
+        x: MathUtils.clamp(
+          x,
+          -STORY_SCENE_TUNING.pointerClampX,
+          STORY_SCENE_TUNING.pointerClampX,
+        ),
+        y: MathUtils.clamp(
+          y,
+          -STORY_SCENE_TUNING.pointerClampY,
+          STORY_SCENE_TUNING.pointerClampY,
+        ),
       };
     };
 
@@ -662,9 +886,11 @@ function HologramContent({
         );
         const titleY =
           viewport.height * STORY_SCENE_TUNING.titleYRelativeToViewport;
-        const subtitleY = 0;
+        const subtitleY =
+          viewport.height * STORY_SCENE_TUNING.subtitleYRelativeToViewport;
         const subtitleOffset =
-          viewport.height * STORY_SCENE_TUNING.subtitleOffsetRelativeToViewport;
+          viewport.height *
+          STORY_SCENE_TUNING.subtitleVerticalLineOffsetRelativeToViewport;
         const logoY =
           viewport.height * STORY_SCENE_TUNING.logoYRelativeToViewport;
 
@@ -682,13 +908,14 @@ function HologramContent({
         railGroup.position.set(
           0,
           logoY +
-            viewport.height * STORY_SCENE_TUNING.railYOffsetRelativeToLogo,
-          -0.06,
+            viewport.height *
+              STORY_SCENE_TUNING.telemetryRailYOffsetRelativeToLogo,
+          STORY_SCENE_TUNING.telemetryDepth,
         );
         railGroup.scale.setScalar(
           viewport.width *
-            STORY_SCENE_TUNING.railScaleRelativeToViewport *
-            STORY_SCENE_TUNING.decoratorSizeMultiplier,
+            STORY_SCENE_TUNING.telemetryRailScaleRelativeToViewport *
+            STORY_SCENE_TUNING.decoratorScaleMultiplier,
         );
         basePositions.current = { logoY, subtitleY, titleY };
         layoutSignatureRef.current = layoutSignature;
@@ -716,37 +943,44 @@ function HologramContent({
     const maximumTwist = MathUtils.degToRad(
       STORY_SCENE_TUNING.titleMaxTwistDegrees,
     );
-    const subtitleRotationX = Math.sin(time * 0.72) * idleTwist;
-    const subtitleRotationY = Math.cos(time * 0.51) * idleTwist * 0.55;
-    const subtitleRotationZ = Math.sin(time * 0.63) * idleTwist * 0.6;
+    const subtitleRotationX =
+      Math.sin(time * STORY_SCENE_TUNING.subtitleTwistSpeeds.x) * idleTwist;
+    const subtitleRotationY =
+      Math.cos(time * STORY_SCENE_TUNING.subtitleTwistSpeeds.y) *
+      idleTwist *
+      STORY_SCENE_TUNING.subtitleTwistRatios.y;
+    const subtitleRotationZ =
+      Math.sin(time * STORY_SCENE_TUNING.subtitleTwistSpeeds.z) *
+      idleTwist *
+      STORY_SCENE_TUNING.subtitleTwistRatios.z;
     const titleCenterY = -STORY_SCENE_TUNING.titleYRelativeToViewport;
     const titleDistance = pointer.current.isInsideCanvas
       ? distanceFromRectangle(
           pointer.current.x,
           pointer.current.y - titleCenterY,
-          STORY_SCENE_TUNING.titleCursorRegionHalfWidth,
-          STORY_SCENE_TUNING.titleCursorRegionHalfHeight,
+          STORY_SCENE_TUNING.pointerTitleRegionHalfWidth,
+          STORY_SCENE_TUNING.pointerTitleRegionHalfHeight,
         )
       : Number.POSITIVE_INFINITY;
     const pointerInfluence =
       1 -
       MathUtils.smoothstep(
         titleDistance,
-        STORY_SCENE_TUNING.titleCursorActivationDistance,
-        STORY_SCENE_TUNING.titleCursorBlendDistance,
+        STORY_SCENE_TUNING.pointerTitleActivationDistance,
+        STORY_SCENE_TUNING.pointerTitleBlendDistance,
       );
     const pointerRotationX =
       MathUtils.clamp(
         (pointer.current.y - titleCenterY) /
-          STORY_SCENE_TUNING.titleCursorRegionHalfHeight,
+          STORY_SCENE_TUNING.pointerTitleRegionHalfHeight,
         -1,
         1,
       ) *
       maximumTwist *
-      0.48;
+      STORY_SCENE_TUNING.titlePointerPitchRatio;
     const pointerRotationY =
       MathUtils.clamp(
-        pointer.current.x / STORY_SCENE_TUNING.titleCursorRegionHalfWidth,
+        pointer.current.x / STORY_SCENE_TUNING.pointerTitleRegionHalfWidth,
         -1,
         1,
       ) * maximumTwist;
@@ -770,26 +1004,34 @@ function HologramContent({
     titleGroup.rotation.y += (titleRotationY - titleGroup.rotation.y) * damping;
     titleGroup.rotation.z += (titleRotationZ - titleGroup.rotation.z) * damping;
     titleGroup.position.y =
-      titleY + Math.sin(time * 0.58) * STORY_SCENE_TUNING.titleFloatAmount;
+      titleY +
+      Math.sin(time * STORY_SCENE_TUNING.titleFloatSpeed) *
+        STORY_SCENE_TUNING.titleFloatAmplitude;
 
     subtitleGroup.rotation.x = subtitleRotationX;
     subtitleGroup.rotation.y = subtitleRotationY;
     subtitleGroup.rotation.z = subtitleRotationZ;
     subtitleGroup.position.y =
-      subtitleY + Math.cos(time * 0.7) * STORY_SCENE_TUNING.subtitleFloatAmount;
+      subtitleY +
+      Math.cos(time * STORY_SCENE_TUNING.subtitleFloatSpeed) *
+        STORY_SCENE_TUNING.subtitleFloatAmplitude;
 
     logoGroup.rotation.x =
-      Math.sin(time * 0.46) *
+      Math.sin(time * STORY_SCENE_TUNING.logoTwistSpeeds.x) *
       MathUtils.degToRad(STORY_SCENE_TUNING.logoTwistDegrees.x);
     logoGroup.rotation.y =
-      Math.cos(time * 0.4) *
+      Math.cos(time * STORY_SCENE_TUNING.logoTwistSpeeds.y) *
       MathUtils.degToRad(STORY_SCENE_TUNING.logoTwistDegrees.y);
     logoGroup.rotation.z =
-      Math.sin(time * 0.34) *
+      Math.sin(time * STORY_SCENE_TUNING.logoTwistSpeeds.z) *
       MathUtils.degToRad(STORY_SCENE_TUNING.logoTwistDegrees.z);
     logoGroup.position.y =
-      logoY + Math.sin(time * 0.5) * STORY_SCENE_TUNING.logoFloatAmount;
-    railGroup.rotation.z = Math.sin(time * 0.24) * 0.008;
+      logoY +
+      Math.sin(time * STORY_SCENE_TUNING.logoFloatSpeed) *
+        STORY_SCENE_TUNING.logoFloatAmplitude;
+    railGroup.rotation.z =
+      Math.sin(time * STORY_SCENE_TUNING.telemetryWobbleSpeed) *
+      STORY_SCENE_TUNING.telemetryWobbleAmplitudeRadians;
   });
 
   return (
@@ -853,9 +1095,9 @@ export default function HolographicStoryScene({
 }) {
   const { columns, contentWidth, measureRef, wrapperRef } =
     useTerminalContentColumns({
-      fallback: 88,
-      min: 22,
-      step: 2,
+      fallback: STORY_SCENE_TUNING.contentFallbackColumns,
+      min: STORY_SCENE_TUNING.contentMinimumColumns,
+      step: STORY_SCENE_TUNING.contentSnapStepColumns,
     });
   const heroRef = useRef<HTMLDivElement>(null);
   const [isOnScreen, setIsOnScreen] = useState(false);
@@ -865,10 +1107,10 @@ export default function HolographicStoryScene({
   const measuredHeroWidth = contentWidth || Number.POSITIVE_INFINITY;
   const heroLineCount =
     measuredHeroWidth < STORY_SCENE_TUNING.heroNarrowMaxWidthPx
-      ? STORY_SCENE_TUNING.heroLinesNarrow
+      ? STORY_SCENE_TUNING.heroNarrowLineCount
       : measuredHeroWidth < STORY_SCENE_TUNING.heroRegularMaxWidthPx
-        ? STORY_SCENE_TUNING.heroLinesRegular
-        : STORY_SCENE_TUNING.heroLinesWide;
+        ? STORY_SCENE_TUNING.heroRegularLineCount
+        : STORY_SCENE_TUNING.heroWideLineCount;
   const rows = useMemo(
     () => buildStoryRows(definition.highlights, columns),
     [columns, definition.highlights],
@@ -895,7 +1137,7 @@ export default function HolographicStoryScene({
       ref={wrapperRef}
     >
       <span className="modal-terminal-ch-measure" ref={measureRef}>
-        000000000000000000000000
+        {"0".repeat(STORY_SCENE_TUNING.contentWidthSampleCharacters)}
       </span>
 
       <section className="modal-visually-hidden">
@@ -925,7 +1167,10 @@ export default function HolographicStoryScene({
         </div>
         <div aria-hidden="true" className="modal-story-canvas-shell">
           <Canvas
-            camera={{ fov: 42, position: [0, 0, 9.5] }}
+            camera={{
+              fov: STORY_SCENE_TUNING.cameraFieldOfViewDegrees,
+              position: [0, 0, STORY_SCENE_TUNING.cameraZPosition],
+            }}
             dpr={CANVAS_DPR}
             flat
             frameloop={isOnScreen && motionEnabled ? "always" : "demand"}
@@ -938,8 +1183,8 @@ export default function HolographicStoryScene({
               />
             </Suspense>
             <TransparentAsciiRenderer
-              baseCellHeight={STORY_SCENE_TUNING.glyphCellHeight}
-              baseCellWidth={STORY_SCENE_TUNING.glyphCellWidth}
+              baseCellHeight={STORY_SCENE_TUNING.asciiGlyphCellHeightPx}
+              baseCellWidth={STORY_SCENE_TUNING.asciiGlyphCellWidthPx}
             />
           </Canvas>
         </div>
