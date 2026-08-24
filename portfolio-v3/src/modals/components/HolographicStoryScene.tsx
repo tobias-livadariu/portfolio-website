@@ -111,7 +111,7 @@ const STORY_SCENE_TUNING = {
   // Length of each cardinal reticle tick.
   logoReticleTickLength: 0.18,
   // Thickness of each cardinal reticle tick.
-  logoReticleTickThickness: 0.025,
+  logoReticleTickThickness: 0.04,
 
   // Exponential damping strength used when motion follows a target value.
   motionDamping: 5,
@@ -136,7 +136,7 @@ const STORY_SCENE_TUNING = {
   // Base horizontal distance of telemetry blocks from the scene center.
   telemetryBlockPositionX: 2.52,
   // Width and height of each square telemetry block.
-  telemetryBlockSize: 0.085,
+  telemetryBlockSize: 0.12,
   // Depth of the complete rail and telemetry-block group.
   telemetryDepth: -0.06,
   // Horizontal distance from center to each rail segment's center.
@@ -146,7 +146,7 @@ const STORY_SCENE_TUNING = {
   // Master rail size as a fraction of viewport width.
   telemetryRailScaleRelativeToViewport: 0.13,
   // Thickness of each telemetry rail segment.
-  telemetryRailThickness: 0.025,
+  telemetryRailThickness: 0.03,
   // Vertical rail offset from the logo center as a viewport-height fraction.
   telemetryRailYOffsetRelativeToLogo: 0,
   // Maximum Z-axis wobble of the rail group, in radians.

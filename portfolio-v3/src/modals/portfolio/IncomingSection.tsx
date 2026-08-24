@@ -89,13 +89,13 @@ const INCOMING_SCENE_TUNING = {
   // Master multiplier for the whole scene, including its calculated height.
   sectionSizeMultiplier: 0.78,
   // Thickness of both hollow square outlines relative to title width.
-  squareBorderRelativeToTitle: 0.018,
+  squareBorderRelativeToTitle: 0.01,
   // Dark blue color shared by both rotating square outlines.
-  squareColor: "#2037a3",
+  squareColor: "#106ae0",
   // Z depth of the rotating squares behind the complete composition.
   squareDepth: -0.56,
   // Opacity of both square outlines; raise this for a more defined frame.
-  squareOpacity: 0.72,
+  squareOpacity: 0.6,
   // Equal-and-opposite rotation speed of the two squares, in degrees/second.
   squareSpinDegreesPerSecond: 3.6,
   // Vertical gap between INCOMING, @, logo, and (F26), relative to title width.
