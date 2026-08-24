@@ -80,11 +80,35 @@ export default function MainMenu() {
     marginY: LAYOUT.marginY * scale,
     z: LAYOUT.z,
   });
+  const asciiMenuWidth = MODE_MENU_LAYOUT.localWidth * asciiScale;
+  const asciiMenuHeight = MODE_MENU_LAYOUT.localHeight * asciiScale;
+  const asciiCenteredTopWhitespace = Math.max(
+    0,
+    (visibleViewport.height - asciiMenuHeight) / 2,
+  );
+  const asciiHorizontalSideWhitespace = Math.max(
+    0,
+    (visibleViewport.width - asciiMenuWidth) / 2,
+  );
+  const asciiMinimumTopWhitespace =
+    (MODE_MENU_LAYOUT.asciiMinimumTopWhitespacePx / Math.max(1, size.height)) *
+    visibleViewport.height;
+  const asciiTopWhitespace = Math.min(
+    asciiCenteredTopWhitespace,
+    Math.max(
+      asciiMinimumTopWhitespace,
+      asciiHorizontalSideWhitespace *
+        MODE_MENU_LAYOUT.asciiTopWhitespaceSideGapMultiplier,
+    ),
+  );
   const menuPosition =
     visualMode === "ascii"
       ? ([
           CAMERA_PROPS.position[0] - MODE_MENU_LAYOUT.localCenterX * scale,
-          CAMERA_PROPS.position[1] - MODE_MENU_LAYOUT.localCenterY * scale,
+          CAMERA_PROPS.position[1] +
+            visibleViewport.height / 2 -
+            asciiTopWhitespace -
+            MODE_MENU_LAYOUT.localTopY * scale,
           LAYOUT.z,
         ] as const)
       : topLeftPosition;

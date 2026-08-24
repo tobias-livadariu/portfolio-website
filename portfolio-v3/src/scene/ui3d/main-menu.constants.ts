@@ -386,6 +386,12 @@ export const MODE_MENU_LAYOUT = {
   // width or height (including these symmetric margins) fills the viewport.
   asciiMarginRatioX: 0.06,
   asciiMarginRatioY: 0.08,
+  // Smallest permitted top whitespace in CSS pixels. This prevents the menu
+  // from touching the top edge when its fitted horizontal side gap is zero.
+  asciiMinimumTopWhitespacePx: 32,
+  // Maximum top whitespace as a multiple of the fitted menu's side whitespace.
+  // For example, 1.25 makes the top edge 25% larger than either side edge.
+  asciiTopWhitespaceSideGapMultiplier: 1.25,
   localWidth: LAYOUT_WIDTH.rightX - LAYOUT_WIDTH.leftX,
   localCenterX: LAYOUT_WIDTH.centerX,
   // Text rises above its line origin and the lower dots extend below theirs;
