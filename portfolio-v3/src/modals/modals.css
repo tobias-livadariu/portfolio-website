@@ -468,6 +468,9 @@
 
 .modal-story-canvas-shell canvas {
   display: block;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0;
 }
 
 .modal-story-motion-toggle {
@@ -510,6 +513,11 @@
 }
 
 .modal-story-meta-label {
+  color: var(--story-primary);
+  font-weight: 700;
+}
+
+.modal-story-meta-accent {
   color: var(--story-primary);
   font-weight: 700;
 }

@@ -11,9 +11,43 @@ import { DRAGON_LUCY } from "../modals.constants";
 import { TerminalTranscriptLine } from "./Terminal";
 import { useTerminalContentColumns } from "./use-terminal-content-columns";
 
-const STORY_CELL_WIDTH = 5;
-const STORY_CELL_HEIGHT = 9;
-const MAX_CARD_COLUMNS = 96;
+/* Shared story-scene tuning knobs. These are intentionally collected here so
+   the hologram can be art-directed without hunting through render code. */
+const STORY_SCENE_TUNING = {
+  cardMaxColumns: 96,
+  decoratorSizeMultiplier: 1,
+  glyphCellHeight: 9,
+  glyphCellWidth: 5,
+  heroLinesNarrow: 24,
+  heroLinesRegular: 26,
+  heroLinesWide: 28,
+  heroNarrowMaxColumns: 40,
+  heroRegularMaxColumns: 72,
+  logoFloatAmount: 0.05,
+  logoMaxHeightRelativeToViewport: 0.32,
+  logoTwistDegrees: { x: 4, y: 9.2, z: 1.4 },
+  logoWidthRelativeToViewport: 0.28,
+  logoYRelativeToViewport: -0.29,
+  motionDamping: 5,
+  railScaleRelativeToViewport: 0.13,
+  railYRelativeToViewport: -0.13,
+  subtitleDepth: 0.12,
+  subtitleFloatAmount: 0.025,
+  subtitleMaxHeightRelativeToViewport: 0.13,
+  subtitleOffsetRelativeToViewport: 0.095,
+  subtitleWidthRelativeToViewport: 0.82,
+  titleCursorActivationDistance: 0.075,
+  titleCursorBlendDistance: 0.14,
+  titleCursorRegionHalfHeight: 0.145,
+  titleCursorRegionHalfWidth: 0.47,
+  titleDepth: -1.1,
+  titleFloatAmount: 0.035,
+  titleIdleTwistDegrees: 4.3,
+  titleMaxHeightRelativeToViewport: 0.225,
+  titleMaxTwistDegrees: 12,
+  titleWidthRelativeToViewport: 0.94,
+  titleYRelativeToViewport: 0.315,
+} as const;
 
 export type StoryFrame = "bracket" | "circuit" | "double";
 export type StoryTheme = "cyan" | "mint";
@@ -46,6 +80,11 @@ interface RowSegment {
 }
 
 type StoryRow = RowSegment[];
+
+interface WrappedTextLine {
+  start: number;
+  text: string;
+}
 
 interface FrameCharacters {
   bottomLeft: string;
@@ -117,6 +156,110 @@ function wrapWords(text: string, width: number) {
   return lines;
 }
 
+function wrapWordsWithOffsets(text: string, width: number) {
+  const source = text.trim();
+  const words = Array.from(source.matchAll(/\S+/g));
+  const lines: WrappedTextLine[] = [];
+  let line = "";
+  let lineStart = 0;
+  let previousWordEnd = 0;
+
+  for (const wordMatch of words) {
+    const word = wordMatch[0];
+    const wordStart = wordMatch.index;
+
+    if (!line) {
+      line = word;
+      lineStart = wordStart;
+    } else {
+      const separator = source.slice(previousWordEnd, wordStart);
+
+      if (`${line}${separator}${word}`.length <= width) {
+        line = `${line}${separator}${word}`;
+      } else {
+        lines.push({ start: lineStart, text: line });
+        line = word;
+        lineStart = wordStart;
+      }
+    }
+
+    previousWordEnd = wordStart + word.length;
+  }
+
+  if (line) {
+    lines.push({ start: lineStart, text: line });
+  }
+
+  return lines;
+}
+
+function impactAccentIndices(labelLength: number, impact: string) {
+  const normalized = impact.trim().replace(/\s+/g, " ");
+  const indices = new Set<number>();
+
+  for (const wordMatch of normalized.matchAll(/\S+/g)) {
+    const word = wordMatch[0];
+    const wordCharacters = word.match(/[A-Za-z0-9]/g)?.length ?? 0;
+    const firstCharacter = word.search(/[A-Za-z0-9]/);
+
+    if (wordCharacters > 6 && firstCharacter >= 0) {
+      indices.add(labelLength + wordMatch.index + firstCharacter);
+    }
+  }
+
+  return indices;
+}
+
+function stackAccentIndices(labelLength: number, stack: string) {
+  const normalized = stack.trim().replace(/\s+/g, " ");
+  const indices = new Set<number>();
+
+  for (const technologyMatch of normalized.matchAll(/[^/]+/g)) {
+    const firstCharacter = technologyMatch[0].search(/[A-Za-z0-9]/);
+
+    if (firstCharacter >= 0) {
+      indices.add(labelLength + technologyMatch.index + firstCharacter);
+    }
+  }
+
+  return indices;
+}
+
+function styledContentSegments({
+  accentIndices,
+  content,
+  contentClassName,
+  labelLength,
+  lineStart,
+}: {
+  accentIndices?: ReadonlySet<number>;
+  content: string;
+  contentClassName: string;
+  labelLength: number;
+  lineStart: number;
+}) {
+  const segments: StoryRow = [];
+
+  for (let index = 0; index < content.length; index += 1) {
+    const absoluteIndex = lineStart + index;
+    const className =
+      absoluteIndex < labelLength
+        ? "modal-story-meta-label"
+        : accentIndices?.has(absoluteIndex)
+          ? "modal-story-meta-accent"
+          : contentClassName;
+    const previous = segments.at(-1);
+
+    if (previous?.className === className) {
+      previous.text += content[index];
+    } else {
+      segments.push({ className, text: content[index] });
+    }
+  }
+
+  return segments;
+}
+
 function fitText(text: string, width: number) {
   return text.length <= width
     ? text
@@ -124,40 +267,38 @@ function fitText(text: string, width: number) {
 }
 
 function framedTextRow({
+  accentIndices,
   characters,
   content,
   contentClassName = "modal-story-body",
   indent,
   innerWidth,
   labelLength = 0,
+  lineStart = 0,
 }: {
+  accentIndices?: ReadonlySet<number>;
   characters: FrameCharacters;
   content: string;
   contentClassName?: string;
   indent: number;
   innerWidth: number;
   labelLength?: number;
+  lineStart?: number;
 }): StoryRow {
   const fitted = fitText(content, innerWidth);
-  const body = fitted.slice(labelLength);
 
   return [
     {
       className: "modal-story-frame",
       text: `${" ".repeat(indent)}${characters.vertical} `,
     },
-    ...(labelLength > 0
-      ? [
-          {
-            className: "modal-story-meta-label",
-            text: fitted.slice(0, labelLength),
-          },
-        ]
-      : []),
-    {
-      className: contentClassName,
-      text: body,
-    },
+    ...styledContentSegments({
+      accentIndices,
+      content: fitted,
+      contentClassName,
+      labelLength,
+      lineStart,
+    }),
     {
       className: "modal-story-frame",
       text: `${" ".repeat(Math.max(0, innerWidth - fitted.length))} ${characters.vertical}`,
@@ -171,11 +312,14 @@ function buildHighlightRows(
   columns: number,
 ): StoryRow[] {
   const characters = FRAME_CHARACTERS[highlight.frame];
-  const cardWidth = Math.max(22, Math.min(columns, MAX_CARD_COLUMNS));
+  const cardWidth = Math.max(
+    22,
+    Math.min(columns, STORY_SCENE_TUNING.cardMaxColumns),
+  );
   const indent = Math.max(0, Math.floor((columns - cardWidth) / 2));
   const innerWidth = cardWidth - 4;
   const title = fitText(
-    `${String(index + 1).padStart(2, "0")} // ${highlight.title}`,
+    `${String(index).padStart(2, "0")} // ${highlight.title}`,
     cardWidth - 6,
   );
   const titleFill = Math.max(0, cardWidth - title.length - 5);
@@ -193,35 +337,40 @@ function buildHighlightRows(
   }
 
   const impactLabel = "IMPACT // ";
-  for (const [lineIndex, line] of wrapWords(
-    `${impactLabel}${highlight.impact}`,
-    innerWidth,
-  ).entries()) {
+  const impactText = `${impactLabel}${highlight.impact}`;
+  const impactAccents = impactAccentIndices(
+    impactLabel.length,
+    highlight.impact,
+  );
+  for (const line of wrapWordsWithOffsets(impactText, innerWidth)) {
     rows.push(
       framedTextRow({
+        accentIndices: impactAccents,
         characters,
-        content: line,
+        content: line.text,
         contentClassName: "modal-story-meta",
         indent,
         innerWidth,
-        labelLength: lineIndex === 0 ? impactLabel.length : 0,
+        labelLength: impactLabel.length,
+        lineStart: line.start,
       }),
     );
   }
 
   const stackLabel = "STACK  // ";
-  for (const [lineIndex, line] of wrapWords(
-    `${stackLabel}${highlight.stack}`,
-    innerWidth,
-  ).entries()) {
+  const stackText = `${stackLabel}${highlight.stack}`;
+  const stackAccents = stackAccentIndices(stackLabel.length, highlight.stack);
+  for (const line of wrapWordsWithOffsets(stackText, innerWidth)) {
     rows.push(
       framedTextRow({
+        accentIndices: stackAccents,
         characters,
-        content: line,
+        content: line.text,
         contentClassName: "modal-story-meta",
         indent,
         innerWidth,
-        labelLength: lineIndex === 0 ? stackLabel.length : 0,
+        labelLength: stackLabel.length,
+        lineStart: line.start,
       }),
     );
   }
@@ -315,32 +464,45 @@ function HologramLogo({
 
   return (
     <>
-      <mesh position={[0, 0, -0.08]}>
-        <ringGeometry args={[0.58, 0.61, 72]} />
-        <meshBasicMaterial
-          color={accent}
-          opacity={0.58}
-          toneMapped={false}
-          transparent
-        />
-      </mesh>
-      {[
-        [0, 0.7, 0, 0.18],
-        [0, -0.7, 0, 0.18],
-        [0.7, 0, Math.PI / 2, 0.18],
-        [-0.7, 0, Math.PI / 2, 0.18],
-      ].map(([x, y, rotation, width], index) => (
-        <mesh key={index} position={[x, y, 0]} rotation={[0, 0, rotation]}>
-          <planeGeometry args={[width, 0.025]} />
-          <meshBasicMaterial color={accent} toneMapped={false} />
+      <group scale={STORY_SCENE_TUNING.decoratorSizeMultiplier}>
+        <mesh position={[0, 0, -0.08]}>
+          <ringGeometry args={[0.58, 0.61, 72]} />
+          <meshBasicMaterial
+            color={accent}
+            opacity={0.58}
+            toneMapped={false}
+            transparent
+          />
         </mesh>
-      ))}
+        {[
+          [0, 0.7, 0, 0.18],
+          [0, -0.7, 0, 0.18],
+          [0.7, 0, Math.PI / 2, 0.18],
+          [-0.7, 0, Math.PI / 2, 0.18],
+        ].map(([x, y, rotation, width], index) => (
+          <mesh key={index} position={[x, y, 0]} rotation={[0, 0, rotation]}>
+            <planeGeometry args={[width, 0.025]} />
+            <meshBasicMaterial color={accent} toneMapped={false} />
+          </mesh>
+        ))}
+      </group>
       <mesh ref={meshRef} visible={false}>
         <planeGeometry args={[0.86, 0.86]} />
         <meshBasicMaterial map={texture} toneMapped={false} transparent />
       </mesh>
     </>
   );
+}
+
+function distanceFromRectangle(
+  x: number,
+  y: number,
+  halfWidth: number,
+  halfHeight: number,
+) {
+  const outsideX = Math.max(Math.abs(x) - halfWidth, 0);
+  const outsideY = Math.max(Math.abs(y) - halfHeight, 0);
+  return Math.hypot(outsideX, outsideY);
 }
 
 function TelemetryRail({ color }: { color: string }) {
@@ -384,7 +546,7 @@ function HologramContent({
   const subtitleTopRef = useRef<Mesh>(null);
   const subtitleBottomRef = useRef<Mesh>(null);
   const logoRef = useRef<Mesh>(null);
-  const pointer = useRef({ x: 0, y: 0 });
+  const pointer = useRef({ isInsideCanvas: false, x: 0, y: 0 });
   const basePositions = useRef({ logoY: 0, subtitleY: 0, titleY: 0 });
   const layoutSignatureRef = useRef("");
   const { gl, viewport } = useThree();
@@ -398,16 +560,14 @@ function HologramContent({
         return;
       }
 
-      pointer.current.x = MathUtils.clamp(
-        (event.clientX - rect.left - rect.width / 2) / rect.width,
-        -1.2,
-        1.2,
-      );
-      pointer.current.y = MathUtils.clamp(
-        (event.clientY - rect.top - rect.height / 2) / rect.height,
-        -1.4,
-        1.4,
-      );
+      const x = (event.clientX - rect.left - rect.width / 2) / rect.width;
+      const y = (event.clientY - rect.top - rect.height / 2) / rect.height;
+
+      pointer.current = {
+        isInsideCanvas: x >= -0.5 && x <= 0.5 && y >= -0.5 && y <= 0.5,
+        x: MathUtils.clamp(x, -1.2, 1.2),
+        y: MathUtils.clamp(y, -1.4, 1.4),
+      };
     };
 
     window.addEventListener("pointermove", handleMove, { passive: true });
@@ -438,18 +598,20 @@ function HologramContent({
     if (layoutSignature !== layoutSignatureRef.current) {
       const titleReady = centerMeshAtWidth(
         titleRef.current,
-        viewport.width * 0.88,
-        viewport.height * 0.225,
+        viewport.width * STORY_SCENE_TUNING.titleWidthRelativeToViewport,
+        viewport.height * STORY_SCENE_TUNING.titleMaxHeightRelativeToViewport,
       );
       const subtitleTopReady = centerMeshAtWidth(
         subtitleTopRef.current,
-        viewport.width * 0.82,
-        viewport.height * 0.13,
+        viewport.width * STORY_SCENE_TUNING.subtitleWidthRelativeToViewport,
+        viewport.height *
+          STORY_SCENE_TUNING.subtitleMaxHeightRelativeToViewport,
       );
       const subtitleBottomReady = centerMeshAtWidth(
         subtitleBottomRef.current,
-        viewport.width * 0.82,
-        viewport.height * 0.13,
+        viewport.width * STORY_SCENE_TUNING.subtitleWidthRelativeToViewport,
+        viewport.height *
+          STORY_SCENE_TUNING.subtitleMaxHeightRelativeToViewport,
       );
 
       if (
@@ -461,23 +623,38 @@ function HologramContent({
         logoRef.current
       ) {
         const logoSize = Math.min(
-          viewport.width * 0.28,
-          viewport.height * 0.38,
+          viewport.width * STORY_SCENE_TUNING.logoWidthRelativeToViewport,
+          viewport.height * STORY_SCENE_TUNING.logoMaxHeightRelativeToViewport,
         );
-        const titleY = viewport.height * 0.28;
+        const titleY =
+          viewport.height * STORY_SCENE_TUNING.titleYRelativeToViewport;
         const subtitleY = 0;
-        const subtitleOffset = viewport.height * 0.095;
-        const logoY = -viewport.height * 0.3;
+        const subtitleOffset =
+          viewport.height * STORY_SCENE_TUNING.subtitleOffsetRelativeToViewport;
+        const logoY =
+          viewport.height * STORY_SCENE_TUNING.logoYRelativeToViewport;
 
-        titleGroup.position.set(0, titleY, 0);
-        subtitleGroup.position.set(0, subtitleY, 0);
+        titleGroup.position.set(0, titleY, STORY_SCENE_TUNING.titleDepth);
+        subtitleGroup.position.set(
+          0,
+          subtitleY,
+          STORY_SCENE_TUNING.subtitleDepth,
+        );
         subtitleTopRef.current.position.y += subtitleOffset;
         subtitleBottomRef.current.position.y -= subtitleOffset;
         logoGroup.position.set(0, logoY, 0);
         logoGroup.scale.setScalar(logoSize);
         logoRef.current.visible = true;
-        railGroup.position.set(0, -viewport.height * 0.13, -0.06);
-        railGroup.scale.setScalar(viewport.width * 0.13);
+        railGroup.position.set(
+          0,
+          viewport.height * STORY_SCENE_TUNING.railYRelativeToViewport,
+          -0.06,
+        );
+        railGroup.scale.setScalar(
+          viewport.width *
+            STORY_SCENE_TUNING.railScaleRelativeToViewport *
+            STORY_SCENE_TUNING.decoratorSizeMultiplier,
+        );
         basePositions.current = { logoY, subtitleY, titleY };
         layoutSignatureRef.current = layoutSignature;
       }
@@ -497,27 +674,86 @@ function HologramContent({
     }
 
     const time = state.clock.elapsedTime + definition.motionPhase;
-    const damping = 1 - Math.exp(-delta * 5);
+    const damping = 1 - Math.exp(-delta * STORY_SCENE_TUNING.motionDamping);
+    const idleTwist = MathUtils.degToRad(
+      STORY_SCENE_TUNING.titleIdleTwistDegrees,
+    );
+    const maximumTwist = MathUtils.degToRad(
+      STORY_SCENE_TUNING.titleMaxTwistDegrees,
+    );
+    const subtitleRotationX = Math.sin(time * 0.72) * idleTwist;
+    const subtitleRotationY = Math.cos(time * 0.51) * idleTwist * 0.55;
+    const subtitleRotationZ = Math.sin(time * 0.63) * idleTwist * 0.6;
+    const titleCenterY = -STORY_SCENE_TUNING.titleYRelativeToViewport;
+    const titleDistance = pointer.current.isInsideCanvas
+      ? distanceFromRectangle(
+          pointer.current.x,
+          pointer.current.y - titleCenterY,
+          STORY_SCENE_TUNING.titleCursorRegionHalfWidth,
+          STORY_SCENE_TUNING.titleCursorRegionHalfHeight,
+        )
+      : Number.POSITIVE_INFINITY;
+    const pointerInfluence =
+      1 -
+      MathUtils.smoothstep(
+        titleDistance,
+        STORY_SCENE_TUNING.titleCursorActivationDistance,
+        STORY_SCENE_TUNING.titleCursorBlendDistance,
+      );
+    const pointerRotationX =
+      MathUtils.clamp(
+        (pointer.current.y - titleCenterY) /
+          STORY_SCENE_TUNING.titleCursorRegionHalfHeight,
+        -1,
+        1,
+      ) *
+      maximumTwist *
+      0.48;
+    const pointerRotationY =
+      MathUtils.clamp(
+        pointer.current.x / STORY_SCENE_TUNING.titleCursorRegionHalfWidth,
+        -1,
+        1,
+      ) * maximumTwist;
+    const titleRotationX = MathUtils.lerp(
+      -subtitleRotationX,
+      pointerRotationX,
+      pointerInfluence,
+    );
+    const titleRotationY = MathUtils.lerp(
+      -subtitleRotationY,
+      pointerRotationY,
+      pointerInfluence,
+    );
+    const titleRotationZ = MathUtils.lerp(
+      -subtitleRotationZ,
+      0,
+      pointerInfluence,
+    );
 
-    titleGroup.rotation.y +=
-      (pointer.current.x * 0.2 +
-        Math.sin(time * 0.42) * 0.025 -
-        titleGroup.rotation.y) *
-      damping;
-    titleGroup.rotation.x +=
-      (pointer.current.y * 0.09 - titleGroup.rotation.x) * damping;
-    titleGroup.rotation.z = Math.sin(time * 0.3) * 0.009;
-    titleGroup.position.y = titleY + Math.sin(time * 0.58) * 0.035;
+    titleGroup.rotation.x += (titleRotationX - titleGroup.rotation.x) * damping;
+    titleGroup.rotation.y += (titleRotationY - titleGroup.rotation.y) * damping;
+    titleGroup.rotation.z += (titleRotationZ - titleGroup.rotation.z) * damping;
+    titleGroup.position.y =
+      titleY + Math.sin(time * 0.58) * STORY_SCENE_TUNING.titleFloatAmount;
 
-    subtitleGroup.rotation.x = Math.sin(time * 0.72) * 0.075;
-    subtitleGroup.rotation.y = Math.cos(time * 0.51) * 0.04;
-    subtitleGroup.rotation.z = Math.sin(time * 0.63) * 0.045;
-    subtitleGroup.position.y = subtitleY + Math.cos(time * 0.7) * 0.025;
+    subtitleGroup.rotation.x = subtitleRotationX;
+    subtitleGroup.rotation.y = subtitleRotationY;
+    subtitleGroup.rotation.z = subtitleRotationZ;
+    subtitleGroup.position.y =
+      subtitleY + Math.cos(time * 0.7) * STORY_SCENE_TUNING.subtitleFloatAmount;
 
-    logoGroup.rotation.x = Math.sin(time * 0.46) * 0.07;
-    logoGroup.rotation.y = Math.cos(time * 0.4) * 0.16;
-    logoGroup.rotation.z = Math.sin(time * 0.34) * 0.025;
-    logoGroup.position.y = logoY + Math.sin(time * 0.5) * 0.05;
+    logoGroup.rotation.x =
+      Math.sin(time * 0.46) *
+      MathUtils.degToRad(STORY_SCENE_TUNING.logoTwistDegrees.x);
+    logoGroup.rotation.y =
+      Math.cos(time * 0.4) *
+      MathUtils.degToRad(STORY_SCENE_TUNING.logoTwistDegrees.y);
+    logoGroup.rotation.z =
+      Math.sin(time * 0.34) *
+      MathUtils.degToRad(STORY_SCENE_TUNING.logoTwistDegrees.z);
+    logoGroup.position.y =
+      logoY + Math.sin(time * 0.5) * STORY_SCENE_TUNING.logoFloatAmount;
     railGroup.rotation.z = Math.sin(time * 0.24) * 0.008;
   });
 
@@ -590,7 +826,12 @@ export default function HolographicStoryScene({
   const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
   const motionEnabled = motionOverride ?? !prefersReducedMotion;
-  const heroLineCount = columns < 40 ? 20 : columns < 72 ? 22 : 24;
+  const heroLineCount =
+    columns < STORY_SCENE_TUNING.heroNarrowMaxColumns
+      ? STORY_SCENE_TUNING.heroLinesNarrow
+      : columns < STORY_SCENE_TUNING.heroRegularMaxColumns
+        ? STORY_SCENE_TUNING.heroLinesRegular
+        : STORY_SCENE_TUNING.heroLinesWide;
   const rows = useMemo(
     () => buildStoryRows(definition.highlights, columns),
     [columns, definition.highlights],
@@ -660,8 +901,8 @@ export default function HolographicStoryScene({
               />
             </Suspense>
             <TransparentAsciiRenderer
-              baseCellHeight={STORY_CELL_HEIGHT}
-              baseCellWidth={STORY_CELL_WIDTH}
+              baseCellHeight={STORY_SCENE_TUNING.glyphCellHeight}
+              baseCellWidth={STORY_SCENE_TUNING.glyphCellWidth}
             />
           </Canvas>
         </div>

@@ -9,39 +9,119 @@ import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { DRAGON_LUCY } from "../modals.constants";
 
-/* Base on-screen cell size at the shared reference width — finer than the
-   background AsciiPass since this strip is small and has to stay legible. */
-const CELL_WIDTH = 6;
-const CELL_HEIGHT = 10;
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
 
-/* Incoming-section tuning knobs. SECTION_SIZE_MULTIPLIER uniformly scales
-   the complete centered stack. Logo width is a fraction of INCOMING's
-   rendered width. A season-text size of 1 gives it the same glyph size as
-   INCOMING; lower values keep it visually subordinate. The whitespace
-   multipliers independently adjust the breathing room above and below. */
-const SECTION_SIZE_MULTIPLIER = 0.78;
-const FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE = 0.36;
-const SEASON_TEXT_SIZE_RELATIVE_TO_TITLE = 0.8;
-const TOP_WHITESPACE_MULTIPLIER = 0;
-const BOTTOM_WHITESPACE_MULTIPLIER = 0;
+/* Finta-scene tuning knobs. The values are grouped so the full composition
+   can be adjusted from one place without modifying layout or animation code. */
+const INCOMING_SCENE_TUNING = {
+  backdropDepth: -0.42,
+  backdropFloatAmount: 0.035,
+  backdropLogoOpacity: 0.38,
+  backdropLogoWidthRelativeToTitle: 0.3,
+  backdropTwistDegrees: 7,
+  baseBottomMarginRem: 1.25,
+  baseTopMarginRem: 0.5,
+  baseWhitespaceRelativeToStack: 0.04,
+  bottomWhitespaceMultiplier: 0,
+  decoratorSizeMultiplier: 1,
+  fallbackLayoutAspectRatio: 1.35,
+  fintaStageHeightRelativeToTitle: 0.52,
+  fintaTextDepth: 0.18,
+  fintaTextWidthRelativeToTitle: 0.64,
+  glyphCellHeight: 10,
+  glyphCellWidth: 6,
+  idleTwistDegrees: 1.7,
+  logoBlue: "#2a42ff",
+  mainFloatAmount: 0.06,
+  maxPointerTwistDegrees: 13.5,
+  motionDamping: 5,
+  pointerPitchRatio: 0.5,
+  seasonTextSizeRelativeToTitle: 0.8,
+  sectionSizeMultiplier: 0.78,
+  stackGapRelativeToTitle: 0.032,
+  titleLayoutWidth: 1,
+  titleViewportWidth: 0.9,
+  topWhitespaceMultiplier: 0,
+  wordmarkBlue: "#344bc4",
+} as const;
 
-const TITLE_LAYOUT_WIDTH = 1;
-const STACK_GAP_RELATIVE_TO_TITLE = 0.032;
-const TITLE_VIEWPORT_WIDTH = 0.9;
-const BASE_WHITESPACE_RELATIVE_TO_STACK = 0.04;
-const FALLBACK_LAYOUT_ASPECT_RATIO = 1.35;
-const BASE_TOP_MARGIN_REM = 0.5;
-const BASE_BOTTOM_MARGIN_REM = 1.25;
-
-function FintaLogo({ meshRef }: { meshRef: React.RefObject<Mesh | null> }) {
+function FintaBackdrop({
+  groupRef,
+}: {
+  groupRef: React.RefObject<Group | null>;
+}) {
   const texture = useTexture(FINTA_LOGO_PATH);
 
   return (
-    <mesh ref={meshRef} visible={false}>
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial map={texture} transparent toneMapped={false} />
-    </mesh>
+    <group ref={groupRef} visible={false}>
+      <mesh position={[0, 0, 0.04]}>
+        <planeGeometry args={[0.88, 0.88]} />
+        <meshBasicMaterial
+          depthWrite={false}
+          map={texture}
+          opacity={INCOMING_SCENE_TUNING.backdropLogoOpacity}
+          transparent
+          toneMapped={false}
+        />
+      </mesh>
+
+      <group scale={INCOMING_SCENE_TUNING.decoratorSizeMultiplier}>
+        <mesh position={[0, 0, -0.04]}>
+          <ringGeometry args={[0.56, 0.59, 72]} />
+          <meshBasicMaterial
+            color={INCOMING_SCENE_TUNING.logoBlue}
+            opacity={0.72}
+            transparent
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh position={[0, 0, -0.05]}>
+          <ringGeometry args={[0.67, 0.685, 72]} />
+          <meshBasicMaterial
+            color={DRAGON_LUCY.cyan}
+            opacity={0.42}
+            transparent
+            toneMapped={false}
+          />
+        </mesh>
+
+        {[
+          [0, 0.77, 0],
+          [0, -0.77, 0],
+          [0.77, 0, Math.PI / 2],
+          [-0.77, 0, Math.PI / 2],
+        ].map(([x, y, rotation], index) => (
+          <mesh key={index} position={[x, y, 0]} rotation={[0, 0, rotation]}>
+            <planeGeometry args={[0.22, 0.026]} />
+            <meshBasicMaterial color={DRAGON_LUCY.cyan} toneMapped={false} />
+          </mesh>
+        ))}
+
+        {[-0.18, 0, 0.18].flatMap((y, rowIndex) =>
+          [-1, 1].map((side) => (
+            <mesh key={`${rowIndex}-${side}`} position={[side * 1.18, y, 0]}>
+              <planeGeometry args={[0.095, 0.095]} />
+              <meshBasicMaterial
+                color={INCOMING_SCENE_TUNING.logoBlue}
+                toneMapped={false}
+              />
+            </mesh>
+          )),
+        )}
+
+        {[-1, 1].map((side) => (
+          <mesh key={side} position={[side * 0.94, 0, -0.03]}>
+            <planeGeometry args={[0.56, 0.025]} />
+            <meshBasicMaterial
+              color={DRAGON_LUCY.cyan}
+              opacity={0.68}
+              transparent
+              toneMapped={false}
+            />
+          </mesh>
+        ))}
+      </group>
+    </group>
   );
 }
 
@@ -126,7 +206,9 @@ function createStack(items: Array<MeasuredItem | null>): StackLayout | null {
   }
 
   const measuredItems = items as MeasuredItem[];
-  const gap = TITLE_LAYOUT_WIDTH * STACK_GAP_RELATIVE_TO_TITLE;
+  const gap =
+    INCOMING_SCENE_TUNING.titleLayoutWidth *
+    INCOMING_SCENE_TUNING.stackGapRelativeToTitle;
 
   return {
     height:
@@ -138,13 +220,18 @@ function createStack(items: Array<MeasuredItem | null>): StackLayout | null {
 
 function fitTitleToWidth(viewportWidth: number) {
   return (
-    (viewportWidth * TITLE_VIEWPORT_WIDTH * SECTION_SIZE_MULTIPLIER) /
-    TITLE_LAYOUT_WIDTH
+    (viewportWidth *
+      INCOMING_SCENE_TUNING.titleViewportWidth *
+      INCOMING_SCENE_TUNING.sectionSizeMultiplier) /
+    INCOMING_SCENE_TUNING.titleLayoutWidth
   );
 }
 
 function placeStack(layout: StackLayout, verticalOffset: number) {
-  const gap = TITLE_LAYOUT_WIDTH * STACK_GAP_RELATIVE_TO_TITLE;
+  const gap =
+    INCOMING_SCENE_TUNING.titleLayoutWidth *
+    INCOMING_SCENE_TUNING.stackGapRelativeToTitle;
+  const centers = new Map<Mesh, number>();
   let top = layout.height / 2;
 
   for (const item of layout.items) {
@@ -157,8 +244,11 @@ function placeStack(layout: StackLayout, verticalOffset: number) {
       -item.center.z * item.scale,
     );
     item.mesh.visible = true;
+    centers.set(item.mesh, centerY + verticalOffset);
     top -= item.height + gap;
   }
+
+  return centers;
 }
 
 function IncomingContent({
@@ -167,11 +257,13 @@ function IncomingContent({
   onLayoutAspectRatioChange: (aspectRatio: number) => void;
 }) {
   const groupRef = useRef<Group>(null);
+  const backdropRef = useRef<Group>(null);
   const titleRef = useRef<Mesh>(null);
   const atRef = useRef<Mesh>(null);
-  const logoRef = useRef<Mesh>(null);
+  const fintaRef = useRef<Mesh>(null);
   const seasonRef = useRef<Mesh>(null);
   const pointer = useRef({ x: 0, y: 0 });
+  const backdropBaseY = useRef(0);
   const layoutSignatureRef = useRef("");
   const { gl, viewport } = useThree();
 
@@ -206,69 +298,137 @@ function IncomingContent({
     const layoutSignature = [
       viewport.width,
       viewport.height,
-      SECTION_SIZE_MULTIPLIER,
-      FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE,
-      SEASON_TEXT_SIZE_RELATIVE_TO_TITLE,
-      TOP_WHITESPACE_MULTIPLIER,
-      BOTTOM_WHITESPACE_MULTIPLIER,
+      INCOMING_SCENE_TUNING.sectionSizeMultiplier,
+      INCOMING_SCENE_TUNING.fintaTextWidthRelativeToTitle,
+      INCOMING_SCENE_TUNING.backdropLogoWidthRelativeToTitle,
+      INCOMING_SCENE_TUNING.decoratorSizeMultiplier,
+      INCOMING_SCENE_TUNING.seasonTextSizeRelativeToTitle,
+      INCOMING_SCENE_TUNING.topWhitespaceMultiplier,
+      INCOMING_SCENE_TUNING.bottomWhitespaceMultiplier,
       titleRef.current?.geometry.uuid,
       atRef.current?.geometry.uuid,
-      logoRef.current?.geometry.uuid,
+      fintaRef.current?.geometry.uuid,
       seasonRef.current?.geometry.uuid,
     ].join("|");
 
     if (layoutSignature !== layoutSignatureRef.current) {
-      const title = measureItem(titleRef.current, TITLE_LAYOUT_WIDTH);
-      const logo = measureItem(
-        logoRef.current,
-        TITLE_LAYOUT_WIDTH * FINTA_LOGO_WIDTH_RELATIVE_TO_TITLE,
+      const title = measureItem(
+        titleRef.current,
+        INCOMING_SCENE_TUNING.titleLayoutWidth,
       );
+      const finta = measureItem(
+        fintaRef.current,
+        INCOMING_SCENE_TUNING.titleLayoutWidth *
+          INCOMING_SCENE_TUNING.fintaTextWidthRelativeToTitle,
+      );
+      const fintaStage = finta
+        ? {
+            ...finta,
+            height: Math.max(
+              finta.height,
+              INCOMING_SCENE_TUNING.titleLayoutWidth *
+                INCOMING_SCENE_TUNING.fintaStageHeightRelativeToTitle,
+            ),
+          }
+        : null;
       const season = measureItemAtScale(
         seasonRef.current,
-        (title?.scale ?? 1) * SEASON_TEXT_SIZE_RELATIVE_TO_TITLE,
+        (title?.scale ?? 1) *
+          INCOMING_SCENE_TUNING.seasonTextSizeRelativeToTitle,
       );
       const layout = createStack([
         title,
         measureItemAtScale(atRef.current, title?.scale ?? 1),
-        logo,
+        fintaStage,
         season,
       ]);
 
-      if (layout) {
+      if (layout && fintaStage && backdropRef.current) {
         const baseWhitespace =
-          layout.height * BASE_WHITESPACE_RELATIVE_TO_STACK;
-        const topWhitespace = baseWhitespace * TOP_WHITESPACE_MULTIPLIER;
-        const bottomWhitespace = baseWhitespace * BOTTOM_WHITESPACE_MULTIPLIER;
+          layout.height * INCOMING_SCENE_TUNING.baseWhitespaceRelativeToStack;
+        const topWhitespace =
+          baseWhitespace * INCOMING_SCENE_TUNING.topWhitespaceMultiplier;
+        const bottomWhitespace =
+          baseWhitespace * INCOMING_SCENE_TUNING.bottomWhitespaceMultiplier;
 
-        placeStack(layout, (bottomWhitespace - topWhitespace) / 2);
+        const itemCenters = placeStack(
+          layout,
+          (bottomWhitespace - topWhitespace) / 2,
+        );
+        const fintaCenter = itemCenters.get(fintaStage.mesh) ?? 0;
+
+        fintaStage.mesh.position.z = INCOMING_SCENE_TUNING.fintaTextDepth;
+        backdropRef.current.position.set(
+          0,
+          fintaCenter,
+          INCOMING_SCENE_TUNING.backdropDepth,
+        );
+        backdropRef.current.scale.setScalar(
+          INCOMING_SCENE_TUNING.titleLayoutWidth *
+            INCOMING_SCENE_TUNING.backdropLogoWidthRelativeToTitle,
+        );
+        backdropRef.current.visible = true;
+        backdropBaseY.current = fintaCenter;
         group.scale.setScalar(fitTitleToWidth(viewport.width));
         onLayoutAspectRatioChange(
-          TITLE_LAYOUT_WIDTH /
+          INCOMING_SCENE_TUNING.titleLayoutWidth /
             ((layout.height + topWhitespace + bottomWhitespace) *
-              SECTION_SIZE_MULTIPLIER),
+              INCOMING_SCENE_TUNING.sectionSizeMultiplier),
         );
         layoutSignatureRef.current = layoutSignature;
       }
     }
 
-    const damping = 1 - Math.exp(-delta * 5);
-    const idle = Math.sin(state.clock.elapsedTime * 0.7) * 0.03;
+    const damping = 1 - Math.exp(-delta * INCOMING_SCENE_TUNING.motionDamping);
+    const time = state.clock.elapsedTime;
+    const idle =
+      Math.sin(time * 0.7) *
+      MathUtils.degToRad(INCOMING_SCENE_TUNING.idleTwistDegrees);
+    const maximumPointerTwist = MathUtils.degToRad(
+      INCOMING_SCENE_TUNING.maxPointerTwistDegrees,
+    );
 
     group.rotation.y +=
-      (pointer.current.x * 0.24 + idle - group.rotation.y) * damping;
-    group.rotation.x += (pointer.current.y * 0.12 - group.rotation.x) * damping;
-    group.position.y = Math.sin(state.clock.elapsedTime * 0.8) * 0.06;
+      (pointer.current.x * maximumPointerTwist + idle - group.rotation.y) *
+      damping;
+    group.rotation.x +=
+      (pointer.current.y *
+        maximumPointerTwist *
+        INCOMING_SCENE_TUNING.pointerPitchRatio -
+        group.rotation.x) *
+      damping;
+    group.position.y =
+      Math.sin(time * 0.8) * INCOMING_SCENE_TUNING.mainFloatAmount;
+
+    if (backdropRef.current) {
+      const backdropTwist = MathUtils.degToRad(
+        INCOMING_SCENE_TUNING.backdropTwistDegrees,
+      );
+
+      backdropRef.current.rotation.y = Math.sin(time * 0.47) * backdropTwist;
+      backdropRef.current.rotation.z =
+        Math.cos(time * 0.39) * backdropTwist * 0.32;
+      backdropRef.current.position.y =
+        backdropBaseY.current +
+        Math.sin(time * 0.56) * INCOMING_SCENE_TUNING.backdropFloatAmount;
+    }
   });
 
   return (
     <group ref={groupRef}>
+      <FintaBackdrop groupRef={backdropRef} />
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={titleRef}>
         INCOMING
       </IncomingText>
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={atRef}>
         @
       </IncomingText>
-      <FintaLogo meshRef={logoRef} />
+      <IncomingText
+        color={INCOMING_SCENE_TUNING.wordmarkBlue}
+        meshRef={fintaRef}
+      >
+        FINTA
+      </IncomingText>
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={seasonRef}>
         (F26)
       </IncomingText>
@@ -277,7 +437,7 @@ function IncomingContent({
 }
 
 /**
- * "INCOMING @ [finta] (F26)" — a three.js canvas with a transparent ASCII
+ * "INCOMING @ FINTA (F26)" — a three.js canvas with a transparent ASCII
  * filter, so only the glyphs render, floating over the modal. The whole
  * group tilts subtly toward the cursor. Off-screen rendering runs on demand
  * so layout can initialize with the page, then continuous animation starts
@@ -288,7 +448,8 @@ export default function IncomingSection() {
   const [isOnScreen, setIsOnScreen] = useState(false);
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number>();
   const fallbackAspectRatio =
-    FALLBACK_LAYOUT_ASPECT_RATIO / SECTION_SIZE_MULTIPLIER;
+    INCOMING_SCENE_TUNING.fallbackLayoutAspectRatio /
+    INCOMING_SCENE_TUNING.sectionSizeMultiplier;
   const handleLayoutAspectRatioChange = useCallback((aspectRatio: number) => {
     setLayoutAspectRatio((current) =>
       current !== undefined && Math.abs(current - aspectRatio) < 0.0001
@@ -319,8 +480,8 @@ export default function IncomingSection() {
       ref={wrapperRef}
       style={{
         aspectRatio: layoutAspectRatio ?? fallbackAspectRatio,
-        marginBottom: `${BASE_BOTTOM_MARGIN_REM * SECTION_SIZE_MULTIPLIER * BOTTOM_WHITESPACE_MULTIPLIER}rem`,
-        marginTop: `${BASE_TOP_MARGIN_REM * SECTION_SIZE_MULTIPLIER * TOP_WHITESPACE_MULTIPLIER}rem`,
+        marginBottom: `${INCOMING_SCENE_TUNING.baseBottomMarginRem * INCOMING_SCENE_TUNING.sectionSizeMultiplier * INCOMING_SCENE_TUNING.bottomWhitespaceMultiplier}rem`,
+        marginTop: `${INCOMING_SCENE_TUNING.baseTopMarginRem * INCOMING_SCENE_TUNING.sectionSizeMultiplier * INCOMING_SCENE_TUNING.topWhitespaceMultiplier}rem`,
       }}
     >
       <Canvas
@@ -336,8 +497,8 @@ export default function IncomingSection() {
           />
         </Suspense>
         <TransparentAsciiRenderer
-          baseCellHeight={CELL_HEIGHT}
-          baseCellWidth={CELL_WIDTH}
+          baseCellHeight={INCOMING_SCENE_TUNING.glyphCellHeight}
+          baseCellWidth={INCOMING_SCENE_TUNING.glyphCellWidth}
         />
       </Canvas>
     </div>

@@ -170,6 +170,28 @@ test("modal document opens from scroll and supports section navigation", async (
   await expect(
     activePanel.getByRole("button", { name: "Pause hologram motion" }),
   ).toHaveCount(2);
+  const shopifyCards = activePanel.locator(".modal-story-cards").first();
+  await expect(
+    shopifyCards.locator(".modal-story-heading").first(),
+  ).toContainText("00 // REPORT RELIABILITY");
+  await expect(
+    shopifyCards
+      .locator(".modal-story-meta-label", { hasText: "IMPACT" })
+      .first()
+      .locator(
+        "xpath=ancestor::div[contains(@class, 'modal-terminal-line-story')]",
+      )
+      .locator(".modal-story-meta-accent"),
+  ).toHaveText(["r", "a"]);
+  await expect(
+    shopifyCards
+      .locator(".modal-story-meta-label", { hasText: "STACK" })
+      .first()
+      .locator(
+        "xpath=ancestor::div[contains(@class, 'modal-terminal-line-story')]",
+      )
+      .locator(".modal-story-meta-accent"),
+  ).toHaveText(["R", "T"]);
   await expect(
     page.getByRole("link", { name: /portfolio-website/ }),
   ).toBeVisible();
