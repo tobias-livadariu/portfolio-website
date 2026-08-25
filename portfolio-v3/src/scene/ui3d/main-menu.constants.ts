@@ -379,9 +379,6 @@ export const RESPONSIVE_SCALE = {
 } as const;
 
 export const MODE_MENU_LAYOUT = {
-  // Match the compact, screen-space menu proportions used by portfolio-v2.
-  flatScaleMultiplier: 0.56,
-  flatOrbitBufferPx: 44,
   // ASCII is authored as a composition: the menu expands until either its
   // width or height (including these symmetric margins) fills the viewport.
   asciiMarginRatioX: 0.06,
@@ -394,6 +391,7 @@ export const MODE_MENU_LAYOUT = {
   asciiTopWhitespaceSideGapMultiplier: 1.25,
   localWidth: LAYOUT_WIDTH.rightX - LAYOUT_WIDTH.leftX,
   localCenterX: LAYOUT_WIDTH.centerX,
+  localLeftX: LAYOUT_WIDTH.leftX,
   // Text rises above its line origin and the lower dots extend below theirs;
   // include both when fitting and centering the composition.
   localTopY: introY + TEXT_GEOMETRY.nameSize,
@@ -410,31 +408,141 @@ export const MODE_MENU_LAYOUT = {
     2,
 } as const;
 
-export function getFlatMenuExclusionRadiusPx(
+/** 2D-only menu placement and planet-clearance controls. */
+export const TWO_DIMENSIONAL_MENU_TUNING = {
+  // Viewport widths defining the interpolation range for margins and planet
+  // clearance. Values below/above this range use the small/large endpoint.
+  responsiveViewportWidthPx: {
+    minimum: 375,
+    maximum: 1920,
+  },
+  // Desired menu width as a fraction of viewport width before the pixel clamps
+  // and master scale are applied.
+  menuWidthRelativeToViewport: 0.275,
+  // Absolute pixel-width clamp before scaleMultiplier. These bounds keep the
+  // menu readable on phones without letting it dominate ultrawide displays.
+  menuWidthPx: {
+    minimum: 230,
+    maximum: 350,
+  },
+  // Left gap between the viewport edge and the menu's fitted visual bounds.
+  marginLeftPx: {
+    minimum: 16,
+    maximum: 28,
+  },
+  // Top gap between the viewport edge and the menu's fitted visual bounds.
+  marginTopPx: {
+    minimum: 16,
+    maximum: 28,
+  },
+  // Minimum free space retained at the bottom and right when the aspect ratio
+  // forces the menu below its desired size.
+  minimumTrailingMarginPx: 16,
+  // Extra planet-free padding beyond the menu's farthest bottom-right corner.
+  planetExclusionPaddingPx: {
+    minimum: 24,
+    maximum: 32,
+  },
+  // Master size multiplier applied to the clamped target pixel width.
+  scaleMultiplier: 1.2,
+} as const;
+
+function clampValue(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function interpolate(start: number, end: number, progress: number) {
+  return start + (end - start) * progress;
+}
+
+/**
+ * Fits the 2D menu in CSS-pixel space, then converts its scale back to the
+ * menu's local Three.js units. Keeping this calculation shared with the planet
+ * exclusion radius prevents the visual menu and its clear zone from drifting.
+ */
+export function getTwoDimensionalMenuLayoutPx(
   viewportWidth: number,
   viewportHeight: number,
 ) {
-  const responsiveScale = Math.min(
-    RESPONSIVE_SCALE.max,
-    Math.max(
-      RESPONSIVE_SCALE.min,
-      viewportWidth / RESPONSIVE_SCALE.referenceWidth,
-    ),
+  const safeViewportWidth = Math.max(1, viewportWidth);
+  const safeViewportHeight = Math.max(1, viewportHeight);
+  const responsiveRange = TWO_DIMENSIONAL_MENU_TUNING.responsiveViewportWidthPx;
+  const responsiveProgress = clampValue(
+    (safeViewportWidth - responsiveRange.minimum) /
+      Math.max(1, responsiveRange.maximum - responsiveRange.minimum),
+    0,
+    1,
   );
-  const menuScale = responsiveScale * MODE_MENU_LAYOUT.flatScaleMultiplier;
+  const marginLeftPx = interpolate(
+    TWO_DIMENSIONAL_MENU_TUNING.marginLeftPx.minimum,
+    TWO_DIMENSIONAL_MENU_TUNING.marginLeftPx.maximum,
+    responsiveProgress,
+  );
+  const marginTopPx = interpolate(
+    TWO_DIMENSIONAL_MENU_TUNING.marginTopPx.minimum,
+    TWO_DIMENSIONAL_MENU_TUNING.marginTopPx.maximum,
+    responsiveProgress,
+  );
+  const planetExclusionPaddingPx = interpolate(
+    TWO_DIMENSIONAL_MENU_TUNING.planetExclusionPaddingPx.minimum,
+    TWO_DIMENSIONAL_MENU_TUNING.planetExclusionPaddingPx.maximum,
+    responsiveProgress,
+  );
+  const widthClamp = TWO_DIMENSIONAL_MENU_TUNING.menuWidthPx;
+  const desiredMenuWidthPx =
+    clampValue(
+      safeViewportWidth *
+        TWO_DIMENSIONAL_MENU_TUNING.menuWidthRelativeToViewport,
+      widthClamp.minimum,
+      widthClamp.maximum,
+    ) * TWO_DIMENSIONAL_MENU_TUNING.scaleMultiplier;
+  const availableWidthPx = Math.max(
+    1,
+    safeViewportWidth -
+      marginLeftPx -
+      TWO_DIMENSIONAL_MENU_TUNING.minimumTrailingMarginPx,
+  );
+  const availableHeightPx = Math.max(
+    1,
+    safeViewportHeight -
+      marginTopPx -
+      TWO_DIMENSIONAL_MENU_TUNING.minimumTrailingMarginPx,
+  );
+  const heightLimitedWidthPx =
+    availableHeightPx *
+    (MODE_MENU_LAYOUT.localWidth / MODE_MENU_LAYOUT.localHeight);
+  const menuWidthPx = Math.min(
+    desiredMenuWidthPx,
+    availableWidthPx,
+    heightLimitedWidthPx,
+  );
+  const menuHeightPx =
+    menuWidthPx * (MODE_MENU_LAYOUT.localHeight / MODE_MENU_LAYOUT.localWidth);
   const visibleHeight =
     2 *
     Math.tan((CAMERA_PROPS.fov * Math.PI) / 360) *
     Math.abs(CAMERA_PROPS.position[2] - LAYOUT.z);
-  const pixelsPerWorldUnit = viewportHeight / visibleHeight;
-  const farthestX =
-    (LAYOUT.marginX + MODE_MENU_LAYOUT.localWidth) *
-    menuScale *
-    pixelsPerWorldUnit;
-  const farthestY =
-    (LAYOUT.marginY + MODE_MENU_LAYOUT.localHeight) *
-    menuScale *
-    pixelsPerWorldUnit;
+  const pixelsPerWorldUnit = safeViewportHeight / visibleHeight;
 
-  return Math.hypot(farthestX, farthestY) + MODE_MENU_LAYOUT.flatOrbitBufferPx;
+  return {
+    marginLeftPx,
+    marginTopPx,
+    menuHeightPx,
+    menuScale:
+      menuWidthPx /
+      Math.max(0.0001, MODE_MENU_LAYOUT.localWidth * pixelsPerWorldUnit),
+    menuWidthPx,
+    planetExclusionPaddingPx,
+  } as const;
+}
+
+export function getTwoDimensionalMenuExclusionRadiusPx(
+  viewportWidth: number,
+  viewportHeight: number,
+) {
+  const layout = getTwoDimensionalMenuLayoutPx(viewportWidth, viewportHeight);
+  const farthestX = layout.marginLeftPx + layout.menuWidthPx;
+  const farthestY = layout.marginTopPx + layout.menuHeightPx;
+
+  return Math.hypot(farthestX, farthestY) + layout.planetExclusionPaddingPx;
 }
