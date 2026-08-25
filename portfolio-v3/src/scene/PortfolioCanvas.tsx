@@ -17,7 +17,7 @@ function BackgroundScene() {
   const { visualMode } = useBackgroundMode();
 
   if (visualMode !== "2d") {
-    return <Starfield key={visualMode} readyMode={visualMode} />;
+    return <Starfield readyMode={visualMode} />;
   }
 
   return (

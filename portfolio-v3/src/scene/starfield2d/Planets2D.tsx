@@ -198,6 +198,10 @@ function PlanetSprite2DInner({
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const bodyRef = useRef<CircularPlanetBody | null>(null);
+  /* UV transforms are per-planet, while the clone's atlas Source and its GPU
+     allocation are shared with 3D/ASCII. The atlas cache owns that source for
+     the page lifetime, so disposing clones here would force costly re-uploads
+     every time the user changes render mode. */
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetSize = atlas.frameWidth * planet.sizeScale;
   const apparentDepth =
@@ -206,12 +210,6 @@ function PlanetSprite2DInner({
   if (bodyRef.current === null) {
     bodyRef.current = createBody(planet, planetSize, viewportHeight);
   }
-
-  useEffect(() => {
-    return () => {
-      texture.dispose();
-    };
-  }, [texture]);
 
   useFrame(({ clock }, delta) => {
     const mesh = meshRef.current;

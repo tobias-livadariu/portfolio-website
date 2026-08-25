@@ -6,6 +6,65 @@ const MODE_LABELS = {
   ascii: /CHAR/,
 } as const;
 
+test("planet atlases load through a bounded, diversity-first queue", async ({
+  page,
+}) => {
+  test.setTimeout(45_000);
+
+  let activeAtlasRequests = 0;
+  let maximumActiveAtlasRequests = 0;
+  const requestedAtlases: string[] = [];
+  const modalPreviewAtlases = new Set([
+    "/astroid/astroid-5.png",
+    "/ice-world/ice-world-1.png",
+    "/islands/islands-1.png",
+    "/terran-wet/terran-wet-1.png",
+  ]);
+
+  await page.route(
+    "**/rotating-planet-spritesheets/**/*.png",
+    async (route) => {
+      const path = new URL(route.request().url()).pathname;
+
+      if ([...modalPreviewAtlases].some((suffix) => path.endsWith(suffix))) {
+        await route.continue();
+        return;
+      }
+
+      requestedAtlases.push(path);
+      activeAtlasRequests += 1;
+      maximumActiveAtlasRequests = Math.max(
+        maximumActiveAtlasRequests,
+        activeAtlasRequests,
+      );
+
+      try {
+        // Keep requests overlapping long enough for the test to observe the
+        // loader's actual concurrency limit rather than local-cache timing.
+        await new Promise((resolve) => setTimeout(resolve, 35));
+        const response = await route.fetch();
+        await route.fulfill({ response });
+      } finally {
+        activeAtlasRequests -= 1;
+      }
+    },
+  );
+
+  await page.goto("/");
+  await expect
+    .poll(() => requestedAtlases.length, { timeout: 30_000 })
+    .toBeGreaterThanOrEqual(8);
+
+  expect(maximumActiveAtlasRequests).toBeLessThanOrEqual(2);
+
+  const firstAtlases = requestedAtlases.slice(0, 8);
+  expect(firstAtlases.every((path) => /-1\.png$/.test(path))).toBe(true);
+  expect(
+    new Set(firstAtlases.map((path) => path.split("/").at(-2)).filter(Boolean))
+      .size,
+  ).toBe(firstAtlases.length);
+});
+
 test("render menu selects every mode and refresh resets to 3D", async ({
   page,
 }) => {

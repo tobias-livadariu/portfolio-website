@@ -154,6 +154,10 @@ function PlanetSpriteInner({
   const position = useMemo(() => new Vector3(), []);
   const worldLightDirection = useMemo(() => new Vector3(), []);
   const { camera, size } = useThree();
+  /* Every clone needs independent UV offsets for sprite animation, but clones
+     share the atlas Source and therefore one WebGLTexture. Do not dispose a
+     clone on a render-mode swap: the module-level atlas cache intentionally
+     keeps that shared GPU allocation alive for the page lifetime. */
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetWidth =
     atlas.frameWidth *
@@ -166,12 +170,6 @@ function PlanetSpriteInner({
     planet.sizeScale *
     visualScale;
   const planetRadius = Math.hypot(planetWidth, planetHeight) * 0.5;
-
-  useEffect(() => {
-    return () => {
-      texture.dispose();
-    };
-  }, [texture]);
 
   useFrame(({ clock }, delta) => {
     const mesh = meshRef.current;

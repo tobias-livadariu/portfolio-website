@@ -108,6 +108,14 @@ export const PLANET_TYPES = [
 
 export type PlanetType = (typeof PLANET_TYPES)[number];
 
+export const PLANET_ATLAS_LOADING = {
+  // At most this many PNG atlases may be fetched and decoded at once. Keeping
+  // the pool small prevents dozens of large ImageBitmaps from completing on
+  // the main thread together, while two workers still overlap network and
+  // decode time so the starfield fills promptly.
+  maximumConcurrentLoads: 2,
+} as const;
+
 // Planet planes use the existing v2 spritesheets from public assets. They are
 // loaded progressively so the background can start with stars and then populate
 // planets as each atlas becomes ready.
