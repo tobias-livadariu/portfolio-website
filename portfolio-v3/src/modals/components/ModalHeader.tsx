@@ -2,6 +2,7 @@ import { memo } from "react";
 import type { CSSProperties } from "react";
 import AsciiDivider from "./AsciiDivider";
 import AsciiImage from "./AsciiImage";
+import { STATIC_ASCII_PROFILES } from "./ascii-image-profiles";
 
 interface SpriteConfig {
   alt: string;
@@ -53,7 +54,11 @@ function ModalHeader({
         minSideMarginCh={dividerMinSideMarginCh}
       />
       <div className="modal-section-title-row">
-        <AsciiImage className="modal-header-sprite" {...leftSprite} />
+        <AsciiImage
+          className="modal-header-sprite"
+          profile={STATIC_ASCII_PROFILES.modalHeaderPlanet}
+          {...leftSprite}
+        />
         <div
           className="modal-ascii-title"
           style={
@@ -69,7 +74,11 @@ function ModalHeader({
             </pre>
           ))}
         </div>
-        <AsciiImage className="modal-header-sprite" {...rightSprite} />
+        <AsciiImage
+          className="modal-header-sprite"
+          profile={STATIC_ASCII_PROFILES.modalHeaderPlanet}
+          {...rightSprite}
+        />
       </div>
       <AsciiDivider
         block={dividerBlock}

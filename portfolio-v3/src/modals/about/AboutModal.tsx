@@ -7,6 +7,7 @@ import {
   useImageSize,
 } from "../components/ascii-image-rows";
 import type { ColoredRun } from "../components/ascii-image-rows";
+import { STATIC_ASCII_PROFILES } from "../components/ascii-image-profiles";
 import ModalHeader from "../components/ModalHeader";
 import Terminal, { TerminalTranscriptLine } from "../components/Terminal";
 import { useTerminalContentColumns } from "../components/terminal-outputs";
@@ -29,9 +30,6 @@ const ABOUT_RIGHT_SPRITE = {
 } as const;
 
 const TOBIFETCH_IMAGE_PATH = "/images/cool-photo-of-me.png";
-/* Luminance multiplier applied when rasterizing the portrait — raise to
-   brighten the ASCII art, lower toward 1 for the original exposure. */
-const TOBIFETCH_BRIGHTNESS = 1.45;
 const TOBIFETCH_MIN_COLUMNS = 32;
 /* Side-by-side mode reserves the exact info width and a fixed gutter. It is
    only used while the remaining portrait is still large enough to read. */
@@ -329,9 +327,9 @@ function TobifetchOutput({ firstLineNumber }: { firstLineNumber: number }) {
     : 1;
 
   const portraitFrame = useAsciiImageFrame({
-    brightness: TOBIFETCH_BRIGHTNESS,
     columns: artColumns,
     imagePath: TOBIFETCH_IMAGE_PATH,
+    profile: STATIC_ASCII_PROFILES.tobifetchPortrait,
     rows: imageSize ? artRows : 1,
   });
 
@@ -382,7 +380,11 @@ function TobifetchOutput({ firstLineNumber }: { firstLineNumber: number }) {
           key={`art-${index}`}
           lineNumber={firstLineNumber + precedingInfoLineCount + index}
         >
-          <span className="modal-tobifetch-art" style={artWidthStyle}>
+          <span
+            className="modal-tobifetch-art"
+            data-ascii-profile={STATIC_ASCII_PROFILES.tobifetchPortrait.id}
+            style={artWidthStyle}
+          >
             {renderAsciiRuns(artRowRuns[index], artColumns)}
           </span>
           {!isStacked && (

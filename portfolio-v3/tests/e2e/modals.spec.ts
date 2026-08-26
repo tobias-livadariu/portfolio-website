@@ -133,6 +133,12 @@ test("modal document opens from scroll and supports section navigation", async (
     }),
   ).toHaveCSS("font-weight", "700");
   await expect(
+    activePanel.locator(".modal-header-sprite").first(),
+  ).toHaveAttribute("data-ascii-profile", "modal-header-planet-v2");
+  await expect(
+    activePanel.locator(".modal-tobifetch-art").first(),
+  ).toHaveAttribute("data-ascii-profile", "tobifetch-portrait-v2");
+  await expect(
     activePanel.locator(".modal-tobifetch-text-cyan", {
       hasText: "Hello dear reader!",
     }),

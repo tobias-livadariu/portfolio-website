@@ -1,12 +1,16 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ASCII_FRAME_CACHE,
+  ASCII_PREVIEW_FRAME_CACHE,
   buildRowRuns,
   flipFrame,
+  getAsciiFrameCacheKey,
   loadAsciiFrames,
+  loadAsciiPreviewFrame,
   rotateFrame,
 } from "./ascii-image-rows";
 import type { AsciiFrame } from "./ascii-image-rows";
+import type { AsciiImageProfile } from "./ascii-image-profiles";
 
 interface Props {
   alt: string;
@@ -18,6 +22,7 @@ interface Props {
   flipY?: boolean;
   intervalMs?: number;
   jsonPath?: string;
+  profile: AsciiImageProfile;
   rotateQuarterTurns?: number;
   rows: number;
 }
@@ -33,6 +38,7 @@ function AsciiImage(props: Props) {
     imagePath,
     intervalMs = 140,
     jsonPath,
+    profile,
     rotateQuarterTurns = 0,
     rows,
   } = props;
@@ -40,37 +46,36 @@ function AsciiImage(props: Props) {
   const [frameIndex, setFrameIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
   const imageRef = useRef<HTMLPreElement>(null);
+  const frameRequest = useMemo(
+    () => ({ atlasKey, columns, imagePath, jsonPath, profile, rows }),
+    [atlasKey, columns, imagePath, jsonPath, profile, rows],
+  );
   const cacheKey = useMemo(
-    () => `${imagePath}|${jsonPath ?? ""}|${atlasKey ?? ""}|${columns}|${rows}`,
-    [atlasKey, columns, imagePath, jsonPath, rows],
+    () => getAsciiFrameCacheKey(frameRequest),
+    [frameRequest],
   );
 
   useEffect(() => {
     let isMounted = true;
-    let promise = ASCII_FRAME_CACHE.get(cacheKey);
+    let previewPromise = ASCII_PREVIEW_FRAME_CACHE.get(cacheKey);
 
-    if (!promise) {
-      promise = loadAsciiFrames({
-        atlasKey,
-        columns,
-        imagePath,
-        jsonPath,
-        rows,
-      });
-      ASCII_FRAME_CACHE.set(cacheKey, promise);
+    if (!previewPromise) {
+      previewPromise = loadAsciiPreviewFrame(frameRequest);
+      ASCII_PREVIEW_FRAME_CACHE.set(cacheKey, previewPromise);
     }
 
-    void promise.then((nextFrames) => {
+    void previewPromise.then((previewFrame) => {
       if (isMounted) {
-        setFrames(nextFrames);
-        setFrameIndex(0);
+        setFrames((current) =>
+          current.length === 0 ? [previewFrame] : current,
+        );
       }
     });
 
     return () => {
       isMounted = false;
     };
-  }, [atlasKey, cacheKey, columns, imagePath, jsonPath, rows]);
+  }, [cacheKey, frameRequest]);
 
   useEffect(() => {
     const element = imageRef.current;
@@ -93,6 +98,31 @@ function AsciiImage(props: Props) {
       observer.disconnect();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+
+    let isMounted = true;
+    let promise = ASCII_FRAME_CACHE.get(cacheKey);
+
+    if (!promise) {
+      promise = loadAsciiFrames(frameRequest);
+      ASCII_FRAME_CACHE.set(cacheKey, promise);
+    }
+
+    void promise.then((nextFrames) => {
+      if (isMounted) {
+        setFrames(nextFrames);
+        setFrameIndex(0);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [cacheKey, frameRequest, isVisible]);
 
   useEffect(() => {
     if (!isVisible || frames.length <= 1) {
@@ -118,15 +148,13 @@ function AsciiImage(props: Props) {
     return flipFrame(rotateFrame(source, rotateQuarterTurns), flipX, flipY);
   }, [flipX, flipY, frameIndex, frames, rotateQuarterTurns]);
 
-  const rowRuns = useMemo(
-    () => displayFrame.map(buildRowRuns),
-    [displayFrame],
-  );
+  const rowRuns = useMemo(() => displayFrame.map(buildRowRuns), [displayFrame]);
 
   return (
     <pre
       aria-label={alt}
       className={`modal-ascii-image ${className ?? ""}`.trim()}
+      data-ascii-profile={profile.id}
       ref={imageRef}
     >
       {rowRuns.map((runs, rowIndex) => (
