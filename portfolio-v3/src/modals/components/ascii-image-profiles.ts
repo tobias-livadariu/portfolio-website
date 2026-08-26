@@ -38,6 +38,12 @@ export interface AsciiImageProfile {
     localContrastSigma: number;
     /** Strength of large-scale local contrast; 0 disables the stage. */
     localContrastAmount: number;
+    /** Raises only dark tones by this fraction of their remaining headroom. */
+    shadowLift: number;
+    /** Luminance around which the shadow-only lift fades to zero. */
+    shadowLiftThreshold: number;
+    /** Width of the smooth transition between lifted shadows and untouched tones. */
+    shadowLiftSoftness: number;
     /** Adds Sobel edge magnitude to glyph density; 0 preserves pure tone. */
     edgeBoost: number;
   };
@@ -108,6 +114,9 @@ export const STATIC_ASCII_PROFILES = {
       sharpenAmount: 0.55,
       localContrastSigma: 2.3,
       localContrastAmount: 0.22,
+      shadowLift: 0.1,
+      shadowLiftThreshold: 0.32,
+      shadowLiftSoftness: 0.18,
       edgeBoost: 0.1,
     },
     color: {
@@ -153,6 +162,9 @@ export const STATIC_ASCII_PROFILES = {
       sharpenAmount: 0.62,
       localContrastSigma: 3.1,
       localContrastAmount: 0.26,
+      shadowLift: 0,
+      shadowLiftThreshold: 0.32,
+      shadowLiftSoftness: 0.18,
       edgeBoost: 0.12,
     },
     color: {

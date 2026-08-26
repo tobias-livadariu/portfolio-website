@@ -144,6 +144,15 @@ interface ToneFrame {
 
 const clampUnit = (value: number) => Math.min(1, Math.max(0, value));
 
+function smoothstep(edgeStart: number, edgeEnd: number, value: number) {
+  if (edgeStart === edgeEnd) {
+    return value < edgeStart ? 0 : 1;
+  }
+
+  const amount = clampUnit((value - edgeStart) / (edgeEnd - edgeStart));
+  return amount * amount * (3 - 2 * amount);
+}
+
 function srgbToLinear(value: number) {
   return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
 }
@@ -530,6 +539,21 @@ function processTone(
       luminance[index] = clampUnit(
         luminance[index] +
           (luminance[index] - softened[index]) * profile.tone.sharpenAmount,
+      );
+    }
+  }
+
+  if (profile.tone.shadowLift !== 0) {
+    const halfSoftness = Math.max(0, profile.tone.shadowLiftSoftness) / 2;
+    const transitionStart = profile.tone.shadowLiftThreshold - halfSoftness;
+    const transitionEnd = profile.tone.shadowLiftThreshold + halfSoftness;
+
+    for (let index = 0; index < luminance.length; index += 1) {
+      const shadowWeight =
+        1 - smoothstep(transitionStart, transitionEnd, luminance[index]);
+      luminance[index] = clampUnit(
+        luminance[index] +
+          profile.tone.shadowLift * shadowWeight * (1 - luminance[index]),
       );
     }
   }
