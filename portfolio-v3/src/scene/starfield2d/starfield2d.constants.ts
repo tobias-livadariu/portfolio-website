@@ -10,9 +10,9 @@ export const STARFIELD_2D = {
 export const STARS_2D = {
   // Values ported from portfolio-v2. Count is calculated from the circular
   // field area rather than the rectangular viewport area.
-  densityPerPx2: 13e-4,
-  minCount: 900,
-  maxCount: 20000,
+  densityPerPx2: 21e-4,
+  minCount: 1500,
+  maxCount: 32000,
   // getFieldRadius starts from half the diagonal; 2 recreates v2's full
   // viewport-diagonal radius and prevents corners appearing during rotation.
   fieldRadiusMultiplier: 2,
