@@ -2,7 +2,11 @@ import { useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { Group } from "three";
 import useTopLeftPosition from "../hooks/useTopLeftPosition";
-import { CAMERA_PROPS } from "../canvas.constants";
+import {
+  CAMERA_PROPS,
+  getTwoDimensionalVisibleHeight,
+  getTwoDimensionalWorldPerPixel,
+} from "../canvas.constants";
 import {
   LAYOUT,
   MODE_MENU_LAYOUT,
@@ -76,14 +80,12 @@ export default function MainMenu() {
   /* Derive the orthographic bounds directly instead of reading camera.zoom
      during the same resize commit in which SceneCamera updates it. This keeps
      2D placement deterministic when switching modes or resizing quickly. */
-  const twoDimensionalVisibleHeight =
-    2 *
-    Math.tan((CAMERA_PROPS.fov * Math.PI) / 360) *
-    Math.abs(CAMERA_PROPS.position[2] - LAYOUT.z);
+  const twoDimensionalVisibleHeight = getTwoDimensionalVisibleHeight();
   const twoDimensionalVisibleWidth =
     twoDimensionalVisibleHeight * (size.width / Math.max(1, size.height));
-  const twoDimensionalWorldPerPixel =
-    twoDimensionalVisibleHeight / Math.max(1, size.height);
+  const twoDimensionalWorldPerPixel = getTwoDimensionalWorldPerPixel(
+    size.height,
+  );
   const scale =
     visualMode === "ascii"
       ? asciiScale

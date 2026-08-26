@@ -105,7 +105,7 @@ const personalRows = [
   },
   {
     name: "lights-on",
-    href: "https://github.com/tobias-livadariu/lights-on",
+    href: "https://www.tobias-livadariu.online/lights-on",
     type: "link",
     size: "128",
     date: "Aug 09 14:32",

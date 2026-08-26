@@ -1,10 +1,30 @@
 import { expect, test } from "@playwright/test";
+import {
+  getTwoDimensionalVisibleHeight,
+  getTwoDimensionalWorldPerPixel,
+} from "../../src/scene/canvas.constants";
 
 const MODE_LABELS = {
   "2d": /FLAT/,
   "3d": /DEEP/,
   ascii: /CHAR/,
 } as const;
+
+test("2D pixel-space scale follows the current viewport height", () => {
+  const visibleHeight = getTwoDimensionalVisibleHeight();
+  const largeViewportHeight = 1440;
+  const smallViewportHeight = 844;
+  const largeScale = getTwoDimensionalWorldPerPixel(largeViewportHeight);
+  const smallScale = getTwoDimensionalWorldPerPixel(smallViewportHeight);
+
+  expect(largeScale * largeViewportHeight).toBeCloseTo(visibleHeight, 10);
+  expect(smallScale * smallViewportHeight).toBeCloseTo(visibleHeight, 10);
+  expect(smallScale / largeScale).toBeCloseTo(
+    largeViewportHeight / smallViewportHeight,
+    10,
+  );
+  expect(Number.isFinite(getTwoDimensionalWorldPerPixel(0))).toBe(true);
+});
 
 test("planet atlases load through a bounded, diversity-first queue", async ({
   page,

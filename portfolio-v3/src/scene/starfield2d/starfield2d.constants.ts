@@ -34,13 +34,13 @@ export const PLANETS_2D = {
   // baseline; 0 still respects minimumCount unless enabled is false.
   densityMultiplier: 1,
   // Approximate virtual-planet population per million pixels of field area.
-  densityPerMegapixel: 33,
+  densityPerMegapixel: 52,
   // Master switch for all 2D planets. It does not affect 3D or ASCII modes.
   enabled: true,
   // Hard population ceiling protecting large and ultrawide screens.
-  maximumCount: 320,
+  maximumCount: 430,
   // Population floor protecting small screens from looking empty.
-  minimumCount: 24,
+  minimumCount: 42,
   // Spawn ring outer radius relative to half the viewport diagonal.
   fieldRadiusMultiplier: 2,
   // v2 sprite animation speed: one 50-frame rotation every 25 seconds.
