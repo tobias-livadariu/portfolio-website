@@ -31,7 +31,7 @@ const ABOUT_RIGHT_SPRITE = {
 const TOBIFETCH_IMAGE_PATH = "/images/cool-photo-of-me.png";
 /* Luminance multiplier applied when rasterizing the portrait — raise to
    brighten the ASCII art, lower toward 1 for the original exposure. */
-const TOBIFETCH_BRIGHTNESS = 1.25;
+const TOBIFETCH_BRIGHTNESS = 1.45;
 const TOBIFETCH_MIN_COLUMNS = 32;
 /* Side-by-side mode reserves the exact info width and a fixed gutter. It is
    only used while the remaining portrait is still large enough to read. */
