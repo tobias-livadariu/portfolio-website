@@ -8,8 +8,7 @@ export default function App() {
   return (
     <ModalProvider>
       <BackgroundModeProvider>
-        <PortfolioCanvas />
-        <ModalLayer />
+        <ModalLayer background={<PortfolioCanvas />} />
         <DiamondTransitionOverlay />
       </BackgroundModeProvider>
     </ModalProvider>

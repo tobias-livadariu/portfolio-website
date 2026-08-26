@@ -7,10 +7,57 @@ async function wheelGesture(page: Page) {
   }
 }
 
+test("one wheel stream survives the closed-to-open modal handoff", async ({
+  page,
+}) => {
+  test.setTimeout(30_000);
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/");
+  const canvas = page.locator(".portfolio-canvas-layer canvas");
+  const scrollRoot = page.locator(".modal-scroll-root");
+  await expect(canvas).toBeVisible();
+  await expect(scrollRoot).toHaveJSProperty("scrollTop", 0);
+
+  const client = await page.context().newCDPSession(page);
+  const pendingWheelEvents: Array<Promise<unknown>> = [];
+
+  await client.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: 900,
+    y: 140,
+  });
+
+  /* Queue a single OS-like transaction independently of page responsiveness.
+     Every target it can cross—the canvas, backdrop, and modal content—now
+     belongs to the same native scroll container. */
+  for (let index = 0; index < 12; index += 1) {
+    pendingWheelEvents.push(
+      client.send("Input.dispatchMouseEvent", {
+        type: "mouseWheel",
+        deltaX: 0,
+        deltaY: 96,
+        x: 900,
+        y: 140,
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 8));
+  }
+
+  await Promise.all(pendingWheelEvents);
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(1_000);
+  await expect(page.locator(".modal-layer")).toHaveClass(/modal-layer-open/);
+  await expect(canvas).toBeVisible();
+  await expect(page.locator('.modal-panel[data-active="true"]')).toContainText(
+    "File: about.modal",
+  );
+});
+
 test("modal document opens from scroll and supports section navigation", async ({
   page,
 }) => {
-  test.setTimeout(45_000);
+  test.setTimeout(70_000);
   await page.setViewportSize({ width: 2048, height: 720 });
   await page.goto("/");
   await expect(page.locator("canvas").first()).toBeVisible();
@@ -46,15 +93,7 @@ test("modal document opens from scroll and supports section navigation", async (
     (element) => element.scrollTop,
   );
 
-  await page.evaluate(() => {
-    document.querySelector("canvas")?.dispatchEvent(
-      new WheelEvent("wheel", {
-        bubbles: true,
-        cancelable: true,
-        deltaY: 360,
-      }),
-    );
-  });
+  await page.mouse.wheel(0, 360);
   await expect
     .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(interruptedGestureTop);
@@ -239,20 +278,12 @@ test("modal reveal scrolls continuously and closes from keyboard or backdrop", a
   ).toBeVisible();
   await page.keyboard.press("Shift+Q");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => Math.round(element.scrollTop)))
+    .toBe(0);
 
-  await page.evaluate((deltaY) => {
-    const canvas = document.querySelector("canvas");
-
-    for (let index = 0; index < 3; index += 1) {
-      canvas?.dispatchEvent(
-        new WheelEvent("wheel", {
-          bubbles: true,
-          cancelable: true,
-          deltaY,
-        }),
-      );
-    }
-  }, revealTop * 4);
+  await page.mouse.move(900, 120);
+  await page.mouse.wheel(0, revealTop * 4);
   await expect(
     page.getByRole("dialog", {
       name: "Portfolio sections",

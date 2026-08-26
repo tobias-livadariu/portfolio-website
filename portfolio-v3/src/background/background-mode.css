@@ -111,7 +111,7 @@
 
 .bg-mode-panel-art {
   overflow: hidden;
-  color: var(--dragon-border-bright);
+  color: var(--dragon-comment);
   letter-spacing: 0.02em;
   white-space: pre;
 }
