@@ -17,6 +17,10 @@ export interface StarfieldOrbitWell {
    starfield2d/starfield2d.constants.ts and does not use these profiles. */
 export const VOLUMETRIC_STARFIELD_TUNING = {
   "3d": {
+    /* False generates one fresh entropy seed per page load, then keeps that
+       layout stable for the entire session. True uses the star/planet seeds
+       below, which is useful for reproducible screenshots and debugging. */
+    useDeterministicLayout: false,
     bounds: {
       // Extra world-space padding before stars are culled at a viewport edge.
       edgeBuffer: 0.75,
@@ -37,7 +41,7 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
       { side: "bottom", position: 0.68, distance: 0.24, weight: 1 },
     ] satisfies readonly StarfieldOrbitWell[],
     stars: {
-      // Seed for the deterministic star layout. Changing it reshuffles stars.
+      // Deterministic star seed; used only when the profile flag above is true.
       seed: 48017,
       // Candidate population; raising it increases visible star density.
       virtualCount: 10000,
@@ -90,7 +94,7 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
       minOrbitRadiusRatio: 0.34,
     },
     planets: {
-      // Seed for the deterministic planet layout and atlas selection.
+      // Deterministic planet seed; used only when the profile flag above is true.
       seed: 73091,
       // Candidate population; raising it increases visible planet density.
       virtualCount: 300,
@@ -153,6 +157,8 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
     /* These values reproduce the pre-separation ASCII scene exactly. They are
        deliberately duplicated instead of inheriting from 3D so future 3D
        experimentation cannot change ASCII density, scale, depth, or motion. */
+    // Preserve the established curated ASCII composition by default.
+    useDeterministicLayout: true,
     bounds: {
       edgeBuffer: 0.75,
       fieldRadiusMultiplier: 1.25,

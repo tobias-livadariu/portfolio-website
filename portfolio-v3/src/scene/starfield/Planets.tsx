@@ -10,6 +10,7 @@ import {
   type VolumetricStarfieldTuning,
 } from "./starfield.constants";
 import {
+  createEntropySeed,
   createVisibleBounds,
   getFieldRadius,
   getOrbitCenter,
@@ -39,6 +40,10 @@ const PLANET_REFERENCE_BOUNDS = createVisibleBounds();
 const PLANET_VISIBLE_BOUNDS = createVisibleBounds();
 const PLANET_ORBIT_CENTER: Vec3Tuple = [0, 0, 0];
 const PLANET_ROTATION: Vec3Tuple = [0, 0, 0];
+const PLANET_SESSION_SEEDS: Record<VolumetricStarfieldMode, number> = {
+  "3d": createEntropySeed(),
+  ascii: createEntropySeed(),
+};
 
 // Every planet sprite is a 1x1 plane scaled per-sprite via `mesh.scale.set(...)`,
 // so all 300 sprites can share a single geometry instance.
@@ -78,10 +83,14 @@ interface VirtualPlanet {
 }
 
 function createVirtualPlanets(
+  mode: VolumetricStarfieldMode,
   fieldTuning: VolumetricStarfieldTuning,
 ): VirtualPlanet[] {
   const tuning = fieldTuning.planets;
-  const random = mulberry32(tuning.seed);
+  const seed = fieldTuning.useDeterministicLayout
+    ? tuning.seed
+    : PLANET_SESSION_SEEDS[mode];
+  const random = mulberry32(seed);
   const atlasKeys = getPlanetAtlasKeys();
 
   return Array.from({ length: tuning.virtualCount }, (_, index) => {
@@ -310,7 +319,7 @@ const PlanetSprite = memo(PlanetSpriteInner);
 
 const EMPTY_ATLAS_MAP: ReadonlyMap<string, PlanetAtlas> = new Map();
 
-/* Mode populations are sampled once, then retained across 2D detours and
+/* Session populations are sampled once, then retained across 2D detours and
    repeat 3D/ASCII transitions. Atlas textures remain in their existing shared
    cache; changing modes never starts another fetch or decode queue. */
 const PLANET_POPULATION_CACHE = new Map<
@@ -327,7 +336,7 @@ function getVirtualPlanets(
     return cached;
   }
 
-  const planets = createVirtualPlanets(tuning);
+  const planets = createVirtualPlanets(mode, tuning);
   PLANET_POPULATION_CACHE.set(mode, planets);
   return planets;
 }

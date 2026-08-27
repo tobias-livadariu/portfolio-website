@@ -10,6 +10,7 @@ import {
   type VolumetricStarTuning,
 } from "./starfield.constants";
 import {
+  createEntropySeed,
   createVisibleBounds,
   getFieldRadius,
   getOrbitCenter,
@@ -30,6 +31,10 @@ import {
 const STAR_REFERENCE_BOUNDS = createVisibleBounds();
 const STAR_VISIBLE_BOUNDS = createVisibleBounds();
 const STAR_ORBIT_CENTER: Vec3Tuple = [0, 0, 0];
+const STAR_SESSION_SEEDS: Record<VolumetricStarfieldMode, number> = {
+  "3d": createEntropySeed(),
+  ascii: createEntropySeed(),
+};
 
 interface VirtualStar {
   angle: number;
@@ -58,10 +63,14 @@ function getNearestBucketIndex(value: number, tuning: VolumetricStarTuning) {
 }
 
 function createVirtualStars(
+  mode: VolumetricStarfieldMode,
   fieldTuning: VolumetricStarfieldTuning,
 ): VirtualStar[] {
   const tuning = fieldTuning.stars;
-  const random = mulberry32(tuning.seed);
+  const seed = fieldTuning.useDeterministicLayout
+    ? tuning.seed
+    : STAR_SESSION_SEEDS[mode];
+  const random = mulberry32(seed);
 
   return Array.from({ length: tuning.virtualCount }, () => {
     const depthProgress = sampleNormal(
@@ -112,8 +121,8 @@ function createVirtualStars(
   });
 }
 
-/* Each mode's deterministic layout is built at most once per page lifetime.
-   Returning to a mode reuses the cached array instead of sampling 10k stars. */
+/* Each mode's session layout is built at most once per page lifetime. Returning
+   to a mode reuses the cached array instead of sampling 10k stars again. */
 const STAR_POPULATION_CACHE = new Map<VolumetricStarfieldMode, VirtualStar[]>();
 
 function getVirtualStars(
@@ -125,7 +134,7 @@ function getVirtualStars(
     return cached;
   }
 
-  const stars = createVirtualStars(tuning);
+  const stars = createVirtualStars(mode, tuning);
   STAR_POPULATION_CACHE.set(mode, stars);
   return stars;
 }

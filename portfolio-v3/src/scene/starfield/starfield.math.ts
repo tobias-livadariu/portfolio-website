@@ -33,6 +33,20 @@ export function mulberry32(seed: number) {
   };
 }
 
+/* Produces a page-session seed without replacing the seeded generator used by
+   population creation. This gives nondeterministic profiles a fresh layout on
+   reload while keeping them stable across remounts, resizes, and mode changes. */
+export function createEntropySeed() {
+  const values = new Uint32Array(1);
+
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(values);
+    return values[0];
+  }
+
+  return Math.floor(Math.random() * 0x1_0000_0000);
+}
+
 export function sampleNormal(
   random: () => number,
   mean: number,

@@ -23,11 +23,13 @@ test("volumetric modes own independent tuning and preserve ASCII parity", () => 
   expect(threeDimensional.stars).not.toBe(ascii.stars);
   expect(threeDimensional.planets).not.toBe(ascii.planets);
   expect(STARS_2D.colors).not.toBe(ascii.stars.colors);
+  expect(threeDimensional.useDeterministicLayout).toBe(false);
 
   /* This is the complete pre-separation ASCII configuration. Keeping the
      snapshot explicit prevents later 3D experiments from silently altering
      the established ASCII population, perspective, scale, color, or motion. */
   expect(ascii).toEqual({
+    useDeterministicLayout: true,
     bounds: {
       edgeBuffer: 0.75,
       fieldRadiusMultiplier: 1.25,
