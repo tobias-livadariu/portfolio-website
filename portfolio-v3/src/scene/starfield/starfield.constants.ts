@@ -5,6 +5,7 @@ export type VolumetricStarfieldMode = "3d" | "ascii";
 export interface StarfieldOrbitWell {
   distance: number;
   position: number;
+  rotationDirection: -1 | 1;
   side: "bottom" | "left" | "right" | "top";
   weight: number;
 }
@@ -29,16 +30,65 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
     },
     /* Invisible gravity wells sit just beyond the viewport. `position` moves a
        well along its edge, `distance` pushes it outward by a fraction of the
-       field radius, and `weight` controls its lighting/orbit influence. */
+       field radius, `weight` is its relative mass/influence, and
+       `rotationDirection` establishes the well's dominant orbital flow. */
     orbitWells: [
-      { side: "left", position: 0.18, distance: 0.28, weight: 1 },
-      { side: "left", position: 0.72, distance: 0.28, weight: 1 },
-      { side: "right", position: 0.28, distance: 0.28, weight: 1 },
-      { side: "right", position: 0.78, distance: 0.28, weight: 1 },
-      { side: "top", position: 0.32, distance: 0.24, weight: 1 },
-      { side: "top", position: 0.82, distance: 0.24, weight: 1 },
-      { side: "bottom", position: 0.24, distance: 0.24, weight: 1 },
-      { side: "bottom", position: 0.68, distance: 0.24, weight: 1 },
+      {
+        side: "left",
+        position: 0.18,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "left",
+        position: 0.72,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: -1,
+      },
+      {
+        side: "right",
+        position: 0.28,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: -1,
+      },
+      {
+        side: "right",
+        position: 0.78,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "top",
+        position: 0.32,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: -1,
+      },
+      {
+        side: "top",
+        position: 0.82,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "bottom",
+        position: 0.24,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "bottom",
+        position: 0.68,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: -1,
+      },
     ] satisfies readonly StarfieldOrbitWell[],
     stars: {
       // Deterministic star seed; used only when the profile flag above is true.
@@ -90,6 +140,28 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         min: 0.006,
         max: 0.044,
       },
+      orbitalMotion: {
+        /* 0 restores independently sampled angular speeds. 1 applies the full
+           circular-orbit relationship omega ∝ radius^-1.5. Intermediate values
+           retain some cinematic motion while making distant stars feel deep. */
+        keplerianFalloffInfluence: 0.82,
+        // The depth and radius where the sampled speed above is unchanged.
+        referenceDepthZ: -3.5,
+        referenceOrbitRadiusRatio: 0.7,
+        /* Safety rails around the physical multiplier. The floor deliberately
+           keeps the farthest stars moving; the ceiling prevents near fly-bys. */
+        minimumSpeedMultiplier: 0.2,
+        maximumSpeedMultiplier: 1.35,
+        // Absolute motion rails after all radius and well-mass adjustments.
+        minimumAngularSpeedRadiansPerSecond: 0.0015,
+        maximumAngularSpeedRadiansPerSecond: 0.038,
+        /* A value of 1 uses sqrt(well weight), as circular-orbit velocity does
+           for central mass. 0 makes well weight irrelevant to orbital speed. */
+        wellMassInfluence: 1,
+        /* Bodies around one well mostly share angular momentum. Lower this
+           toward 0.5 for the old evenly mixed clockwise/counterclockwise flow. */
+        coherentDirectionProbability: 0.86,
+      },
       // Prevents stars from clustering at the center of an orbit well.
       minOrbitRadiusRatio: 0.34,
     },
@@ -138,6 +210,18 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         min: 0.003,
         max: 0.026,
       },
+      orbitalMotion: {
+        // Planets use a gentler Kepler blend so their established motion remains lively.
+        keplerianFalloffInfluence: 0.62,
+        referenceDepthZ: -3.5,
+        referenceOrbitRadiusRatio: 0.7,
+        minimumSpeedMultiplier: 0.38,
+        maximumSpeedMultiplier: 1.4,
+        minimumAngularSpeedRadiansPerSecond: 0.0015,
+        maximumAngularSpeedRadiansPerSecond: 0.024,
+        wellMassInfluence: 1,
+        coherentDirectionProbability: 0.9,
+      },
       // Animated atlas playback speed distribution in frames per second.
       frameRate: {
         mean: 5,
@@ -154,9 +238,9 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
     },
   },
   ascii: {
-    /* These values reproduce the pre-separation ASCII scene exactly. They are
-       deliberately duplicated instead of inheriting from 3D so future 3D
-       experimentation cannot change ASCII density, scale, depth, or motion. */
+    /* These values preserve the pre-separation ASCII composition and styling.
+       They are deliberately duplicated instead of inheriting from 3D so future
+       3D experiments cannot alter ASCII density, scale, depth, or motion. */
     // Preserve the established curated ASCII composition by default.
     useDeterministicLayout: true,
     bounds: {
@@ -164,14 +248,62 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
       fieldRadiusMultiplier: 1.25,
     },
     orbitWells: [
-      { side: "left", position: 0.18, distance: 0.28, weight: 1 },
-      { side: "left", position: 0.72, distance: 0.28, weight: 1 },
-      { side: "right", position: 0.28, distance: 0.28, weight: 1 },
-      { side: "right", position: 0.78, distance: 0.28, weight: 1 },
-      { side: "top", position: 0.32, distance: 0.24, weight: 1 },
-      { side: "top", position: 0.82, distance: 0.24, weight: 1 },
-      { side: "bottom", position: 0.24, distance: 0.24, weight: 1 },
-      { side: "bottom", position: 0.68, distance: 0.24, weight: 1 },
+      {
+        side: "left",
+        position: 0.18,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "left",
+        position: 0.72,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: -1,
+      },
+      {
+        side: "right",
+        position: 0.28,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: -1,
+      },
+      {
+        side: "right",
+        position: 0.78,
+        distance: 0.28,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "top",
+        position: 0.32,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: -1,
+      },
+      {
+        side: "top",
+        position: 0.82,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "bottom",
+        position: 0.24,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: 1,
+      },
+      {
+        side: "bottom",
+        position: 0.68,
+        distance: 0.24,
+        weight: 1,
+        rotationDirection: -1,
+      },
     ] satisfies readonly StarfieldOrbitWell[],
     stars: {
       seed: 48017,
@@ -214,6 +346,17 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         min: 0.006,
         max: 0.044,
       },
+      orbitalMotion: {
+        keplerianFalloffInfluence: 0.82,
+        referenceDepthZ: -3.5,
+        referenceOrbitRadiusRatio: 0.7,
+        minimumSpeedMultiplier: 0.2,
+        maximumSpeedMultiplier: 1.35,
+        minimumAngularSpeedRadiansPerSecond: 0.0015,
+        maximumAngularSpeedRadiansPerSecond: 0.038,
+        wellMassInfluence: 1,
+        coherentDirectionProbability: 0.86,
+      },
       minOrbitRadiusRatio: 0.34,
     },
     planets: {
@@ -248,6 +391,17 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         stdDev: 0.005,
         min: 0.003,
         max: 0.026,
+      },
+      orbitalMotion: {
+        keplerianFalloffInfluence: 0.62,
+        referenceDepthZ: -3.5,
+        referenceOrbitRadiusRatio: 0.7,
+        minimumSpeedMultiplier: 0.38,
+        maximumSpeedMultiplier: 1.4,
+        minimumAngularSpeedRadiansPerSecond: 0.0015,
+        maximumAngularSpeedRadiansPerSecond: 0.024,
+        wellMassInfluence: 1,
+        coherentDirectionProbability: 0.9,
       },
       frameRate: {
         mean: 5,

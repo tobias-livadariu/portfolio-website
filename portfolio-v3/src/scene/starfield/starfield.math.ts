@@ -3,6 +3,18 @@ import { PerspectiveCamera, Vector3 } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
 import type { StarfieldOrbitWell } from "./starfield.constants";
 
+export interface CinematicOrbitalMotionTuning {
+  coherentDirectionProbability: number;
+  keplerianFalloffInfluence: number;
+  maximumAngularSpeedRadiansPerSecond: number;
+  maximumSpeedMultiplier: number;
+  minimumAngularSpeedRadiansPerSecond: number;
+  minimumSpeedMultiplier: number;
+  referenceDepthZ: number;
+  referenceOrbitRadiusRatio: number;
+  wellMassInfluence: number;
+}
+
 export interface VisibleBounds {
   bottom: number;
   left: number;
@@ -76,6 +88,66 @@ export function pickWeightedIndex(
   }
 
   return entries.length - 1;
+}
+
+/* A circular Kepler orbit has angular speed sqrt(mu / radius^3). The renderer's
+   perspective-plane radius grows linearly with camera distance, so
+   `orbitRadiusRatio * cameraDistance` is a viewport-independent proxy for its
+   semi-major axis. Applying the relationship once while creating a population
+   gives us physically legible depth without adding work to the frame loop. */
+export function getCinematicOrbitalAngularSpeed({
+  baseAngularSpeed,
+  cameraZ,
+  directionRandom,
+  orbitRadiusRatio,
+  orbitWell,
+  tuning,
+  z,
+}: {
+  baseAngularSpeed: number;
+  cameraZ: number;
+  directionRandom: number;
+  orbitRadiusRatio: number;
+  orbitWell: StarfieldOrbitWell;
+  tuning: CinematicOrbitalMotionTuning;
+  z: number;
+}) {
+  const referenceSemiMajorAxis =
+    Math.max(tuning.referenceOrbitRadiusRatio, Number.EPSILON) *
+    Math.max(Math.abs(cameraZ - tuning.referenceDepthZ), Number.EPSILON);
+  const semiMajorAxis =
+    Math.max(orbitRadiusRatio, Number.EPSILON) *
+    Math.max(Math.abs(cameraZ - z), Number.EPSILON);
+  const fullKeplerianMultiplier = Math.pow(
+    referenceSemiMajorAxis / semiMajorAxis,
+    1.5,
+  );
+  const radiusMultiplier = clamp(
+    lerp(
+      1,
+      fullKeplerianMultiplier,
+      clamp(tuning.keplerianFalloffInfluence, 0, 1),
+    ),
+    tuning.minimumSpeedMultiplier,
+    tuning.maximumSpeedMultiplier,
+  );
+  const wellMassMultiplier = lerp(
+    1,
+    Math.sqrt(Math.max(orbitWell.weight, 0)),
+    clamp(tuning.wellMassInfluence, 0, 1),
+  );
+  const angularSpeed = clamp(
+    Math.abs(baseAngularSpeed) * radiusMultiplier * wellMassMultiplier,
+    tuning.minimumAngularSpeedRadiansPerSecond,
+    tuning.maximumAngularSpeedRadiansPerSecond,
+  );
+  const followsWellDirection =
+    directionRandom < clamp(tuning.coherentDirectionProbability, 0, 1);
+  const direction = followsWellDirection
+    ? orbitWell.rotationDirection
+    : -orbitWell.rotationDirection;
+
+  return angularSpeed * direction;
 }
 
 export function getVisibleBoundsAtZ(

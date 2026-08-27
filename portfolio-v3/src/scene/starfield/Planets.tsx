@@ -12,6 +12,7 @@ import {
 import {
   createEntropySeed,
   createVisibleBounds,
+  getCinematicOrbitalAngularSpeed,
   getFieldRadius,
   getOrbitCenter,
   getOrbitWellFieldDirection,
@@ -101,44 +102,60 @@ function createVirtualPlanets(
       tuning.depthDistribution.min,
       tuning.depthDistribution.max,
     );
-    const angularSpeed = sampleNormal(
+    const baseAngularSpeed = sampleNormal(
       random,
       tuning.angularSpeedRadiansPerSecond.mean,
       tuning.angularSpeedRadiansPerSecond.stdDev,
       tuning.angularSpeedRadiansPerSecond.min,
       tuning.angularSpeedRadiansPerSecond.max,
     );
-    const direction = random() > 0.5 ? 1 : -1;
+    const directionRandom = random();
+    const angle = random() * Math.PI * 2;
+    const assetKey = atlasKeys[Math.floor(random() * atlasKeys.length)];
+    const frameRate = sampleNormal(
+      random,
+      tuning.frameRate.mean,
+      tuning.frameRate.stdDev,
+      tuning.frameRate.min,
+      tuning.frameRate.max,
+    );
+    const frameTimeOffset = random() * 100;
+    const orbitRadiusRatio =
+      tuning.minOrbitRadiusRatio +
+      Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio);
+    const orbitWellIndex = pickWeightedIndex(random, fieldTuning.orbitWells);
+    const sizeScale = sampleNormal(
+      random,
+      tuning.sizeScale.mean,
+      tuning.sizeScale.stdDev,
+      tuning.sizeScale.min,
+      tuning.sizeScale.max,
+    );
+    const z = lerp(
+      tuning.depthBand.nearestZ,
+      tuning.depthBand.farthestZ,
+      depthProgress,
+    );
 
     return {
-      angle: random() * Math.PI * 2,
-      angularSpeed: angularSpeed * direction,
-      assetKey: atlasKeys[Math.floor(random() * atlasKeys.length)],
-      frameRate: sampleNormal(
-        random,
-        tuning.frameRate.mean,
-        tuning.frameRate.stdDev,
-        tuning.frameRate.min,
-        tuning.frameRate.max,
-      ),
-      frameTimeOffset: random() * 100,
+      angle,
+      angularSpeed: getCinematicOrbitalAngularSpeed({
+        baseAngularSpeed,
+        cameraZ: CAMERA_PROPS.position[2],
+        directionRandom,
+        orbitRadiusRatio,
+        orbitWell: fieldTuning.orbitWells[orbitWellIndex],
+        tuning: tuning.orbitalMotion,
+        z,
+      }),
+      assetKey,
+      frameRate,
+      frameTimeOffset,
       id: index,
-      orbitRadiusRatio:
-        tuning.minOrbitRadiusRatio +
-        Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio),
-      orbitWellIndex: pickWeightedIndex(random, fieldTuning.orbitWells),
-      sizeScale: sampleNormal(
-        random,
-        tuning.sizeScale.mean,
-        tuning.sizeScale.stdDev,
-        tuning.sizeScale.min,
-        tuning.sizeScale.max,
-      ),
-      z: lerp(
-        tuning.depthBand.nearestZ,
-        tuning.depthBand.farthestZ,
-        depthProgress,
-      ),
+      orbitRadiusRatio,
+      orbitWellIndex,
+      sizeScale,
+      z,
     };
   });
 }

@@ -12,6 +12,7 @@ import {
 import {
   createEntropySeed,
   createVisibleBounds,
+  getCinematicOrbitalAngularSpeed,
   getFieldRadius,
   getOrbitCenter,
   getOrbitalPosition,
@@ -87,24 +88,41 @@ function createVirtualStars(
       tuning.emissiveIntensity.min,
       tuning.emissiveIntensity.max,
     );
-    const angularSpeed = sampleNormal(
+    const baseAngularSpeed = sampleNormal(
       random,
       tuning.angularSpeedRadiansPerSecond.mean,
       tuning.angularSpeedRadiansPerSecond.stdDev,
       tuning.angularSpeedRadiansPerSecond.min,
       tuning.angularSpeedRadiansPerSecond.max,
     );
-    const direction = random() > 0.5 ? 1 : -1;
+    const directionRandom = random();
+    const angle = random() * Math.PI * 2;
+    const colorIndex = Math.floor(random() * tuning.colors.length);
+    const orbitRadiusRatio =
+      tuning.minOrbitRadiusRatio +
+      Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio);
+    const orbitWellIndex = pickWeightedIndex(random, fieldTuning.orbitWells);
+    const z = lerp(
+      tuning.depthBand.nearestZ,
+      tuning.depthBand.farthestZ,
+      depthProgress,
+    );
 
     return {
-      angle: random() * Math.PI * 2,
-      angularSpeed: angularSpeed * direction,
+      angle,
+      angularSpeed: getCinematicOrbitalAngularSpeed({
+        baseAngularSpeed,
+        cameraZ: CAMERA_PROPS.position[2],
+        directionRandom,
+        orbitRadiusRatio,
+        orbitWell: fieldTuning.orbitWells[orbitWellIndex],
+        tuning: tuning.orbitalMotion,
+        z,
+      }),
       bucketIndex: getNearestBucketIndex(emissiveIntensity, tuning),
-      colorIndex: Math.floor(random() * tuning.colors.length),
-      orbitRadiusRatio:
-        tuning.minOrbitRadiusRatio +
-        Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio),
-      orbitWellIndex: pickWeightedIndex(random, fieldTuning.orbitWells),
+      colorIndex,
+      orbitRadiusRatio,
+      orbitWellIndex,
       size: sampleNormal(
         random,
         tuning.size.mean,
@@ -112,11 +130,7 @@ function createVirtualStars(
         tuning.size.min,
         tuning.size.max,
       ),
-      z: lerp(
-        tuning.depthBand.nearestZ,
-        tuning.depthBand.farthestZ,
-        depthProgress,
-      ),
+      z,
     };
   });
 }

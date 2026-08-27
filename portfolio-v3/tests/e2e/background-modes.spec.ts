@@ -4,6 +4,7 @@ import {
   getTwoDimensionalWorldPerPixel,
 } from "../../src/scene/canvas.constants";
 import { VOLUMETRIC_STARFIELD_TUNING } from "../../src/scene/starfield/starfield.constants";
+import { getCinematicOrbitalAngularSpeed } from "../../src/scene/starfield/starfield.math";
 import { STARS_2D } from "../../src/scene/starfield2d/starfield2d.constants";
 import { COLOR_PALETTE_STR } from "../../src/theme/colors";
 
@@ -13,7 +14,7 @@ const MODE_LABELS = {
   ascii: /CHAR/,
 } as const;
 
-test("volumetric modes own independent tuning and preserve ASCII parity", () => {
+test("volumetric modes own independent tuning and preserve ASCII appearance", () => {
   const threeDimensional = VOLUMETRIC_STARFIELD_TUNING["3d"];
   const ascii = VOLUMETRIC_STARFIELD_TUNING.ascii;
 
@@ -22,13 +23,33 @@ test("volumetric modes own independent tuning and preserve ASCII parity", () => 
   expect(threeDimensional.orbitWells).not.toBe(ascii.orbitWells);
   expect(threeDimensional.stars).not.toBe(ascii.stars);
   expect(threeDimensional.planets).not.toBe(ascii.planets);
+  expect(threeDimensional.stars.orbitalMotion).not.toBe(
+    ascii.stars.orbitalMotion,
+  );
+  expect(threeDimensional.planets.orbitalMotion).not.toBe(
+    ascii.planets.orbitalMotion,
+  );
   expect(STARS_2D.colors).not.toBe(ascii.stars.colors);
   expect(threeDimensional.useDeterministicLayout).toBe(false);
 
-  /* This is the complete pre-separation ASCII configuration. Keeping the
-     snapshot explicit prevents later 3D experiments from silently altering
-     the established ASCII population, perspective, scale, color, or motion. */
-  expect(ascii).toEqual({
+  /* The physical-motion properties are intentionally excluded: they may evolve
+     without changing the curated ASCII population's composition or styling. */
+  const appearanceOnlyAscii = {
+    ...ascii,
+    orbitWells: ascii.orbitWells.map((well) =>
+      Object.fromEntries(
+        Object.entries(well).filter(([key]) => key !== "rotationDirection"),
+      ),
+    ),
+    stars: Object.fromEntries(
+      Object.entries(ascii.stars).filter(([key]) => key !== "orbitalMotion"),
+    ),
+    planets: Object.fromEntries(
+      Object.entries(ascii.planets).filter(([key]) => key !== "orbitalMotion"),
+    ),
+  };
+
+  expect(appearanceOnlyAscii).toEqual({
     useDeterministicLayout: true,
     bounds: {
       edgeBuffer: 0.75,
@@ -130,6 +151,40 @@ test("volumetric modes own independent tuning and preserve ASCII parity", () => 
       },
     },
   });
+});
+
+test("volumetric orbital motion slows large distant orbits without freezing them", () => {
+  const tuning = VOLUMETRIC_STARFIELD_TUNING["3d"].stars.orbitalMotion;
+  const orbitWell = VOLUMETRIC_STARFIELD_TUNING["3d"].orbitWells[0];
+  const common = {
+    baseAngularSpeed: 0.022,
+    cameraZ: 7.25,
+    directionRandom: 0,
+    orbitWell,
+    tuning,
+  };
+  const nearSpeed = Math.abs(
+    getCinematicOrbitalAngularSpeed({
+      ...common,
+      orbitRadiusRatio: 0.45,
+      z: -8.8,
+    }),
+  );
+  const farSpeed = Math.abs(
+    getCinematicOrbitalAngularSpeed({
+      ...common,
+      orbitRadiusRatio: 0.95,
+      z: -16,
+    }),
+  );
+
+  expect(farSpeed).toBeLessThan(nearSpeed);
+  expect(farSpeed).toBeGreaterThanOrEqual(
+    tuning.minimumAngularSpeedRadiansPerSecond,
+  );
+  expect(nearSpeed).toBeLessThanOrEqual(
+    tuning.maximumAngularSpeedRadiansPerSecond,
+  );
 });
 
 test("2D pixel-space scale follows the current viewport height", () => {
