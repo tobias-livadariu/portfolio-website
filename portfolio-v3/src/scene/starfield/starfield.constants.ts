@@ -107,10 +107,10 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
       ],
       // World-space glyph size distribution before `visualScale` is applied.
       size: {
-        mean: 0.014,
-        stdDev: 0.005,
-        min: 0.005,
-        max: 0.03,
+        mean: 0.014 * 1.315,
+        stdDev: 0.005 * 1.315,
+        min: 0.005 * 1.315,
+        max: 0.03 * 1.315,
       },
       // Brightness distribution and material buckets used to approximate it.
       emissiveIntensity: {
@@ -193,8 +193,8 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
       /* Camera-relative z volume. Pulling this band closer makes planets larger;
          pushing it farther away makes them smaller through perspective. */
       depthBand: {
-        nearestZ: -1.35,
-        farthestZ: -7.8,
+        nearestZ: 2.75,
+        farthestZ: -5.4,
       },
       // Distribution from the near (0) to far (1) edge of the depth band.
       depthDistribution: {
