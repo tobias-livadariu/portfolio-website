@@ -30,9 +30,15 @@ function fitCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const width = window.innerWidth;
   const height = window.innerHeight;
+  const pixelWidth = Math.max(1, Math.round(width * dpr));
+  const pixelHeight = Math.max(1, Math.round(height * dpr));
 
-  canvas.width = Math.max(1, Math.round(width * dpr));
-  canvas.height = Math.max(1, Math.round(height * dpr));
+  /* Assigning either canvas dimension clears its bitmap, even when the value
+     is unchanged. Preserve the generated field across React phase handoffs. */
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+  }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   return { height, width };
@@ -58,6 +64,7 @@ export default function DiamondTransitionOverlay() {
     useBackgroundMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const asciiFieldRef = useRef<AsciiTransitionField | null>(null);
+  const asciiAnimationStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -83,6 +90,13 @@ export default function DiamondTransitionOverlay() {
     let done = false;
     const reducedMotion = prefersReducedMotion();
     const startTime = performance.now();
+
+    if (targetMode === "ascii" && phase === "covering") {
+      asciiAnimationStartRef.current = startTime;
+    }
+
+    const getAsciiElapsed = (now: number) =>
+      now - (asciiAnimationStartRef.current ?? startTime);
 
     ctx.fillStyle = COLOR_PALETTE_STR.background;
 
@@ -126,7 +140,7 @@ export default function DiamondTransitionOverlay() {
             asciiField,
             "covered",
             1,
-            performance.now() - startTime,
+            getAsciiElapsed(performance.now()),
           );
         } else {
           fillFullScreen();
@@ -147,7 +161,7 @@ export default function DiamondTransitionOverlay() {
             asciiField,
             "covered",
             1,
-            now - startTime,
+            getAsciiElapsed(now),
           );
           animationFrame = requestAnimationFrame(renderCoveredField);
         };
@@ -173,8 +187,19 @@ export default function DiamondTransitionOverlay() {
       done = true;
 
       if (isCovering) {
-        /* Absolute coverage guarantee regardless of easing or resizes. */
-        fillFullScreen();
+        /* ASCII retains its generated glyph field across the React phase
+           handoff. Other modes keep the solid coverage guarantee. */
+        if (targetMode === "ascii" && asciiField && !reducedMotion) {
+          renderAsciiTransitionFrame(
+            ctx,
+            asciiField,
+            "covered",
+            1,
+            getAsciiElapsed(performance.now()),
+          );
+        } else {
+          fillFullScreen();
+        }
         notifyCovered();
       } else {
         ctx.clearRect(0, 0, width, height);
@@ -223,7 +248,7 @@ export default function DiamondTransitionOverlay() {
           asciiField,
           isCovering ? "covering" : "clearing",
           progress,
-          now - startTime,
+          getAsciiElapsed(now),
         );
 
         if (progress >= 1) {

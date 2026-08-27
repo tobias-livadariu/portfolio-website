@@ -397,7 +397,47 @@ test("full-motion ASCII graph transition reaches and reveals the ready scene", a
   const transition = page.locator(
     '.bg-transition-overlay[data-target-mode="ascii"]',
   );
+  const countColoredTransitionPixels = () =>
+    transition.evaluate((canvas: HTMLCanvasElement) => {
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) {
+        return 0;
+      }
+      const pixels = context.getImageData(
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      ).data;
+      let coloredPixels = 0;
+
+      /* Sample every fourth physical pixel. The overlay background is #070b14;
+         any sufficiently different opaque pixel belongs to a graph glyph. */
+      for (let index = 0; index < pixels.length; index += 16) {
+        if (pixels[index + 3] < 16) {
+          continue;
+        }
+        const differenceFromBackground =
+          Math.abs(pixels[index] - 7) +
+          Math.abs(pixels[index + 1] - 11) +
+          Math.abs(pixels[index + 2] - 20);
+        if (differenceFromBackground > 24) {
+          coloredPixels += 1;
+        }
+      }
+
+      return coloredPixels;
+    });
+
   await expect(transition).toHaveAttribute("data-phase", "covering");
+  await expect
+    .poll(
+      async () =>
+        (await transition.getAttribute("data-phase")) === "covered" &&
+        (await countColoredTransitionPixels()) > 50,
+      { timeout: 15_000 },
+    )
+    .toBe(true);
   await expect
     .poll(() => transition.getAttribute("data-phase"), { timeout: 15_000 })
     .toBe("clearing");
