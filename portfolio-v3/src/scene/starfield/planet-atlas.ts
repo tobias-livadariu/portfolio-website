@@ -7,7 +7,7 @@ import {
 } from "three";
 import publicPath from "../../utility/public-path";
 import {
-  PLANETS,
+  PLANET_ATLASES,
   PLANET_ATLAS_LOADING,
   PLANET_TYPES,
   type PlanetType,
@@ -65,7 +65,7 @@ export function getPlanetAtlasKey(type: PlanetType, variant: number) {
 
 export function getPlanetAtlasKeys() {
   return PLANET_TYPES.flatMap((type) =>
-    Array.from({ length: PLANETS.variantsPerType }, (_, index) =>
+    Array.from({ length: PLANET_ATLASES.variantsPerType }, (_, index) =>
       getPlanetAtlasKey(type, index + 1),
     ),
   );
@@ -124,7 +124,7 @@ async function loadAtlas(
   signal?: AbortSignal,
 ): Promise<PlanetAtlas | null> {
   const key = getPlanetAtlasKey(type, variant);
-  const atlasBasePath = `${PLANETS.assetBasePath}/${type}/${key}`;
+  const atlasBasePath = `${PLANET_ATLASES.assetBasePath}/${type}/${key}`;
   const jsonUrl = publicPath(`${atlasBasePath}.json`);
   const textureUrl = publicPath(`${atlasBasePath}.png`);
 
@@ -192,7 +192,7 @@ interface AtlasDescriptor {
    makes the progressively revealed field visually diverse sooner. */
 function getAtlasLoadOrder(): AtlasDescriptor[] {
   return Array.from(
-    { length: PLANETS.variantsPerType },
+    { length: PLANET_ATLASES.variantsPerType },
     (_, variantIndex) => variantIndex + 1,
   ).flatMap((variant) => PLANET_TYPES.map((type) => ({ type, variant })));
 }

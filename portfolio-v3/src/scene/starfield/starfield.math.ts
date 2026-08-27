@@ -1,7 +1,7 @@
 import type { Camera } from "three";
 import { PerspectiveCamera, Vector3 } from "three";
 import type { ReadonlyVec3 } from "../../types/geometry";
-import { STARFIELD_BOUNDS, STARFIELD_ORBIT_WELLS } from "./starfield.constants";
+import type { StarfieldOrbitWell } from "./starfield.constants";
 
 export interface VisibleBounds {
   bottom: number;
@@ -68,7 +68,7 @@ export function getVisibleBoundsAtZ(
   camera: Camera,
   canvasSize: { width: number; height: number },
   z: number,
-  buffer: number = STARFIELD_BOUNDS.edgeBuffer,
+  buffer: number,
   target: VisibleBounds = createVisibleBounds(),
 ): VisibleBounds {
   return getVisibleBoundsAtZForPosition(
@@ -95,7 +95,7 @@ export function getVisibleBoundsAtZForPosition(
   canvasSize: { width: number; height: number },
   z: number,
   cameraPosition: ReadonlyVec3,
-  buffer: number = STARFIELD_BOUNDS.edgeBuffer,
+  buffer: number,
   target: VisibleBounds = createVisibleBounds(),
 ): VisibleBounds {
   let visibleHeight = 0;
@@ -115,21 +115,23 @@ export function getVisibleBoundsAtZForPosition(
   return target;
 }
 
-export function getFieldRadius(bounds: VisibleBounds) {
+export function getFieldRadius(
+  bounds: VisibleBounds,
+  fieldRadiusMultiplier: number,
+) {
   const width = bounds.right - bounds.left;
   const height = bounds.top - bounds.bottom;
-  return (
-    Math.hypot(width, height) * STARFIELD_BOUNDS.fieldRadiusMultiplier * 0.5
-  );
+  return Math.hypot(width, height) * fieldRadiusMultiplier * 0.5;
 }
 
 export function getOrbitCenter(
   orbitWellIndex: number,
   bounds: VisibleBounds,
   fieldRadius: number,
+  orbitWells: readonly StarfieldOrbitWell[],
   target: Vec3Tuple = [0, 0, 0],
 ): Vec3Tuple {
-  const well = STARFIELD_ORBIT_WELLS[orbitWellIndex];
+  const well = orbitWells[orbitWellIndex];
   const offset = well.distance * fieldRadius;
 
   if (well.side === "left") {
@@ -178,11 +180,12 @@ export function getOrbitWellFieldDirection(
   position: Vector3,
   bounds: VisibleBounds,
   fieldRadius: number,
+  orbitWells: readonly StarfieldOrbitWell[],
   target: Vector3,
 ) {
   target.set(0, 0, 0);
 
-  for (const well of STARFIELD_ORBIT_WELLS) {
+  for (const well of orbitWells) {
     const offset = well.distance * fieldRadius;
     let centerX: number;
     let centerY: number;

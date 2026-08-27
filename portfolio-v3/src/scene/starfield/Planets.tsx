@@ -5,9 +5,9 @@ import { PlaneGeometry, Quaternion, Vector3 } from "three";
 import { CAMERA_PROPS } from "../canvas.constants";
 import getCameraFacingRotation from "../ui3d/utils/getCameraFacingRotation";
 import {
-  PLANETS,
-  STARFIELD_DEPTH,
-  STARFIELD_ORBIT_WELLS,
+  type VolumetricPlanetTuning,
+  type VolumetricStarfieldMode,
+  type VolumetricStarfieldTuning,
 } from "./starfield.constants";
 import {
   createVisibleBounds,
@@ -77,24 +77,27 @@ interface VirtualPlanet {
   z: number;
 }
 
-function createVirtualPlanets(): VirtualPlanet[] {
-  const random = mulberry32(PLANETS.seed);
+function createVirtualPlanets(
+  fieldTuning: VolumetricStarfieldTuning,
+): VirtualPlanet[] {
+  const tuning = fieldTuning.planets;
+  const random = mulberry32(tuning.seed);
   const atlasKeys = getPlanetAtlasKeys();
 
-  return Array.from({ length: PLANETS.virtualCount }, (_, index) => {
+  return Array.from({ length: tuning.virtualCount }, (_, index) => {
     const depthProgress = sampleNormal(
       random,
-      PLANETS.depth.mean,
-      PLANETS.depth.stdDev,
-      PLANETS.depth.min,
-      PLANETS.depth.max,
+      tuning.depthDistribution.mean,
+      tuning.depthDistribution.stdDev,
+      tuning.depthDistribution.min,
+      tuning.depthDistribution.max,
     );
     const angularSpeed = sampleNormal(
       random,
-      PLANETS.angularSpeedRadiansPerSecond.mean,
-      PLANETS.angularSpeedRadiansPerSecond.stdDev,
-      PLANETS.angularSpeedRadiansPerSecond.min,
-      PLANETS.angularSpeedRadiansPerSecond.max,
+      tuning.angularSpeedRadiansPerSecond.mean,
+      tuning.angularSpeedRadiansPerSecond.stdDev,
+      tuning.angularSpeedRadiansPerSecond.min,
+      tuning.angularSpeedRadiansPerSecond.max,
     );
     const direction = random() > 0.5 ? 1 : -1;
 
@@ -104,27 +107,27 @@ function createVirtualPlanets(): VirtualPlanet[] {
       assetKey: atlasKeys[Math.floor(random() * atlasKeys.length)],
       frameRate: sampleNormal(
         random,
-        PLANETS.frameRate.mean,
-        PLANETS.frameRate.stdDev,
-        PLANETS.frameRate.min,
-        PLANETS.frameRate.max,
+        tuning.frameRate.mean,
+        tuning.frameRate.stdDev,
+        tuning.frameRate.min,
+        tuning.frameRate.max,
       ),
       frameTimeOffset: random() * 100,
       id: index,
       orbitRadiusRatio:
-        PLANETS.minOrbitRadiusRatio +
-        Math.sqrt(random()) * (1 - PLANETS.minOrbitRadiusRatio),
-      orbitWellIndex: pickWeightedIndex(random, STARFIELD_ORBIT_WELLS),
+        tuning.minOrbitRadiusRatio +
+        Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio),
+      orbitWellIndex: pickWeightedIndex(random, fieldTuning.orbitWells),
       sizeScale: sampleNormal(
         random,
-        PLANETS.sizeScale.mean,
-        PLANETS.sizeScale.stdDev,
-        PLANETS.sizeScale.min,
-        PLANETS.sizeScale.max,
+        tuning.sizeScale.mean,
+        tuning.sizeScale.stdDev,
+        tuning.sizeScale.min,
+        tuning.sizeScale.max,
       ),
       z: lerp(
-        STARFIELD_DEPTH.planets.nearestZ,
-        STARFIELD_DEPTH.planets.farthestZ,
+        tuning.depthBand.nearestZ,
+        tuning.depthBand.farthestZ,
         depthProgress,
       ),
     };
@@ -133,18 +136,16 @@ function createVirtualPlanets(): VirtualPlanet[] {
 
 interface PlanetSpriteProps {
   atlas: PlanetAtlas;
-  maxOpacity: number;
+  fieldTuning: VolumetricStarfieldTuning;
   planet: VirtualPlanet;
-  tint: string;
-  visualScale: number;
+  tuning: VolumetricPlanetTuning;
 }
 
 function PlanetSpriteInner({
   atlas,
-  maxOpacity,
+  fieldTuning,
   planet,
-  tint,
-  visualScale,
+  tuning,
 }: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
@@ -161,14 +162,14 @@ function PlanetSpriteInner({
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetWidth =
     atlas.frameWidth *
-    PLANETS.pixelsToWorldUnit *
+    tuning.pixelsToWorldUnit *
     planet.sizeScale *
-    visualScale;
+    tuning.visualScale;
   const planetHeight =
     atlas.frameHeight *
-    PLANETS.pixelsToWorldUnit *
+    tuning.pixelsToWorldUnit *
     planet.sizeScale *
-    visualScale;
+    tuning.visualScale;
   const planetRadius = Math.hypot(planetWidth, planetHeight) * 0.5;
 
   useFrame(({ clock }, delta) => {
@@ -185,21 +186,25 @@ function PlanetSpriteInner({
       size,
       planet.z,
       CAMERA_PROPS.position,
-      PLANETS.visibilityBuffer,
+      tuning.visibilityBuffer,
       PLANET_REFERENCE_BOUNDS,
     );
     getVisibleBoundsAtZ(
       camera,
       size,
       planet.z,
-      PLANETS.visibilityBuffer,
+      tuning.visibilityBuffer,
       PLANET_VISIBLE_BOUNDS,
     );
-    const fieldRadius = getFieldRadius(PLANET_REFERENCE_BOUNDS);
+    const fieldRadius = getFieldRadius(
+      PLANET_REFERENCE_BOUNDS,
+      fieldTuning.bounds.fieldRadiusMultiplier,
+    );
     getOrbitCenter(
       planet.orbitWellIndex,
       PLANET_REFERENCE_BOUNDS,
       fieldRadius,
+      fieldTuning.orbitWells,
       PLANET_ORBIT_CENTER,
     );
     const orbitRadius = planet.orbitRadiusRatio * fieldRadius;
@@ -251,6 +256,7 @@ function PlanetSpriteInner({
       position,
       PLANET_REFERENCE_BOUNDS,
       fieldRadius,
+      fieldTuning.orbitWells,
       worldLightDirection,
     );
     localLightDirection
@@ -259,14 +265,14 @@ function PlanetSpriteInner({
 
     const targetSpriteRotation =
       Math.atan2(localLightDirection.y, localLightDirection.x) -
-      PLANETS.rotation.illuminatedDirectionRadians;
+      tuning.rotation.illuminatedDirectionRadians;
     const spriteRotation =
       spriteRotationRef.current === null
         ? normalizeRadians(targetSpriteRotation)
         : dampRadians(
             spriteRotationRef.current,
             targetSpriteRotation,
-            PLANETS.rotation.damping,
+            tuning.rotation.damping,
             delta,
           );
 
@@ -274,8 +280,8 @@ function PlanetSpriteInner({
     mesh.rotateZ(spriteRotation);
 
     material.opacity = Math.min(
-      maxOpacity,
-      material.opacity + delta / PLANETS.fadeInSeconds,
+      tuning.maxOpacity,
+      material.opacity + delta / tuning.fadeInSeconds,
     );
   });
 
@@ -292,7 +298,7 @@ function PlanetSpriteInner({
         transparent
         opacity={0}
         alphaTest={0.02}
-        color={tint}
+        color={tuning.tint}
         depthWrite={false}
         toneMapped={false}
       />
@@ -304,16 +310,40 @@ const PlanetSprite = memo(PlanetSpriteInner);
 
 const EMPTY_ATLAS_MAP: ReadonlyMap<string, PlanetAtlas> = new Map();
 
+/* Mode populations are sampled once, then retained across 2D detours and
+   repeat 3D/ASCII transitions. Atlas textures remain in their existing shared
+   cache; changing modes never starts another fetch or decode queue. */
+const PLANET_POPULATION_CACHE = new Map<
+  VolumetricStarfieldMode,
+  VirtualPlanet[]
+>();
+
+function getVirtualPlanets(
+  mode: VolumetricStarfieldMode,
+  tuning: VolumetricStarfieldTuning,
+) {
+  const cached = PLANET_POPULATION_CACHE.get(mode);
+  if (cached) {
+    return cached;
+  }
+
+  const planets = createVirtualPlanets(tuning);
+  PLANET_POPULATION_CACHE.set(mode, planets);
+  return planets;
+}
+
 export default function Planets({
-  maxOpacity = 1,
-  tint = "#ffffff",
-  visualScale = 1,
+  fieldTuning,
+  mode,
 }: {
-  maxOpacity?: number;
-  tint?: string;
-  visualScale?: number;
+  fieldTuning: VolumetricStarfieldTuning;
+  mode: VolumetricStarfieldMode;
 }) {
-  const planets = useMemo(() => createVirtualPlanets(), []);
+  const tuning = fieldTuning.planets;
+  const planets = useMemo(
+    () => getVirtualPlanets(mode, fieldTuning),
+    [fieldTuning, mode],
+  );
   const [atlasMap, setAtlasMap] =
     useState<ReadonlyMap<string, PlanetAtlas>>(EMPTY_ATLAS_MAP);
 
@@ -346,10 +376,9 @@ export default function Planets({
           <PlanetSprite
             key={planet.id}
             atlas={atlas}
-            maxOpacity={maxOpacity}
+            fieldTuning={fieldTuning}
             planet={planet}
-            tint={tint}
-            visualScale={visualScale}
+            tuning={tuning}
           />
         );
       })}

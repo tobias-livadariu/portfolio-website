@@ -1,3 +1,5 @@
+import { COLOR_PALETTE_STR } from "../../theme/colors";
+
 // The 2D starfield is authored in CSS-pixel coordinates (origin at screen
 // center, +y up) inside a camera-following group, so densities and radii from
 // the old portfolio-v2 design port over 1:1.
@@ -8,6 +10,14 @@ export const STARFIELD_2D = {
 } as const;
 
 export const STARS_2D = {
+  // 2D owns its palette so volumetric 3D/ASCII tuning cannot change it.
+  colors: [
+    COLOR_PALETTE_STR.white,
+    COLOR_PALETTE_STR.mutedWhite,
+    COLOR_PALETTE_STR.softGray,
+    COLOR_PALETTE_STR.dimBlueGray,
+    COLOR_PALETTE_STR.fadedBlue,
+  ],
   // Values ported from portfolio-v2. Count is calculated from the circular
   // field area rather than the rectangular viewport area.
   densityPerPx2: 21e-4,

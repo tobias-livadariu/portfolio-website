@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Group, InstancedMesh } from "three";
 import { Color, Matrix4, PlaneGeometry } from "three";
-import { STAR_COLORS } from "../starfield/starfield.constants";
 import { STARS_2D } from "./starfield2d.constants";
 
 const STAR_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
@@ -47,7 +46,8 @@ function createStars(viewportWidth: number, viewportHeight: number): Star2D[] {
     const angle = Math.random() * Math.PI * 2;
 
     return {
-      color: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)],
+      color:
+        STARS_2D.colors[Math.floor(Math.random() * STARS_2D.colors.length)],
       size: pickStarSize(),
       x: Math.cos(angle) * radius,
       y: Math.sin(angle) * radius,
