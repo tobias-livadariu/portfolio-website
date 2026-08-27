@@ -53,8 +53,18 @@ export const PLANETS_2D = {
   minimumCount: 42,
   // Spawn ring outer radius relative to half the viewport diagonal.
   fieldRadiusMultiplier: 2,
-  // v2 sprite animation speed: one 50-frame rotation every 25 seconds.
-  framesPerSecond: 2,
+  /* Per-planet atlas playback distribution. This intentionally matches the
+     3D and ASCII profiles while remaining independently tunable for 2D. */
+  frameRate: {
+    // Most planets animate around five atlas frames per second.
+    mean: 5,
+    // Natural variation prevents the planet rotations from synchronizing.
+    stdDev: 1.6,
+    // Slowest permitted atlas playback rate.
+    min: 2,
+    // Fastest permitted atlas playback rate.
+    max: 9,
+  },
   // v2 faded planets in at 0.06 alpha/tick at 60fps.
   fadeInAlphaPerSecond: 3.6,
   // Extra offscreen distance travelled before an initially fading planet can

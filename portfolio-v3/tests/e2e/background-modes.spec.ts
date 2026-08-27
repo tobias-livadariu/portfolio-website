@@ -1,11 +1,18 @@
 import { expect, test } from "@playwright/test";
 import {
+  ASCII_GRAPH_TRANSITION,
+  buildAsciiTransitionField,
+} from "../../src/background/ascii-graph-transition";
+import {
   getTwoDimensionalVisibleHeight,
   getTwoDimensionalWorldPerPixel,
 } from "../../src/scene/canvas.constants";
 import { VOLUMETRIC_STARFIELD_TUNING } from "../../src/scene/starfield/starfield.constants";
 import { getCinematicOrbitalAngularSpeed } from "../../src/scene/starfield/starfield.math";
-import { STARS_2D } from "../../src/scene/starfield2d/starfield2d.constants";
+import {
+  PLANETS_2D,
+  STARS_2D,
+} from "../../src/scene/starfield2d/starfield2d.constants";
 import { COLOR_PALETTE_STR } from "../../src/theme/colors";
 
 const MODE_LABELS = {
@@ -13,6 +20,62 @@ const MODE_LABELS = {
   "3d": /DEEP/,
   ascii: /CHAR/,
 } as const;
+
+function createSeededRandom(seed: number) {
+  let state = seed >>> 0;
+
+  return () => {
+    state += 0x6d2b79f5;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+test("2D planets use the same playback distribution as volumetric modes", () => {
+  expect(PLANETS_2D.frameRate).toEqual(
+    VOLUMETRIC_STARFIELD_TUNING["3d"].planets.frameRate,
+  );
+  expect(PLANETS_2D.frameRate).toEqual(
+    VOLUMETRIC_STARFIELD_TUNING.ascii.planets.frameRate,
+  );
+});
+
+test("ASCII transition graph propagates from the renderer to complete faces", () => {
+  const field = buildAsciiTransitionField(
+    1_440,
+    900,
+    1_400,
+    860,
+    createSeededRandom(42),
+  );
+
+  expect(field.nodes.length).toBeGreaterThan(100);
+  expect(field.edges.length).toBeGreaterThan(field.nodes.length);
+  expect(field.faces.length).toBeGreaterThan(field.nodes.length);
+  expect(field.nodes[field.seedIndex].startProgress).toBe(0);
+  expect(field.nodes[field.goalIndex].startProgress).toBeCloseTo(
+    ASCII_GRAPH_TRANSITION.goalFoundProgress,
+    10,
+  );
+  expect(ASCII_GRAPH_TRANSITION.glyphScalePulseHz).toBeLessThan(3);
+
+  for (const node of field.nodes) {
+    expect(node.startProgress).toBeGreaterThanOrEqual(0);
+    expect(node.startProgress).toBeLessThanOrEqual(1);
+  }
+
+  for (const face of field.faces) {
+    expect(face.coverProgress).toBe(
+      Math.max(
+        field.nodes[face.a].startProgress,
+        field.nodes[face.b].startProgress,
+        field.nodes[face.c].startProgress,
+      ),
+    );
+  }
+});
 
 test("volumetric modes own independent tuning and preserve ASCII appearance", () => {
   const threeDimensional = VOLUMETRIC_STARFIELD_TUNING["3d"];
@@ -315,4 +378,30 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   await expect(transition).toHaveCount(0, { timeout: 10_000 });
   await page.reload();
   await expect(trigger).toContainText("[3D]");
+});
+
+test("full-motion ASCII graph transition reaches and reveals the ready scene", async ({
+  page,
+}) => {
+  test.setTimeout(30_000);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/");
+
+  const trigger = page.getByRole("button", {
+    includeHidden: true,
+    name: "Choose background render mode",
+  });
+  await trigger.click();
+  await page.getByRole("menuitemradio", { name: MODE_LABELS.ascii }).click();
+
+  const transition = page.locator(
+    '.bg-transition-overlay[data-target-mode="ascii"]',
+  );
+  await expect(transition).toHaveAttribute("data-phase", "covering");
+  await expect
+    .poll(() => transition.getAttribute("data-phase"), { timeout: 15_000 })
+    .toBe("clearing");
+  await expect(transition).toHaveCount(0, { timeout: 10_000 });
+  await expect(trigger).toContainText("[ASCII]");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

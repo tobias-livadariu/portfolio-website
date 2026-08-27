@@ -18,6 +18,7 @@ const PLANET_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
 
 interface VirtualPlanet2D {
   assetKey: string;
+  frameRate: number;
   frameTimeOffset: number;
   id: number;
   sizeScale: number;
@@ -68,20 +69,31 @@ function createVirtualPlanets2D(
     ),
   );
 
-  return Array.from({ length: count }, (_, index) => ({
-    assetKey: atlasKeys[Math.floor(Math.random() * atlasKeys.length)],
-    frameTimeOffset: Math.random() * 100,
-    id: index,
-    sizeScale: sampleNormal(
+  return Array.from({ length: count }, (_, index) => {
+    const frameRate = sampleNormal(
       Math.random,
-      PLANETS_2D.sizeScale.mean,
-      PLANETS_2D.sizeScale.stdDev,
-      PLANETS_2D.sizeScale.min,
-      PLANETS_2D.sizeScale.max,
-    ),
-    spawnAngle: Math.random() * Math.PI * 2,
-    spawnRadius: sampleRingRadius(fieldRadius, exclusionRadius),
-  }));
+      PLANETS_2D.frameRate.mean,
+      PLANETS_2D.frameRate.stdDev,
+      PLANETS_2D.frameRate.min,
+      PLANETS_2D.frameRate.max,
+    );
+
+    return {
+      assetKey: atlasKeys[Math.floor(Math.random() * atlasKeys.length)],
+      frameRate,
+      frameTimeOffset: Math.random() * 100,
+      id: index,
+      sizeScale: sampleNormal(
+        Math.random,
+        PLANETS_2D.sizeScale.mean,
+        PLANETS_2D.sizeScale.stdDev,
+        PLANETS_2D.sizeScale.min,
+        PLANETS_2D.sizeScale.max,
+      ),
+      spawnAngle: Math.random() * Math.PI * 2,
+      spawnRadius: sampleRingRadius(fieldRadius, exclusionRadius),
+    };
+  });
 }
 
 interface CircularPlanetBody {
@@ -250,8 +262,7 @@ function PlanetSprite2DInner({
 
     const frameIndex =
       Math.floor(
-        (clock.getElapsedTime() + planet.frameTimeOffset) *
-          PLANETS_2D.framesPerSecond,
+        (clock.getElapsedTime() + planet.frameTimeOffset) * planet.frameRate,
       ) % atlas.frames.length;
     if (frameIndex !== lastFrameIndexRef.current) {
       const frame = atlas.frames[frameIndex];
