@@ -1,5 +1,10 @@
 # Portfolio V3 Master Plan
 
+> **Implementation status (August 27, 2026): complete.** The v3 application
+> described here has been built and has since evolved beyond parts of this
+> plan. This document is retained as design history; the current source and
+> [README](../README.md) are authoritative.
+
 This document is the working implementation plan for the next portfolio. It preserves the soul of `portfolio-v2`: Tobias in the top-left, a compact interactive menu, dotted separators, blocky arrows, and an orbiting pixel-space background. V3 should make that scene feel physically present: 3D mesh text, a perspective camera, a small camera head-shift, 3D separators/arrows, a lightbulb dot over the `i`, and a performant dimensional space field.
 
 ## Current V2 Baseline

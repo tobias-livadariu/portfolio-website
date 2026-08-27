@@ -65,7 +65,6 @@ export const MODAL_ASSETS = [
     jsonPath,
     imagePath,
   ]),
-  "/images/me.png",
 ] as const;
 
 export function getModalIndex(section: ModalSectionKey | null) {

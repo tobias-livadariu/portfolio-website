@@ -1,5 +1,10 @@
 # UI Halo Rework Handoff Plan
 
+> **Implementation status (August 27, 2026): complete.** The screen-space
+> halo, final UI overlay render, and optional SMAA pass described below are
+> implemented in `src/scene/ui3d/UiHaloPass.tsx`. This document is retained as
+> design history; the current source is authoritative.
+
 Status date: May 14, 2026
 
 This document is a handoff plan for the next agent working on the portfolio v3 3D UI readability halo. It summarizes the project context, the current implementation, the bug we are solving, the recommended implementation strategy, verification sources, and concrete acceptance criteria.
