@@ -29,7 +29,7 @@ const ABOUT_RIGHT_SPRITE = {
   alt: "ASCII island planet",
 } as const;
 
-const TOBIFETCH_IMAGE_PATH = "/images/cool-photo-of-me.png";
+const TOBIFETCH_IMAGE_PATH = "/images/cool-photo-of-me.webp";
 const TOBIFETCH_MIN_COLUMNS = 32;
 /* Side-by-side mode reserves the exact info width and a fixed gutter. It is
    only used while the remaining portrait is still large enough to read. */
@@ -68,58 +68,40 @@ const TOBIFETCH_LINES: readonly TobifetchLine[] = [
   { kind: "spacer" },
   {
     kind: "message",
-    parts: [
-      "Hello dear reader! \\n",
-    ],
+    parts: ["Hello dear reader! \\n"],
   },
   {
     kind: "message",
-    parts: [
-      { textPurple: "My name is Tobi \\n" },
-    ],
+    parts: [{ textPurple: "My name is Tobi \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      { textRed: "and I deeply appreciate you taking the time \\n" },
-    ],
+    parts: [{ textRed: "and I deeply appreciate you taking the time \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      { textPurple: "to check out my website. \\n" },
-    ],
+    parts: [{ textPurple: "to check out my website. \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      ":) \\n\\n",
-    ],
+    parts: [":) \\n\\n"],
   },
   { kind: "spacer" },
   {
     kind: "message",
-    parts: [
-      "I've included \\n",
-    ],
+    parts: ["I've included \\n"],
   },
   {
     kind: "message",
-    parts: [
-      { textPurple: "a brief summary \\n" }
-    ],
+    parts: [{ textPurple: "a brief summary \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      "of my technical skills \\n",
-    ],
+    parts: ["of my technical skills \\n"],
   },
   {
     kind: "message",
-    parts: [
-      { textPurple: "below: \\n\\n"},
-    ],
+    parts: [{ textPurple: "below: \\n\\n" }],
   },
   { kind: "spacer" },
   {
@@ -156,52 +138,36 @@ const TOBIFETCH_LINES: readonly TobifetchLine[] = [
   { kind: "spacer" },
   {
     kind: "message",
-    parts: [
-      "Further down, \\n",
-    ],
+    parts: ["Further down, \\n"],
   },
   {
     kind: "message",
-    parts: [
-      { textPurple: "you can find information \\n" }
-    ],
+    parts: [{ textPurple: "you can find information \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      { textRed: "about my past experience, \\n" }
-    ],
+    parts: [{ textRed: "about my past experience, \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      { textPurple: "future goals, \\n" }
-    ],
+    parts: [{ textPurple: "future goals, \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      "and current resume. \\n\\n",
-    ],
+    parts: ["and current resume. \\n\\n"],
   },
   { kind: "spacer" },
   {
     kind: "message",
-    parts: [
-      { textRed: "Thanks again, \\n" }
-    ],
+    parts: [{ textRed: "Thanks again, \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      { textRed: "and I hope you have \\n" }
-    ],
+    parts: [{ textRed: "and I hope you have \\n" }],
   },
   {
     kind: "message",
-    parts: [
-      { textRed: "a wonderful day. ^D" }
-    ],
+    parts: [{ textRed: "a wonderful day. ^D" }],
   },
 ];
 

@@ -1,11 +1,4 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { observeWithRaf } from "./observeWithRaf";
 
 interface Props {
@@ -14,11 +7,7 @@ interface Props {
   minSideMarginCh?: number;
 }
 
-function AsciiDivider({
-  block,
-  minGapCh = 2,
-  minSideMarginCh = 1,
-}: Props) {
+function AsciiDivider({ block, minGapCh = 2, minSideMarginCh = 1 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLPreElement>(null);
   const chMeasureRef = useRef<HTMLSpanElement>(null);

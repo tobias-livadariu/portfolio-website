@@ -126,7 +126,9 @@ async function loadAtlas(
   const key = getPlanetAtlasKey(type, variant);
   const atlasBasePath = `${PLANET_ATLASES.assetBasePath}/${type}/${key}`;
   const jsonUrl = publicPath(`${atlasBasePath}.json`);
-  const textureUrl = publicPath(`${atlasBasePath}.png`);
+  const textureUrl = publicPath(
+    `${atlasBasePath}.${PLANET_ATLASES.imageExtension}`,
+  );
 
   const [atlasJson, bitmap] = await Promise.all([
     fetch(jsonUrl, { signal }).then((response) => {

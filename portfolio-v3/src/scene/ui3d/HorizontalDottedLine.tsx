@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
   BoxGeometry,
@@ -28,27 +28,16 @@ interface Props {
 }
 
 // Each separator dot historically created its own BoxGeometry and material.
-// Every dot uses the same color/roughness; the only per-dot difference is its
-// scale, which is now baked into the mesh `scale` prop. Sharing one geometry +
-// one material avoids ~100 redundant GPU buffer allocations.
+// Every non-ASCII face has the same appearance, so one material also lets
+// Three draw the cube without issuing a separate draw for each geometry group.
+// The only per-dot difference is its transform and halo radius.
 const SEGMENT_GEOMETRY = new BoxGeometry(1, 1, 1);
 const BOX_FRONT_MATERIAL_INDEX = 4;
 
-const SEGMENT_FRONT_MATERIAL = new MeshStandardMaterial({
+const SEGMENT_MATERIAL = new MeshStandardMaterial({
   color: COLOR_PALETTE_STR.campfireAsh,
   roughness: 0.9,
 });
-
-const SEGMENT_SIDE_MATERIAL = new MeshStandardMaterial({
-  color: COLOR_PALETTE_STR.campfireAsh,
-  roughness: 0.9,
-});
-
-const SEGMENT_MATERIALS: Material[] = Array.from({ length: 6 }, (_, index) =>
-  index === BOX_FRONT_MATERIAL_INDEX
-    ? SEGMENT_FRONT_MATERIAL
-    : SEGMENT_SIDE_MATERIAL,
-);
 
 const ASCII_SEGMENT_FRONT_MATERIAL = new MeshStandardMaterial({
   ...ASCII_UI_MATERIAL.separators.front,
@@ -76,9 +65,24 @@ export default function HorizontalDottedLine(props: Props) {
     ASCII_UI_MATERIAL.enabled &&
     ASCII_UI_MATERIAL.separators.enabled
       ? ASCII_SEGMENT_MATERIALS
-      : SEGMENT_MATERIALS;
+      : SEGMENT_MATERIAL;
   const segmentRefs = useRef<Array<Mesh | null>>([]);
   const lastIndex = LAYOUT.separatorSegmentCount - 1;
+  const segmentLayout = useMemo(
+    () =>
+      Array.from({ length: LAYOUT.separatorSegmentCount }, (_, index) => {
+        const progress = lastIndex === 0 ? 0 : index / lastIndex;
+        return {
+          position: [
+            startOffset[0] + (endOffset[0] - startOffset[0]) * progress,
+            startOffset[1] + (endOffset[1] - startOffset[1]) * progress,
+            startOffset[2] + (endOffset[2] - startOffset[2]) * progress,
+          ] as const,
+          progress,
+        };
+      }),
+    [endOffset, lastIndex, startOffset],
+  );
 
   useFrame(({ clock }) => {
     const elapsedSeconds = clock.getElapsedTime();
@@ -89,26 +93,19 @@ export default function HorizontalDottedLine(props: Props) {
         return;
       }
 
-      const progress = lastIndex === 0 ? 0 : index / lastIndex;
-      const x = startOffset[0] + (endOffset[0] - startOffset[0]) * progress;
-      const y = startOffset[1] + (endOffset[1] - startOffset[1]) * progress;
-      const z = startOffset[2] + (endOffset[2] - startOffset[2]) * progress;
+      const { position, progress } = segmentLayout[index];
       const dotYOffset = getAnimatedSeparatorDotYOffset(
         progress,
         elapsedSeconds,
       );
 
-      segment.position.set(x, y + lineYOffset + dotYOffset, z);
+      segment.position.y = position[1] + lineYOffset + dotYOffset;
     });
   });
 
   return (
     <group>
-      {Array.from({ length: LAYOUT.separatorSegmentCount }, (_, index) => {
-        const progress = lastIndex === 0 ? 0 : index / lastIndex;
-        const x = startOffset[0] + (endOffset[0] - startOffset[0]) * progress;
-        const y = startOffset[1] + (endOffset[1] - startOffset[1]) * progress;
-        const z = startOffset[2] + (endOffset[2] - startOffset[2]) * progress;
+      {segmentLayout.map(({ position, progress }, index) => {
         const segmentSize = getSeparatorSegmentSize(progress);
         const haloRadiusScale = segmentSize / LAYOUT.separatorMaxSegmentSize;
 
@@ -120,7 +117,7 @@ export default function HorizontalDottedLine(props: Props) {
             }}
             geometry={SEGMENT_GEOMETRY}
             material={materials}
-            position={[x, y, z]}
+            position={position}
             scale={segmentSize}
             userData={{
               [UI_HALO.radiusScaleUserDataKey]: haloRadiusScale,

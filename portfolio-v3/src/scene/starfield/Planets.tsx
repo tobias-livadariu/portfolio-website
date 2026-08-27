@@ -16,10 +16,7 @@ import {
   getFieldRadius,
   getOrbitCenter,
   getOrbitWellFieldDirection,
-  getOrbitalPosition,
-  getVisibleBoundsAtZ,
   getVisibleBoundsAtZForPosition,
-  isInsideBounds,
   lerp,
   mulberry32,
   pickWeightedIndex,
@@ -34,20 +31,14 @@ import {
 
 const FULL_TURN_RADIANS = Math.PI * 2;
 
-// Module-scoped scratches reused by every PlanetSprite useFrame call. The R3F
-// frame loop runs each callback sequentially, so sharing these is safe and
-// avoids per-sprite-per-frame allocations.
-const PLANET_REFERENCE_BOUNDS = createVisibleBounds();
-const PLANET_VISIBLE_BOUNDS = createVisibleBounds();
-const PLANET_ORBIT_CENTER: Vec3Tuple = [0, 0, 0];
 const PLANET_ROTATION: Vec3Tuple = [0, 0, 0];
 const PLANET_SESSION_SEEDS: Record<VolumetricStarfieldMode, number> = {
   "3d": createEntropySeed(),
   ascii: createEntropySeed(),
 };
 
-// Every planet sprite is a 1x1 plane scaled per-sprite via `mesh.scale.set(...)`,
-// so all 300 sprites can share a single geometry instance.
+// Every planet sprite is a declaratively scaled 1x1 plane, so all 300 sprites
+// can share a single geometry instance.
 const PLANET_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
 
 function normalizeRadians(radians: number) {
@@ -167,6 +158,46 @@ interface PlanetSpriteProps {
   tuning: VolumetricPlanetTuning;
 }
 
+function createPlanetFrameLayout(
+  camera: Parameters<typeof getVisibleBoundsAtZForPosition>[0],
+  size: { width: number; height: number },
+  fieldTuning: VolumetricStarfieldTuning,
+  planet: VirtualPlanet,
+  visibilityBuffer: number,
+) {
+  const referenceBounds = createVisibleBounds();
+  getVisibleBoundsAtZForPosition(
+    camera,
+    size,
+    planet.z,
+    CAMERA_PROPS.position,
+    visibilityBuffer,
+    referenceBounds,
+  );
+  const fieldRadius = getFieldRadius(
+    referenceBounds,
+    fieldTuning.bounds.fieldRadiusMultiplier,
+  );
+  const orbitCenter: Vec3Tuple = [0, 0, 0];
+  getOrbitCenter(
+    planet.orbitWellIndex,
+    referenceBounds,
+    fieldRadius,
+    fieldTuning.orbitWells,
+    orbitCenter,
+  );
+
+  return {
+    centerX: orbitCenter[0],
+    centerY: orbitCenter[1],
+    fieldRadius,
+    orbitRadius: planet.orbitRadiusRatio * fieldRadius,
+    referenceBounds,
+    visibleHalfHeight: (referenceBounds.top - referenceBounds.bottom) * 0.5,
+    visibleHalfWidth: (referenceBounds.right - referenceBounds.left) * 0.5,
+  };
+}
+
 function PlanetSpriteInner({
   atlas,
   fieldTuning,
@@ -175,6 +206,7 @@ function PlanetSpriteInner({
 }: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
+  const lastFrameIndexRef = useRef(-1);
   const spriteRotationRef = useRef<number | null>(null);
   const inverseFacingQuaternion = useMemo(() => new Quaternion(), []);
   const localLightDirection = useMemo(() => new Vector3(), []);
@@ -197,6 +229,17 @@ function PlanetSpriteInner({
     planet.sizeScale *
     tuning.visualScale;
   const planetRadius = Math.hypot(planetWidth, planetHeight) * 0.5;
+  const frameLayout = useMemo(
+    () =>
+      createPlanetFrameLayout(
+        camera,
+        size,
+        fieldTuning,
+        planet,
+        tuning.visibilityBuffer,
+      ),
+    [camera, fieldTuning, planet, size, tuning.visibilityBuffer],
+  );
 
   useFrame(({ clock }, delta) => {
     const mesh = meshRef.current;
@@ -207,47 +250,16 @@ function PlanetSpriteInner({
     }
 
     const elapsedSeconds = clock.getElapsedTime();
-    getVisibleBoundsAtZForPosition(
-      camera,
-      size,
-      planet.z,
-      CAMERA_PROPS.position,
-      tuning.visibilityBuffer,
-      PLANET_REFERENCE_BOUNDS,
-    );
-    getVisibleBoundsAtZ(
-      camera,
-      size,
-      planet.z,
-      tuning.visibilityBuffer,
-      PLANET_VISIBLE_BOUNDS,
-    );
-    const fieldRadius = getFieldRadius(
-      PLANET_REFERENCE_BOUNDS,
-      fieldTuning.bounds.fieldRadiusMultiplier,
-    );
-    getOrbitCenter(
-      planet.orbitWellIndex,
-      PLANET_REFERENCE_BOUNDS,
-      fieldRadius,
-      fieldTuning.orbitWells,
-      PLANET_ORBIT_CENTER,
-    );
-    const orbitRadius = planet.orbitRadiusRatio * fieldRadius;
     const angle = planet.angle + elapsedSeconds * planet.angularSpeed;
-    getOrbitalPosition(
-      PLANET_ORBIT_CENTER,
-      orbitRadius,
-      angle,
-      planet.z,
-      position,
-    );
+    const x = frameLayout.centerX + Math.cos(angle) * frameLayout.orbitRadius;
+    const y = frameLayout.centerY + Math.sin(angle) * frameLayout.orbitRadius;
+    position.set(x, y, planet.z);
 
-    const isVisible = isInsideBounds(
-      position,
-      PLANET_VISIBLE_BOUNDS,
-      planetRadius,
-    );
+    const isVisible =
+      x >= camera.position.x - frameLayout.visibleHalfWidth - planetRadius &&
+      x <= camera.position.x + frameLayout.visibleHalfWidth + planetRadius &&
+      y >= camera.position.y - frameLayout.visibleHalfHeight - planetRadius &&
+      y <= camera.position.y + frameLayout.visibleHalfHeight + planetRadius;
 
     mesh.visible = isVisible;
     if (!isVisible) {
@@ -258,18 +270,20 @@ function PlanetSpriteInner({
     const frameIndex =
       Math.floor((elapsedSeconds + planet.frameTimeOffset) * planet.frameRate) %
       atlas.frames.length;
-    const frame = atlas.frames[frameIndex];
-    texture.repeat.set(
-      frame.w / atlas.textureWidth,
-      frame.h / atlas.textureHeight,
-    );
-    texture.offset.set(
-      frame.x / atlas.textureWidth,
-      1 - (frame.y + frame.h) / atlas.textureHeight,
-    );
+    if (frameIndex !== lastFrameIndexRef.current) {
+      const frame = atlas.frames[frameIndex];
+      texture.repeat.set(
+        frame.w / atlas.textureWidth,
+        frame.h / atlas.textureHeight,
+      );
+      texture.offset.set(
+        frame.x / atlas.textureWidth,
+        1 - (frame.y + frame.h) / atlas.textureHeight,
+      );
+      lastFrameIndexRef.current = frameIndex;
+    }
 
     mesh.position.copy(position);
-    mesh.scale.set(planetWidth, planetHeight, 1);
 
     getCameraFacingRotation(position, camera.position, PLANET_ROTATION);
     mesh.rotation.set(
@@ -280,8 +294,8 @@ function PlanetSpriteInner({
 
     getOrbitWellFieldDirection(
       position,
-      PLANET_REFERENCE_BOUNDS,
-      fieldRadius,
+      frameLayout.referenceBounds,
+      frameLayout.fieldRadius,
       fieldTuning.orbitWells,
       worldLightDirection,
     );
@@ -317,6 +331,7 @@ function PlanetSpriteInner({
       geometry={PLANET_PLANE_GEOMETRY}
       frustumCulled={false}
       renderOrder={1}
+      scale={[planetWidth, planetHeight, 1]}
     >
       <meshBasicMaterial
         ref={materialRef}

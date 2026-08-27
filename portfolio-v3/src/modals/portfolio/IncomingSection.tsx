@@ -10,7 +10,7 @@ import publicPath from "../../utility/public-path";
 import { useScenePointer } from "../components/use-scene-pointer";
 import { DRAGON_LUCY } from "../modals.constants";
 
-const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.png");
+const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.webp");
 
 /* Complete art-direction panel for INCOMING @ Finta. Geometry that is useful
    to tweak is named here instead of being hidden inside the JSX. */

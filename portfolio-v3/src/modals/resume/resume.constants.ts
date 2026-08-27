@@ -31,7 +31,7 @@ export const RESUME_TERMINAL_CONTEXT: TerminalContext = {
 
 export const RESUME_SPRITE = {
   atlasKey: "astroid-5",
-  imagePath: "/rotating-planet-spritesheets/astroid/astroid-5.png",
+  imagePath: "/rotating-planet-spritesheets/astroid/astroid-5.webp",
   jsonPath: "/rotating-planet-spritesheets/astroid/astroid-5.json",
   columns: 34,
   rows: 18,

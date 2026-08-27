@@ -161,12 +161,9 @@ export function useAnimatedMenuPosition(
       return;
     }
 
-    object.position.set(
-      baseOffset[0],
+    object.position.y =
       baseOffset[1] +
-        getAnimatedMenuYOffset(elementIndex, clock.getElapsedTime()),
-      baseOffset[2],
-    );
+      getAnimatedMenuYOffset(elementIndex, clock.getElapsedTime());
   });
 }
 

@@ -367,7 +367,6 @@ However, R3F scene inheritance and the current component tree may make a layer m
 
 Do not treat layers as mandatory. Treat them as the cleaner option if implementation is straightforward. Treat traversal as the pragmatic fallback if layers create broader risk.
 
-
 ### 9. Verification Steps
 
 Run these after edits:

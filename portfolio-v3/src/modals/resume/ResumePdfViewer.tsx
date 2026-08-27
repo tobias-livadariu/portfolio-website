@@ -110,7 +110,9 @@ function ResumePdfViewer({ src }: Props) {
           try {
             await renderTask.promise;
           } catch (err) {
-            if ((err as { name?: string })?.name === "RenderingCancelledException") {
+            if (
+              (err as { name?: string })?.name === "RenderingCancelledException"
+            ) {
               return;
             }
             throw err;

@@ -8,10 +8,7 @@ export interface LsRow {
   user?: string;
 }
 
-const DEFAULT_PERMISSIONS: Record<
-  NonNullable<LsRow["type"]>,
-  string
-> = {
+const DEFAULT_PERMISSIONS: Record<NonNullable<LsRow["type"]>, string> = {
   dir: "drwxr-xr-x@",
   exec: ".rwxr-xr-x@",
   file: ".rw-r--r--@",
@@ -74,4 +71,3 @@ export function LsOutputLine({ row }: { row: LsRow }) {
     </span>
   );
 }
-

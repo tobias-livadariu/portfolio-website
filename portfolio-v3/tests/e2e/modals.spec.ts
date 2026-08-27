@@ -186,6 +186,9 @@ test("modal document opens from scroll and supports section navigation", async (
   await page.keyboard.press("PageDown");
   await expect(activePanel).toContainText("File: resume.modal");
   await expect(page.getByRole("link", { name: "DOWNLOAD PDF" })).toBeVisible();
+  await expect(page.locator(".modal-resume-pdf-canvas")).toBeVisible({
+    timeout: 20_000,
+  });
 
   const resumeScrollTop = await scrollRoot.evaluate(
     (element) => element.scrollTop,
@@ -250,6 +253,11 @@ test("modal document opens from scroll and supports section navigation", async (
   await expect(
     page.getByRole("link", { name: /portfolio-website/ }),
   ).toBeVisible();
+  const firstStoryHero = activePanel.locator(".modal-story-hero").first();
+  await firstStoryHero.scrollIntoViewIfNeeded();
+  await expect(firstStoryHero.locator("canvas")).toBeVisible({
+    timeout: 20_000,
+  });
 
   await activePanel.getByRole("button", { name: "CONTACT ME" }).click();
   await expect(activePanel).toContainText("File: contact.modal");

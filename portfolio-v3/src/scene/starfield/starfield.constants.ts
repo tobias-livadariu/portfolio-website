@@ -455,9 +455,10 @@ export type PlanetType = (typeof PLANET_TYPES)[number];
 export const PLANET_ATLASES = {
   variantsPerType: 5,
   assetBasePath: "rotating-planet-spritesheets",
+  imageExtension: "webp",
 } as const;
 
 export const PLANET_ATLAS_LOADING = {
-  // At most this many PNG atlases may be fetched and decoded at once.
+  // At most this many image atlases may be fetched and decoded at once.
   maximumConcurrentLoads: 2,
 } as const;

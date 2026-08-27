@@ -40,9 +40,9 @@ npm run test:e2e      # Playwright tests
 - `src/utility/` holds path and ASCII glyph-size helpers used across renderers.
 - `public/` contains files needed by the browser at runtime: planet atlases,
   images, resume files, and active fonts.
-- `assets/font-sources/` contains font source files and inactive browser
-  variants. They are intentionally outside `public/`, so Vite does not copy
-  them into `dist/`.
+- `assets/` contains authoring copies of fonts and lossless source images.
+  They are intentionally outside `public/`, so Vite does not copy source and
+  delivery formats into `dist/` together.
 - `tests/e2e/` covers mode switching, modal navigation, scrolling, and the
   responsive cases that have caused regressions.
 - `deployment/` contains the Nginx and systemd files used by the deployed site.

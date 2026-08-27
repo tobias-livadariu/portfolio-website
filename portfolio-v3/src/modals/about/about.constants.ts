@@ -31,7 +31,7 @@ export const ABOUT_TERMINAL_CONTEXT: TerminalContext = {
 
 export const ABOUT_SPRITE = {
   atlasKey: "islands-1",
-  imagePath: "/rotating-planet-spritesheets/islands/islands-1.png",
+  imagePath: "/rotating-planet-spritesheets/islands/islands-1.webp",
   jsonPath: "/rotating-planet-spritesheets/islands/islands-1.json",
   columns: 34,
   rows: 18,

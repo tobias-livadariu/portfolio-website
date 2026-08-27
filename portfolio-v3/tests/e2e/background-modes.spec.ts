@@ -212,14 +212,14 @@ test("planet atlases load through a bounded, diversity-first queue", async ({
   let maximumActiveAtlasRequests = 0;
   const requestedAtlases: string[] = [];
   const modalPreviewAtlases = new Set([
-    "/astroid/astroid-5.png",
-    "/ice-world/ice-world-1.png",
-    "/islands/islands-1.png",
-    "/terran-wet/terran-wet-1.png",
+    "/astroid/astroid-5.webp",
+    "/ice-world/ice-world-1.webp",
+    "/islands/islands-1.webp",
+    "/terran-wet/terran-wet-1.webp",
   ]);
 
   await page.route(
-    "**/rotating-planet-spritesheets/**/*.png",
+    "**/rotating-planet-spritesheets/**/*.webp",
     async (route) => {
       const path = new URL(route.request().url()).pathname;
 
@@ -255,7 +255,7 @@ test("planet atlases load through a bounded, diversity-first queue", async ({
   expect(maximumActiveAtlasRequests).toBeLessThanOrEqual(2);
 
   const firstAtlases = requestedAtlases.slice(0, 8);
-  expect(firstAtlases.every((path) => /-1\.png$/.test(path))).toBe(true);
+  expect(firstAtlases.every((path) => /-1\.webp$/.test(path))).toBe(true);
   expect(
     new Set(firstAtlases.map((path) => path.split("/").at(-2)).filter(Boolean))
       .size,

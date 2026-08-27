@@ -357,7 +357,7 @@
   "meta": {
     "app": "Custom Spritesheet Generator",
     "version": "1.0",
-    "image": "gas-giant-2-2.png",
+    "image": "gas-giant-2-2.webp",
     "format": "RGBA8888",
     "size": {"w": 15000, "h": 300},
     "scale": "1"

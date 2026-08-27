@@ -198,6 +198,7 @@ function PlanetSprite2DInner({
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const bodyRef = useRef<CircularPlanetBody | null>(null);
+  const lastFrameIndexRef = useRef(-1);
   /* UV transforms are per-planet, while the clone's atlas Source and its GPU
      allocation are shared with 3D/ASCII. The atlas cache owns that source for
      the page lifetime, so disposing clones here would force costly re-uploads
@@ -233,22 +234,6 @@ function PlanetSprite2DInner({
       body.alpha + deltaSeconds * PLANETS_2D.fadeInAlphaPerSecond,
     );
 
-    const frameIndex =
-      Math.floor(
-        (clock.getElapsedTime() + planet.frameTimeOffset) *
-          PLANETS_2D.framesPerSecond,
-      ) % atlas.frames.length;
-    const frame = atlas.frames[frameIndex];
-
-    texture.repeat.set(
-      frame.w / atlas.textureWidth,
-      frame.h / atlas.textureHeight,
-    );
-    texture.offset.set(
-      frame.x / atlas.textureWidth,
-      1 - (frame.y + frame.h) / atlas.textureHeight,
-    );
-
     const x = Math.cos(body.angle) * body.radius;
     const y = Math.sin(body.angle) * body.radius;
     const halfSize = planetSize * 0.5;
@@ -259,10 +244,30 @@ function PlanetSprite2DInner({
       y >= -viewportHeight - halfSize;
 
     mesh.visible = isOnScreen;
+    if (!isOnScreen) {
+      return;
+    }
+
+    const frameIndex =
+      Math.floor(
+        (clock.getElapsedTime() + planet.frameTimeOffset) *
+          PLANETS_2D.framesPerSecond,
+      ) % atlas.frames.length;
+    if (frameIndex !== lastFrameIndexRef.current) {
+      const frame = atlas.frames[frameIndex];
+      texture.repeat.set(
+        frame.w / atlas.textureWidth,
+        frame.h / atlas.textureHeight,
+      );
+      texture.offset.set(
+        frame.x / atlas.textureWidth,
+        1 - (frame.y + frame.h) / atlas.textureHeight,
+      );
+      lastFrameIndexRef.current = frameIndex;
+    }
 
     mesh.position.set(x, y, apparentDepth);
     mesh.rotation.z = body.rotation;
-    mesh.scale.set(planetSize, planetSize, 1);
     material.opacity = body.alpha;
   });
 
@@ -272,6 +277,7 @@ function PlanetSprite2DInner({
       geometry={PLANET_PLANE_GEOMETRY}
       ref={meshRef}
       renderOrder={1}
+      scale={[planetSize, planetSize, 1]}
     >
       <meshBasicMaterial
         alphaTest={0.02}

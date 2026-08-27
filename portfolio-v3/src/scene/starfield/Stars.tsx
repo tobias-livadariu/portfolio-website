@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Color, InstancedMesh, Object3D, Vector3 } from "three";
+import { Color, DynamicDrawUsage, InstancedMesh, Object3D } from "three";
 import { CAMERA_PROPS } from "../canvas.constants";
 import {
   MAX_VOLUMETRIC_STAR_BUCKET_COUNT,
@@ -15,10 +15,7 @@ import {
   getCinematicOrbitalAngularSpeed,
   getFieldRadius,
   getOrbitCenter,
-  getOrbitalPosition,
-  getVisibleBoundsAtZ,
   getVisibleBoundsAtZForPosition,
-  isInsideBounds,
   lerp,
   mulberry32,
   pickWeightedIndex,
@@ -26,12 +23,6 @@ import {
   type Vec3Tuple,
 } from "./starfield.math";
 
-// Module-scoped scratches. Stars is a singleton component so it is safe to
-// share these across re-mounts; mutating them inside useFrame avoids
-// per-star-per-frame allocations (10k stars × 60fps).
-const STAR_REFERENCE_BOUNDS = createVisibleBounds();
-const STAR_VISIBLE_BOUNDS = createVisibleBounds();
-const STAR_ORBIT_CENTER: Vec3Tuple = [0, 0, 0];
 const STAR_SESSION_SEEDS: Record<VolumetricStarfieldMode, number> = {
   "3d": createEntropySeed(),
   ascii: createEntropySeed(),
@@ -46,6 +37,71 @@ interface VirtualStar {
   orbitWellIndex: number;
   size: number;
   z: number;
+}
+
+interface StarFrameLayout {
+  centerX: Float64Array;
+  centerY: Float64Array;
+  orbitRadius: Float64Array;
+  visibleHalfHeight: Float64Array;
+  visibleHalfWidth: Float64Array;
+}
+
+/* Projection, well placement, and orbit radii only change when the canvas or
+   field tuning changes. Precomputing them removes several trigonometric and
+   bounds calculations from each of the 10k per-frame star updates. */
+function createStarFrameLayout(
+  stars: readonly VirtualStar[],
+  camera: Parameters<typeof getVisibleBoundsAtZForPosition>[0],
+  size: { width: number; height: number },
+  fieldTuning: VolumetricStarfieldTuning,
+): StarFrameLayout {
+  const centerX = new Float64Array(stars.length);
+  const centerY = new Float64Array(stars.length);
+  const orbitRadius = new Float64Array(stars.length);
+  const visibleHalfHeight = new Float64Array(stars.length);
+  const visibleHalfWidth = new Float64Array(stars.length);
+  const referenceBounds = createVisibleBounds();
+  const orbitCenter: Vec3Tuple = [0, 0, 0];
+
+  for (let index = 0; index < stars.length; index++) {
+    const star = stars[index];
+    getVisibleBoundsAtZForPosition(
+      camera,
+      size,
+      star.z,
+      CAMERA_PROPS.position,
+      fieldTuning.bounds.edgeBuffer,
+      referenceBounds,
+    );
+    const fieldRadius = getFieldRadius(
+      referenceBounds,
+      fieldTuning.bounds.fieldRadiusMultiplier,
+    );
+    getOrbitCenter(
+      star.orbitWellIndex,
+      referenceBounds,
+      fieldRadius,
+      fieldTuning.orbitWells,
+      orbitCenter,
+    );
+
+    centerX[index] = orbitCenter[0];
+    centerY[index] = orbitCenter[1];
+    orbitRadius[index] = star.orbitRadiusRatio * fieldRadius;
+    visibleHalfHeight[index] =
+      (referenceBounds.top - referenceBounds.bottom) * 0.5;
+    visibleHalfWidth[index] =
+      (referenceBounds.right - referenceBounds.left) * 0.5;
+  }
+
+  return {
+    centerX,
+    centerY,
+    orbitRadius,
+    visibleHalfHeight,
+    visibleHalfWidth,
+  };
 }
 
 function getNearestBucketIndex(value: number, tuning: VolumetricStarTuning) {
@@ -174,52 +230,35 @@ export default function Stars({
     [tuning],
   );
   const dummy = useMemo(() => new Object3D(), []);
-  const position = useMemo(() => new Vector3(), []);
   const { camera, size } = useThree();
+  const frameLayout = useMemo(
+    () => createStarFrameLayout(stars, camera, size, fieldTuning),
+    [camera, fieldTuning, size, stars],
+  );
 
   useFrame(({ clock }) => {
     const elapsedSeconds = clock.getElapsedTime();
     const bucketCounts = bucketCountsRef.current;
     bucketCounts.fill(0);
 
-    for (const star of stars) {
-      getVisibleBoundsAtZForPosition(
-        camera,
-        size,
-        star.z,
-        CAMERA_PROPS.position,
-        fieldTuning.bounds.edgeBuffer,
-        STAR_REFERENCE_BOUNDS,
-      );
-      const fieldRadius = getFieldRadius(
-        STAR_REFERENCE_BOUNDS,
-        fieldTuning.bounds.fieldRadiusMultiplier,
-      );
-      getOrbitCenter(
-        star.orbitWellIndex,
-        STAR_REFERENCE_BOUNDS,
-        fieldRadius,
-        fieldTuning.orbitWells,
-        STAR_ORBIT_CENTER,
-      );
-      const orbitRadius = star.orbitRadiusRatio * fieldRadius;
+    for (let starIndex = 0; starIndex < stars.length; starIndex++) {
+      const star = stars[starIndex];
       const angle = star.angle + elapsedSeconds * star.angularSpeed;
-      getOrbitalPosition(
-        STAR_ORBIT_CENTER,
-        orbitRadius,
-        angle,
-        star.z,
-        position,
-      );
+      const x =
+        frameLayout.centerX[starIndex] +
+        Math.cos(angle) * frameLayout.orbitRadius[starIndex];
+      const y =
+        frameLayout.centerY[starIndex] +
+        Math.sin(angle) * frameLayout.orbitRadius[starIndex];
+      const halfWidth = frameLayout.visibleHalfWidth[starIndex];
+      const halfHeight = frameLayout.visibleHalfHeight[starIndex];
 
-      getVisibleBoundsAtZ(
-        camera,
-        size,
-        star.z,
-        fieldTuning.bounds.edgeBuffer,
-        STAR_VISIBLE_BOUNDS,
-      );
-      if (!isInsideBounds(position, STAR_VISIBLE_BOUNDS, star.size)) {
+      if (
+        x < camera.position.x - halfWidth - star.size ||
+        x > camera.position.x + halfWidth + star.size ||
+        y < camera.position.y - halfHeight - star.size ||
+        y > camera.position.y + halfHeight + star.size
+      ) {
         continue;
       }
 
@@ -229,7 +268,7 @@ export default function Stars({
       }
 
       const instanceIndex = bucketCounts[star.bucketIndex]++;
-      dummy.position.copy(position);
+      dummy.position.set(x, y, star.z);
       dummy.rotation.set(0, 0, angle);
       dummy.scale.setScalar(star.size * tuning.visualScale);
       dummy.updateMatrix();
@@ -244,10 +283,22 @@ export default function Stars({
         continue;
       }
 
-      mesh.count = bucketCounts[i] ?? 0;
-      mesh.instanceMatrix.needsUpdate = true;
+      const visibleCount = bucketCounts[i] ?? 0;
+      mesh.count = visibleCount;
+      mesh.instanceMatrix.clearUpdateRanges();
+      if (visibleCount > 0) {
+        mesh.instanceMatrix.addUpdateRange(0, visibleCount * 16);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
       if (mesh.instanceColor) {
-        mesh.instanceColor.needsUpdate = true;
+        if (mesh.instanceColor.usage !== DynamicDrawUsage) {
+          mesh.instanceColor.setUsage(DynamicDrawUsage);
+        }
+        mesh.instanceColor.clearUpdateRanges();
+        if (visibleCount > 0) {
+          mesh.instanceColor.addUpdateRange(0, visibleCount * 3);
+          mesh.instanceColor.needsUpdate = true;
+        }
       }
     }
   });
@@ -260,6 +311,7 @@ export default function Stars({
             key={bucketIndex}
             ref={(mesh) => {
               meshRefs.current[bucketIndex] = mesh;
+              mesh?.instanceMatrix.setUsage(DynamicDrawUsage);
             }}
             args={[undefined, undefined, MAX_VOLUMETRIC_STAR_COUNT]}
             frustumCulled={false}

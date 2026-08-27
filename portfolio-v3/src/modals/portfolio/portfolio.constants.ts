@@ -49,7 +49,7 @@ export const PORTFOLIO_TERMINAL_CONTEXT: TerminalContext = {
 
 export const PORTFOLIO_SPRITE = {
   atlasKey: "terran-wet-1",
-  imagePath: "/rotating-planet-spritesheets/terran-wet/terran-wet-1.png",
+  imagePath: "/rotating-planet-spritesheets/terran-wet/terran-wet-1.webp",
   jsonPath: "/rotating-planet-spritesheets/terran-wet/terran-wet-1.json",
   columns: 34,
   rows: 18,

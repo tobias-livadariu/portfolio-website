@@ -32,7 +32,7 @@ export const CONTACT_TERMINAL_CONTEXT: TerminalContext = {
 
 export const CONTACT_SPRITE = {
   atlasKey: "ice-world-1",
-  imagePath: "/rotating-planet-spritesheets/ice-world/ice-world-1.png",
+  imagePath: "/rotating-planet-spritesheets/ice-world/ice-world-1.webp",
   jsonPath: "/rotating-planet-spritesheets/ice-world/ice-world-1.json",
   columns: 34,
   rows: 18,
