@@ -157,10 +157,158 @@
   white-space: nowrap;
 }
 
-.modal-panel-toolbar > button {
+.modal-toolbar-right {
   grid-area: 1 / 1;
   justify-self: end;
-  z-index: 1;
+  z-index: 3;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+/* The dropdown escapes the toolbar row but stays inside `.modal-panel`, whose
+   `contain: paint` would clip anything reaching past the panel edge. */
+.modal-render-menu {
+  position: relative;
+}
+
+.modal-panel-toolbar .modal-render-trigger {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.14rem 0.42rem;
+  color: var(--dragon-fg-dim);
+  font: inherit;
+  font-size: 0.86em;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  background: var(--dragon-bg-alt);
+  border: 1px solid var(--dragon-border-bright);
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.modal-panel-toolbar .modal-render-trigger:hover,
+.modal-panel-toolbar .modal-render-trigger:focus-visible,
+.modal-panel-toolbar .modal-render-trigger[data-open="true"] {
+  color: var(--dragon-cyan);
+  background: var(--dragon-bg-highlight);
+  border-color: var(--dragon-cyan);
+  outline: none;
+}
+
+.modal-render-trigger-value {
+  color: var(--dragon-yellow);
+}
+
+.modal-render-trigger-caret {
+  color: var(--dragon-orange);
+}
+
+.modal-panel-toolbar .modal-render-trigger:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.modal-render-panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 4;
+  display: grid;
+  gap: 0.2rem;
+  width: max-content;
+  min-width: 100%;
+  padding: 0.4rem;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, rgb(81 199 218 / 0.05), transparent 44%),
+    var(--dragon-bg);
+  border: 1px solid var(--dragon-border-bright);
+  box-shadow:
+    0 0 0 1px var(--dragon-black),
+    0 0.9rem 2.6rem rgb(0 0 0 / 0.62);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-0.45rem) scaleY(0.82);
+  transform-origin: 100% 0;
+  transition:
+    opacity 130ms ease,
+    transform 220ms cubic-bezier(0.18, 0.9, 0.24, 1),
+    visibility 0s linear 220ms;
+}
+
+.modal-render-panel[data-open="true"] {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scaleY(1);
+  transition-delay: 0s;
+}
+
+.modal-panel-toolbar .modal-render-option {
+  display: grid;
+  grid-template-columns: 2.2ch auto minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  color: var(--dragon-fg-dim);
+  font: inherit;
+  font-size: 0.86em;
+  text-align: left;
+  background: var(--dragon-bg-dim);
+  border: 1px solid var(--dragon-border);
+  cursor: pointer;
+}
+
+.modal-panel-toolbar .modal-render-option:hover,
+.modal-panel-toolbar .modal-render-option:focus-visible {
+  color: var(--dragon-cyan);
+  background: var(--dragon-bg-highlight);
+  border-color: var(--dragon-border-bright);
+  outline: none;
+}
+
+.modal-panel-toolbar .modal-render-option[data-active="true"] {
+  color: var(--dragon-yellow);
+  background:
+    linear-gradient(90deg, rgb(233 117 49 / 0.1), transparent 74%),
+    var(--dragon-bg-alt);
+  border-color: rgb(253 173 93 / 0.45);
+}
+
+.modal-render-option .rm-art {
+  font-size: 0.78rem;
+}
+
+.modal-render-option-index,
+.modal-render-option-marker {
+  color: var(--dragon-comment);
+  font-size: 0.8em;
+}
+
+.modal-render-option-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.modal-render-option-copy strong {
+  display: flex;
+  gap: 0.25em;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.modal-render-option-copy small {
+  overflow: hidden;
+  color: var(--dragon-comment);
+  font-size: 0.82em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-panel-toolbar .modal-section-tabs {
@@ -1028,9 +1176,23 @@
   }
 }
 
+@media (max-width: 900px) {
+  .modal-render-trigger-label {
+    display: none;
+  }
+
+  .modal-toolbar-right {
+    gap: 0.45rem;
+  }
+}
+
 @media (max-width: 760px) {
   .modal-section-tabs {
     justify-content: flex-start;
+  }
+
+  .modal-render-option-copy small {
+    display: none;
   }
 
   .modal-panel-body {

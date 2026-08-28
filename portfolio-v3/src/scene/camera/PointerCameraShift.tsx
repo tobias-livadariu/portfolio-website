@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { MathUtils, Vector3 } from "three";
 import { CAMERA_POINTER_SHIFT, CAMERA_PROPS } from "../canvas.constants";
 import { useBackgroundMode } from "../../background/background-mode-core";
+import { isPointerShiftLocked } from "./pointer-shift-lock";
 
 export default function PointerCameraShift() {
   const { visualMode } = useBackgroundMode();
@@ -73,18 +74,16 @@ export default function PointerCameraShift() {
   }, [gl]);
 
   useFrame(({ camera, pointer }, delta) => {
-    const pointerX =
+    /* Reading the latch here (instead of subscribing to it) keeps a scripted
+       mode change from re-rendering the scene graph; the camera simply damps
+       back to its resting pose while the lock is held. */
+    const followsPointer =
       visualMode !== "2d" &&
       CAMERA_POINTER_SHIFT.enabled &&
-      shouldUsePointerRef.current
-        ? pointer.x
-        : 0;
-    const pointerY =
-      visualMode !== "2d" &&
-      CAMERA_POINTER_SHIFT.enabled &&
-      shouldUsePointerRef.current
-        ? pointer.y
-        : 0;
+      shouldUsePointerRef.current &&
+      !isPointerShiftLocked();
+    const pointerX = followsPointer ? pointer.x : 0;
+    const pointerY = followsPointer ? pointer.y : 0;
 
     targetPosition.set(
       basePosition.x + pointerX * CAMERA_POINTER_SHIFT.maxOffsetX,

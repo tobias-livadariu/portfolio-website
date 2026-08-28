@@ -1,12 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
+import ModalRenderModeMenu from "../background/ModalRenderModeMenu";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
 import ModalAssetPreloader from "./components/ModalAssetPreloader";
 import PortfolioModal from "./portfolio/PortfolioModal";
 import ResumeModal from "./resume/ResumeModal";
 import { useModalController } from "./modal-context-core";
+import { registerModalScrollRoot } from "./modal-scroll-controller";
 import {
   MODAL_SCROLL,
   MODAL_SECTIONS,
@@ -81,16 +83,20 @@ const ModalPanel = memo(function ModalPanel({
                 </button>
               ))}
             </nav>
-            <button
-              aria-label="Close section"
-              onClick={(event) => {
-                event.stopPropagation();
-                onClose();
-              }}
-              type="button"
-            >
-              [q]
-            </button>
+            <div className="modal-toolbar-right">
+              <ModalRenderModeMenu />
+              <button
+                aria-label="Close section"
+                className="modal-quit-button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onClose();
+                }}
+                type="button"
+              >
+                [q]
+              </button>
+            </div>
           </div>
         </div>
         <div className="modal-panel-body">
@@ -127,6 +133,14 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
+
+  /* Publish the scroller so the modal toolbar's render menu can return the
+     reader to the starfield before starting a transition. */
+  useEffect(() => {
+    registerModalScrollRoot(scrollRootRef.current);
+
+    return () => registerModalScrollRoot(null);
+  }, []);
 
   const updateIsOpen = useCallback(
     (nextIsOpen: boolean) => {
@@ -452,7 +466,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
               even while their hit target changes as the modal opens. */}
           <div className="portfolio-canvas-layer">{background}</div>
           <div aria-hidden="true" className="modal-backdrop" />
-          <BackgroundModeSwitch hidden={isOpen} />
+          <BackgroundModeSwitch />
           <div className="modal-home-spacer" />
           {/* The switch above must stay outside this aria-hidden subtree so it
               remains exposed to assistive tech while the modals are closed. */}

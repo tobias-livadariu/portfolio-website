@@ -15,40 +15,30 @@ import {
 } from "../../src/scene/starfield2d/starfield2d.constants";
 import { COLOR_PALETTE_STR } from "../../src/theme/colors";
 
-const MODE_LABELS = {
-  "2d": /FLAT/,
-  "3d": /DEEP/,
-  ascii: /CHAR/,
-} as const;
+type RenderMode = "2d" | "3d" | "ascii";
 
-async function chooseMode(page: Page, mode: keyof typeof MODE_LABELS) {
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
-  const panel = page.locator(".bg-mode-panel");
+/** The starfield rail shows every mode at once, so there is nothing to open. */
+async function chooseMode(page: Page, mode: RenderMode) {
+  const tile = page.locator(`.rm-tile[data-mode="${mode}"]`);
+
+  await expect(tile).toBeVisible();
+  await tile.click();
+}
+
+/** Same choice made from a modal's sticky toolbar instead. */
+async function chooseModeFromModal(page: Page, mode: RenderMode) {
+  const trigger = page.locator(".modal-render-trigger").first();
 
   await trigger.click();
-  await expect(panel).toHaveAttribute("data-open", "true");
-  await panel.evaluate(async (element) => {
-    await Promise.all(
-      element
-        .getAnimations()
-        .map((animation) => animation.finished.catch(() => undefined)),
-    );
-  });
-
-  const option = page.getByRole("menuitemradio", {
-    name: MODE_LABELS[mode],
-  });
-  await expect(option).toBeVisible();
-
-  const bounds = await option.boundingBox();
-  expect(bounds).not.toBeNull();
-  await page.mouse.click(
-    (bounds?.x ?? 0) + (bounds?.width ?? 0) / 2,
-    (bounds?.y ?? 0) + (bounds?.height ?? 0) / 2,
+  const option = page.locator(
+    `.modal-render-panel[data-open="true"] .modal-render-option[data-mode="${mode}"]`,
   );
+  await expect(option).toBeVisible();
+  await option.click();
+}
+
+function currentModeLabel(page: Page) {
+  return page.locator(".rm-rail-value");
 }
 
 function createSeededRandom(seed: number) {
@@ -71,17 +61,31 @@ test("render control remains inside a compact dynamic viewport", async ({
   await page.setViewportSize(viewport);
   await page.goto("/");
 
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
-  const bounds = await trigger.boundingBox();
+  const bounds = await page.locator(".rm-rail").boundingBox();
 
   expect(bounds).not.toBeNull();
   expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(
     viewport.height,
   );
-  expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeGreaterThan(0);
+  expect(bounds?.y ?? 0).toBeGreaterThan(0);
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(
+    viewport.width,
+  );
+});
+
+test("every render mode is offered without opening anything", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  for (const mode of ["3d", "2d", "ascii"] as const) {
+    await expect(page.locator(`.rm-tile[data-mode="${mode}"]`)).toBeVisible();
+  }
+
+  await expect(page.locator('.rm-tile[data-mode="3d"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
 });
 
 test("2D planets use the same playback distribution as volumetric modes", () => {
@@ -388,13 +392,10 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   });
   await page.goto("/");
 
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
+  const modeLabel = currentModeLabel(page);
   const transition = page.locator(".bg-transition-overlay");
 
-  await expect(trigger).toContainText("[3D]");
+  await expect(modeLabel).toContainText("[3D]");
   await expect
     .poll(() =>
       page.evaluate(() => localStorage.getItem("portfolio:background-mode")),
@@ -403,7 +404,7 @@ test("render menu selects every mode and refresh resets to 3D", async ({
 
   const expectModeReady = async (mode: "ascii" | "3d" | "2d") => {
     await chooseMode(page, mode);
-    await expect(trigger).toContainText(`[${mode.toUpperCase()}]`);
+    await expect(modeLabel).toContainText(`[${mode.toUpperCase()}]`);
     await expect(transition).toHaveCount(0, { timeout: 10_000 });
     await expect(page.locator(".bg-mode-switch-anchor")).not.toHaveAttribute(
       "data-hidden",
@@ -419,11 +420,11 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   await expectModeReady("3d");
 
   await page.reload();
-  await expect(trigger).toContainText("[3D]");
+  await expect(modeLabel).toContainText("[3D]");
 
   await expectModeReady("2d");
   await page.reload();
-  await expect(trigger).toContainText("[3D]");
+  await expect(modeLabel).toContainText("[3D]");
 });
 
 test("OS reduced-motion preference does not replace the ASCII transition", async ({
@@ -433,10 +434,6 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
   await chooseMode(page, "ascii");
 
   const transition = page.locator(
@@ -482,6 +479,41 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
     .poll(() => transition.getAttribute("data-phase"), { timeout: 15_000 })
     .toBe("clearing");
   await expect(transition).toHaveCount(0, { timeout: 10_000 });
-  await expect(trigger).toContainText("[ASCII]");
+  await expect(currentModeLabel(page)).toContainText("[ASCII]");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("the modal toolbar returns to the starfield before transitioning", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ top: window.innerHeight * 2.2 }),
+  );
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+
+  await chooseModeFromModal(page, "2d");
+
+  /* The unscroll must complete before the transition covers the screen; the
+     reveal would otherwise play against a modal rather than the scene. */
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop), {
+      timeout: 10_000,
+    })
+    .toBeLessThanOrEqual(1);
+
+  await expect(page.locator(".bg-transition-overlay")).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  await expect(currentModeLabel(page)).toContainText("[2D]");
+  await expect(page.locator('.rm-tile[data-mode="2d"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
 });
