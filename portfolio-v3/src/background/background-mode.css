@@ -178,11 +178,11 @@
 .rm-art {
   display: block;
   color: var(--dragon-orange);
-  /* 21 glyph columns at half-width advance = 10.5em of text against 11 lines
+  /* 25 glyph columns at half-width advance = 12.5em of text against 13 lines
      at line-height 1, so this one value sets both axes and the mark stays
      round. */
   font-family: var(--font-iosevka-term);
-  font-size: 0.38em;
+  font-size: 0.35em;
   line-height: 1;
   white-space: pre;
 }
@@ -227,7 +227,7 @@
   }
 
   .rm-art {
-    font-size: 0.32em;
+    font-size: 0.29em;
   }
 }
 

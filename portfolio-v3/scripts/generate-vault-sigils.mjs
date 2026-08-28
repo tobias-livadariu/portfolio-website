@@ -1,15 +1,20 @@
 /**
  * Generates the ASCII vault sigils used by the render-mode controls.
  *
- * The three marks are built the same way an Outer Wilds vault lock is: an outer
- * boundary circle, N "petal" circles internally tangent to it at evenly spaced
- * points, and inside each petal a family of circles that share that tangent
- * point and shrink geometrically toward it. N is the mode index, so DEEP is the
- * one-petal lock, FLAT the two-petal lock and CHAR the three-petal lock.
+ * Each mark is a circle of still water with ripple sources on its rim. A source
+ * sits at one point of the boundary and emits a family of wavefronts: circles
+ * internally tangent to the boundary at that point, shrinking geometrically
+ * back toward it. The number of sources is the mode index, so DEEP has one
+ * ripple from the top, FLAT two from the left and right, and CHAR three spaced
+ * evenly around the rim.
  *
- * Everything is drawn analytically and supersampled, then quantised against the
- * same ramp the About modal's portrait uses, so the marks belong to the same
- * visual family as the rest of the site's ASCII art.
+ * Every wavefront is an independent circle, and the field they are drawn into
+ * is additive: where two ripples cross, the two contributions sum and the cell
+ * quantises to a denser glyph, which is what reads as interference.
+ *
+ * Everything is drawn analytically and supersampled, then quantised against a
+ * subset of the ramp the About modal's portrait uses, so the marks belong to
+ * the same visual family as the rest of the site's ASCII art.
  *
  * Usage: node scripts/generate-vault-sigils.mjs [--print]
  */
@@ -25,9 +30,14 @@ const RAMP = " .:irsXA#&@";
 
 /* Iosevka Term advances exactly half its font size, so a glyph cell is twice as
    tall as it is wide at line-height 1. The grid is sized to compensate: a round
-   sigil needs twice the columns of rows. */
-const COLUMNS = 21;
-const ROWS = 11;
+   sigil needs twice the columns of rows.
+
+   13 rows is the floor for three wavefronts per source. Below it the innermost
+   two land in the same row near their pole and the family stops reading as
+   separate circles — 11 rows produced a solid blob. Raising rippleCount needs
+   proportionally more rows again (four wants ~22). */
+const COLUMNS = 25;
+const ROWS = 13;
 
 /** Half-extent of the drawing area in sigil radii; >1 leaves an outer margin. */
 const VIEW = 1.08;
@@ -35,76 +45,53 @@ const VIEW = 1.08;
 /** Samples per axis inside one glyph cell before the tone is quantised. */
 const SUPERSAMPLES = 8;
 
-/* Stroke half-width in sigil radii. Tuned by eye: wide enough that an arc
-   lands on a glyph in every cell it crosses, narrow enough that the nested
-   circles do not merge into one blob where they converge on their pole. */
-const STROKE_HALF = 0.045;
+/* Stroke half-width in sigil radii. Tuned by eye: wide enough that a wavefront
+   lands on a glyph in every cell it crosses, narrow enough that neighbouring
+   wavefronts stay separate where they bunch up near their source. */
+const STROKE_HALF = 0.018;
 
 /* Softens the falloff either side of a stroke. Lower values give harder,
    blockier edges, which survive the quantisation step far better than a
    photographic ramp would. */
 const EDGE_SOFTNESS = 0.9;
 
-/* Cells below this coverage stay blank; the rest are lifted by TONE_GAMMA so a
-   grazing arc still lands on a visible glyph. */
-const TONE_FLOOR = 0.08;
-const TONE_GAMMA = 0.55;
+/* Interference response. The per-cell field is the sum of every wavefront
+   covering it, so one stroke on its own lands near SINGLE_STROKE_TONE and each
+   further crossing pushes further up the ramp with diminishing returns.
+   Saturating rather than clamping is what keeps a crossing visibly denser than
+   a lone stroke without blowing every crossing out to a solid @. */
+const SINGLE_STROKE_TONE = 0.52;
+const INTERFERENCE_GAIN = -Math.log(1 - SINGLE_STROKE_TONE);
+
+/* Cells where no wavefront passes more strongly than this stay blank. */
+const TONE_FLOOR = 0.4;
+
+/* Wavefronts shrink by this factor each step back toward their source. */
+const RIPPLE_RATIO = 0.63;
 
 const SIGILS = [
-  {
-    id: "deep",
-    // One petal is the boundary circle itself, so its family reads as a single
-    // column of nested circles hanging from the top pole.
-    angles: [90],
-    nestedCount: 3,
-    nestedRatio: 0.6,
-    petalRadius: 1,
-  },
-  {
-    id: "flat",
-    angles: [180, 0],
-    nestedCount: 2,
-    nestedRatio: 0.5,
-    petalRadius: 0.66,
-  },
-  {
-    id: "char",
-    // The third lock adds a circle about the origin, which is what closes the
-    // trefoil the three petals cut out of each other.
-    angles: [-90, 30, 150],
-    centerRadius: 0.34,
-    nestedCount: 1,
-    nestedRatio: 0.4,
-    petalRadius: 0.58,
-  },
+  { id: "deep", firstRipple: 0.78, rippleCount: 3, sources: [90] },
+  { id: "flat", firstRipple: 0.68, rippleCount: 3, sources: [180, 0] },
+  { id: "char", firstRipple: 0.62, rippleCount: 3, sources: [-90, 30, 150] },
 ];
 
-function buildCircles({
-  angles,
-  centerRadius,
-  nestedCount,
-  nestedRatio,
-  petalRadius,
-}) {
+function buildCircles({ firstRipple, rippleCount, sources }) {
   const circles = [{ radius: 1, x: 0, y: 0 }];
 
-  if (centerRadius) {
-    circles.push({ radius: centerRadius, x: 0, y: 0 });
-  }
-
-  for (const angleDegrees of angles) {
+  for (const angleDegrees of sources) {
     const angle = (angleDegrees * Math.PI) / 180;
-    const tangentX = Math.cos(angle);
-    const tangentY = Math.sin(angle);
+    const sourceX = Math.cos(angle);
+    const sourceY = Math.sin(angle);
 
-    for (let index = 0; index < nestedCount; index += 1) {
-      const radius = petalRadius * nestedRatio ** index;
+    for (let index = 0; index < rippleCount; index += 1) {
+      const radius = firstRipple * RIPPLE_RATIO ** index;
 
-      // Internally tangent to the boundary at the petal's own pole.
+      /* A wavefront of radius r that still touches its source on the rim has
+         its centre r in from that point along the radius. */
       circles.push({
         radius,
-        x: tangentX * (1 - radius),
-        y: tangentY * (1 - radius),
+        x: sourceX * (1 - radius),
+        y: sourceY * (1 - radius),
       });
     }
   }
@@ -114,13 +101,14 @@ function buildCircles({
 
 function renderSigil(sigil) {
   const circles = buildCircles(sigil);
+  const peaks = new Float64Array(circles.length);
   const rows = [];
 
   for (let row = 0; row < ROWS; row += 1) {
     let line = "";
 
     for (let column = 0; column < COLUMNS; column += 1) {
-      let coverage = 0;
+      peaks.fill(0);
 
       for (let sampleY = 0; sampleY < SUPERSAMPLES; sampleY += 1) {
         for (let sampleX = 0; sampleX < SUPERSAMPLES; sampleX += 1) {
@@ -128,30 +116,38 @@ function renderSigil(sigil) {
           const v = (row + (sampleY + 0.5) / SUPERSAMPLES) / ROWS;
           const x = (u * 2 - 1) * VIEW;
           const y = (1 - v * 2) * VIEW;
-          let nearest = Infinity;
 
-          for (const circle of circles) {
+          for (let index = 0; index < circles.length; index += 1) {
+            const circle = circles[index];
             const distance = Math.abs(
               Math.hypot(x - circle.x, y - circle.y) - circle.radius,
             );
+            const edge =
+              (distance - STROKE_HALF) / (STROKE_HALF * EDGE_SOFTNESS);
+            const value =
+              edge <= 0 ? 1 : edge >= 1 ? 0 : 1 - edge * edge * (3 - 2 * edge);
 
-            if (distance < nearest) {
-              nearest = distance;
+            if (value > peaks[index]) {
+              peaks[index] = value;
             }
           }
-
-          const edge = (nearest - STROKE_HALF) / (STROKE_HALF * EDGE_SOFTNESS);
-
-          coverage +=
-            edge <= 0 ? 1 : edge >= 1 ? 0 : 1 - edge * edge * (3 - 2 * edge);
         }
       }
 
-      coverage /= SUPERSAMPLES * SUPERSAMPLES;
-      // Pull faint partial cells up so a thin arc still lands on a real glyph
-      // instead of vanishing into a space.
+      /* Each wavefront contributes how strongly it passes through this cell,
+         not how much of the cell's area it fills. Area would make horizontal
+         arcs render far fainter than vertical ones, because a glyph cell is
+         twice as tall as it is wide. Summing the per-wavefront peaks keeps one
+         stroke the same weight in every direction, and still lets two
+         wavefronts crossing the same cell sum into a denser glyph. */
+      let field = 0;
+
+      for (const peak of peaks) {
+        field += peak;
+      }
+
       const tone =
-        coverage <= TONE_FLOOR ? 0 : Math.min(1, coverage ** TONE_GAMMA);
+        field <= TONE_FLOOR ? 0 : 1 - Math.exp(-field * INTERFERENCE_GAIN);
 
       line += RAMP[Math.round(tone * (RAMP.length - 1))];
     }
@@ -190,8 +186,10 @@ writeFileSync(
   `/* GENERATED by scripts/generate-vault-sigils.mjs — do not edit by hand.
 
    Outer Wilds vault-lock sigils quantised against a subset of the site's
-   ASCII ramp (" .,:;irsXA253hMHGS#9B&@"). The petal count is the mode
-   index: one for DEEP, two for FLAT, three for CHAR.
+   ASCII ramp (" .,:;irsXA253hMHGS#9B&@"). Each is a circle of water with
+   ripple sources on its rim; the source count is the mode index: one for
+   DEEP, two for FLAT, three for CHAR. Crossing wavefronts sum, so they
+   quantise to denser glyphs where they interfere.
 
    The grid is ${COLUMNS} columns by ${ROWS} rows, and .rm-art's font-size is what maps
    that onto a round mark — re-run the script and adjust that rule together. */
