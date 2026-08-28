@@ -36,16 +36,15 @@
   font-family: var(--font-iosevka-term);
   font-size: var(--rm-em);
   line-height: 1.1;
-  background: linear-gradient(
-    180deg,
-    rgb(42 38 38 / 0.94),
-    rgb(18 17 17 / 0.96)
-  );
+  /* The exact material a modal body is made of: flat, opaque --dragon-bg.
+     Translucency let the starfield crawl through the panel, which read as a
+     HUD overlay rather than as part of the same terminal. */
+  background: var(--dragon-bg);
   border: 1px solid var(--dragon-border-bright);
   /* A hard offset edge in campfire-dark under a black lip reproduces the
      extruded-slab look of the Text3D menu without a second WebGL pass. */
   box-shadow:
-    inset 0 1px 0 rgb(220 215 186 / 0.09),
+    inset 0 0 0 1px rgb(220 215 186 / 0.04),
     0 0 0 1px var(--dragon-black),
     0 0.2em 0 0 var(--color-campfire-dark),
     0 0.33em 0 0 var(--dragon-black),
@@ -139,13 +138,8 @@
 
 .rm-tile[data-active="true"] {
   color: var(--dragon-yellow);
-  background: linear-gradient(
-    180deg,
-    rgb(233 117 49 / 0.14),
-    rgb(31 29 29 / 0.92)
-  );
-  border-color: rgb(253 173 93 / 0.55);
-  box-shadow: inset 0 0 0.85em rgb(233 117 49 / 0.16);
+  background: var(--dragon-bg-alt);
+  border-color: var(--color-campfire);
 }
 
 .rm-tile:disabled {
@@ -174,143 +168,40 @@
 
 .rm-tile[data-active="true"] .rm-tile-underline {
   background: var(--color-campfire);
-  box-shadow: 0 0 0.45em rgb(233 117 49 / 0.8);
 }
 
 /* ---------------------------------------------------------------------------
-   Mode artwork.
-
-   Every mode previews the same ringed planet, so the tiles read as one subject
-   drawn three ways instead of three unrelated icons: DEEP gets continuous
-   shading and a perspective ring, FLAT gets hard cel bands, a dithered
-   terminator and a head-on ring, CHAR gets the site's own ASCII ramp. The
-   shapes are plain CSS, so they cost nothing per frame.
+   Mode artwork: the three Outer Wilds vault-lock sigils, pre-quantised into
+   glyphs by scripts/generate-vault-sigils.mjs. They are plain text, so they
+   inherit the terminal font and cost nothing per frame.
    ------------------------------------------------------------------------ */
 .rm-art {
-  position: relative;
   display: block;
-  width: 3.3em;
-  height: 2.7em;
+  color: var(--dragon-orange);
+  /* 21 glyph columns at half-width advance = 10.5em of text against 11 lines
+     at line-height 1, so this one value sets both axes and the mark stays
+     round. */
+  font-family: var(--font-iosevka-term);
+  font-size: 0.38em;
+  line-height: 1;
+  white-space: pre;
 }
 
 .rm-tile:not([data-active="true"]) .rm-art,
 .modal-render-option:not([data-active="true"]) .rm-art {
-  filter: grayscale(0.4) brightness(0.82);
+  color: var(--dragon-comment);
 }
 
 .rm-tile:hover .rm-art,
 .rm-tile:focus-visible .rm-art,
 .modal-render-option:hover .rm-art,
 .modal-render-option:focus-visible .rm-art {
-  filter: none;
+  color: var(--dragon-cyan);
 }
 
-.rm-art-body,
-.rm-art-ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-}
-
-.rm-art-deep {
-  perspective: 7em;
-}
-
-.rm-art-deep .rm-art-body {
-  width: 1.62em;
-  height: 1.62em;
-  margin: -0.81em 0 0 -0.81em;
-  background: radial-gradient(
-    circle at 34% 27%,
-    #ffe8c6 0%,
-    #ffc27f 17%,
-    #f08e3c 39%,
-    #b8511f 66%,
-    #5f240f 88%,
-    #2a0f07 100%
-  );
-  border-radius: 50%;
-  box-shadow:
-    inset -0.16em -0.18em 0.36em rgb(0 0 0 / 0.6),
-    0 0 0.55em rgb(233 117 49 / 0.45);
-}
-
-/* rotateZ is applied after rotateX so the flattened ellipse also tilts on
-   screen, which is what makes it read as an orbit rather than a shadow. */
-.rm-art-deep .rm-art-ring {
-  width: 3.05em;
-  height: 3.05em;
-  margin: -1.525em 0 0 -1.525em;
-  border: 0.09em solid rgb(253 173 93 / 0.82);
-  border-radius: 50%;
-  box-shadow: 0 0 0.4em rgb(253 173 93 / 0.28);
-  transform: rotateZ(-17deg) rotateX(72deg);
-}
-
-/* Hard-stopped colour bands rather than a gradient: the terminator is a line,
-   not a falloff, which is exactly what separates this from the DEEP sphere. */
-/* Hard stops, not a falloff: the terminator is a line. A 104deg gradient over
-   a square box only crosses the inscribed circle between roughly 11% and 89%,
-   so the band positions are placed against that visible span. */
-.rm-art-flat .rm-art-body {
-  width: 1.62em;
-  height: 1.62em;
-  margin: -0.81em 0 0 -0.81em;
-  background: linear-gradient(
-    104deg,
-    #ffeac9 0 32%,
-    #f79c3e 32% 50%,
-    #b5561b 50% 68%,
-    #5d2610 68% 100%
-  );
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 0.07em rgb(255 231 197 / 0.5);
-}
-
-/* A visible pixel lattice, matching the sprite-based planets 2D mode actually
-   draws. A checker dither was tried first and read as an alpha-channel
-   swatch instead of as shading. */
-.rm-art-flat .rm-art-body::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image:
-    repeating-linear-gradient(
-      90deg,
-      rgb(46 18 7 / 0.3) 0 1px,
-      transparent 1px 0.27em
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgb(46 18 7 / 0.3) 0 1px,
-      transparent 1px 0.27em
-    );
-  border-radius: 50%;
-}
-
-/* Head-on and dashed: a schematic orbit drawn flat, against DEEP's solid
-   perspective ellipse. */
-.rm-art-flat .rm-art-ring {
-  width: 2.5em;
-  height: 2.5em;
-  margin: -1.25em 0 0 -1.25em;
-  border: 0.085em dashed rgb(253 173 93 / 0.72);
-  border-radius: 50%;
-}
-
-.rm-art-char {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rm-art-glyphs {
-  color: var(--dragon-orange);
-  font-family: var(--font-iosevka-term);
-  font-size: 0.62em;
-  line-height: 0.95;
-  white-space: pre;
-  text-shadow: 0 0 0.4em rgb(233 117 49 / 0.4);
+.rm-tile[data-active="true"] .rm-art,
+.modal-render-option[data-active="true"] .rm-art {
+  color: var(--color-campfire);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -336,12 +227,7 @@
   }
 
   .rm-art {
-    width: 2.6em;
-    height: 2.1em;
-  }
-
-  .rm-art-glyphs {
-    font-size: 0.5em;
+    font-size: 0.32em;
   }
 }
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { flushSync } from "react-dom";
 import {
   useBackgroundMode,
   type BackgroundMode,
@@ -7,7 +8,7 @@ import {
 import { useModalController } from "../modals/modal-context-core";
 import {
   getModalScrollRoot,
-  whenModalScrolledToTop,
+  runWhenModalScrolledToTop,
 } from "../modals/modal-scroll-controller";
 import { setPointerShiftLocked } from "../scene/camera/pointer-shift-lock";
 
@@ -82,8 +83,14 @@ export function useRenderModeRequest() {
         close();
       }
 
-      void whenModalScrolledToTop().then(() => {
-        requestMode(mode, getSeedPoint?.() ?? getFallbackSeedPoint());
+      runWhenModalScrolledToTop(() => {
+        /* Commit the phase change inside the frame that saw the scroll land.
+           Left to React's own scheduling the overlay would mount a frame or
+           two later, which reads as a pause between the unscroll and the
+           transition. */
+        flushSync(() => {
+          requestMode(mode, getSeedPoint?.() ?? getFallbackSeedPoint());
+        });
 
         fallbackTimerRef.current = window.setTimeout(() => {
           fallbackTimerRef.current = null;

@@ -404,8 +404,14 @@ test("render menu selects every mode and refresh resets to 3D", async ({
 
   const expectModeReady = async (mode: "ascii" | "3d" | "2d") => {
     await chooseMode(page, mode);
-    await expect(modeLabel).toContainText(`[${mode.toUpperCase()}]`);
+    /* The tile marks the pending target straight away, but the readout names
+       the scene on screen, so it only changes once the transition is done. */
+    await expect(page.locator(`.rm-tile[data-mode="${mode}"]`)).toHaveAttribute(
+      "data-active",
+      "true",
+    );
     await expect(transition).toHaveCount(0, { timeout: 10_000 });
+    await expect(modeLabel).toContainText(`[${mode.toUpperCase()}]`);
     await expect(page.locator(".bg-mode-switch-anchor")).not.toHaveAttribute(
       "data-hidden",
       "true",
@@ -481,6 +487,29 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
   await expect(transition).toHaveCount(0, { timeout: 10_000 });
   await expect(currentModeLabel(page)).toContainText("[ASCII]");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("the mode readout waits for the new scene to emerge", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+
+  const modeLabel = currentModeLabel(page);
+
+  await expect(modeLabel).toContainText("[3D]");
+  await chooseMode(page, "2d");
+
+  /* Mid-transition the tile has moved but the readout has not: the 2D scene
+     is still hidden behind the cover at this point. */
+  await expect(page.locator('.rm-tile[data-mode="2d"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  await expect(modeLabel).toContainText("[3D]");
+
+  await expect(page.locator(".bg-transition-overlay")).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  await expect(modeLabel).toContainText("[2D]");
 });
 
 test("the modal toolbar returns to the starfield before transitioning", async ({

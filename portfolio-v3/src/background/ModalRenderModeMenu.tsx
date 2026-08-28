@@ -17,7 +17,7 @@ import { useRenderModeRequest } from "./use-render-mode-request";
  * so it only ever needs to re-render for its own state.
  */
 function ModalRenderModeMenu() {
-  const { isTransitioning, targetMode } = useBackgroundMode();
+  const { isTransitioning, targetMode, visualMode } = useBackgroundMode();
   const requestRenderMode = useRenderModeRequest();
   const [isMenuRequested, setIsMenuRequested] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -70,6 +70,10 @@ function ModalRenderModeMenu() {
 
   return (
     <div className="modal-render-menu" ref={rootRef}>
+      {/* Deliberately borderless: "render:" mirrors the toolbar's own
+          "File: about.modal" label and the bracketed value mirrors [q], so the
+          control reads as another field of the header rather than a widget
+          dropped on top of it. */}
       <button
         aria-controls={panelId}
         aria-expanded={isOpen}
@@ -84,12 +88,13 @@ function ModalRenderModeMenu() {
         ref={triggerRef}
         type="button"
       >
-        <span className="modal-render-trigger-label">RENDER.MODE</span>
+        <span className="modal-render-trigger-label">render:</span>
         <span className="modal-render-trigger-value">
-          [{targetMode.toUpperCase()}]
-        </span>
-        <span aria-hidden="true" className="modal-render-trigger-caret">
-          {isOpen ? "▴" : "▾"}
+          [{visualMode.toUpperCase()}
+          <span aria-hidden="true" className="modal-render-trigger-caret">
+            {isOpen ? "^" : "v"}
+          </span>
+          ]
         </span>
       </button>
       <div

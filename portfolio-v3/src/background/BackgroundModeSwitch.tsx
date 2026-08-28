@@ -15,7 +15,7 @@ import "./background-mode.css";
  * would draw it, so the choice explains itself without a legend.
  */
 export default function BackgroundModeSwitch() {
-  const { isTransitioning, targetMode } = useBackgroundMode();
+  const { isTransitioning, targetMode, visualMode } = useBackgroundMode();
   const requestRenderMode = useRenderModeRequest();
   const railRef = useRef<HTMLDivElement>(null);
   const [hasIntroduced, setHasIntroduced] = useState(false);
@@ -58,7 +58,11 @@ export default function BackgroundModeSwitch() {
         <div className="rm-rail-head">
           <span className="rm-rail-title">RENDER.MODE</span>
           <span aria-hidden="true" className="rm-rail-leader" />
-          <span className="rm-rail-value">[{targetMode.toUpperCase()}]</span>
+          {/* The readout names the scene currently on screen, so it only
+              flips once the new render has emerged from the transition. The
+              tiles below still highlight the pending target immediately, which
+              is what acknowledges the click. */}
+          <span className="rm-rail-value">[{visualMode.toUpperCase()}]</span>
         </div>
         <div
           aria-label="Background render mode"
