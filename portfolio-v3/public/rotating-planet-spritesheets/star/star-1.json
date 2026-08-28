@@ -357,7 +357,7 @@
   "meta": {
     "app": "Custom Spritesheet Generator",
     "version": "1.0",
-    "image": "star-1.png",
+    "image": "star-1.webp",
     "format": "RGBA8888",
     "size": {"w": 10000, "h": 200},
     "scale": "1"

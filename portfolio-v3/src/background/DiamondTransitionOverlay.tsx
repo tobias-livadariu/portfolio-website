@@ -1,5 +1,11 @@
 import { useEffect, useRef } from "react";
 import { COLOR_PALETTE_STR } from "../theme/colors";
+import {
+  ASCII_GRAPH_TRANSITION,
+  buildAsciiTransitionField,
+  renderAsciiTransitionFrame,
+  type AsciiTransitionField,
+} from "./ascii-graph-transition";
 import { useBackgroundMode } from "./background-mode-core";
 import {
   buildDiamondField,
@@ -24,9 +30,15 @@ function fitCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const width = window.innerWidth;
   const height = window.innerHeight;
+  const pixelWidth = Math.max(1, Math.round(width * dpr));
+  const pixelHeight = Math.max(1, Math.round(height * dpr));
 
-  canvas.width = Math.max(1, Math.round(width * dpr));
-  canvas.height = Math.max(1, Math.round(height * dpr));
+  /* Assigning either canvas dimension clears its bitmap, even when the value
+     is unchanged. Preserve the generated field across React phase handoffs. */
+  if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
+  }
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   return { height, width };
@@ -44,14 +56,15 @@ function traceDiamond(
   ctx.closePath();
 }
 
-/* Full-screen canvas that hides the background swap. "covering" grows a
-   randomized diamond flood out of the toggle switch, "covered" holds a solid
-   fill while the target scene loads, and "clearing" runs a fresh flood from
-   the same seed in reverse to reveal the new background. */
+/* Full-screen canvas that hides the background swap. Each destination keeps a
+   distinct visual language: a graph/glyph propagation for ASCII, a circular
+   aperture for 3D, and the original randomized diamond flood for 2D. */
 export default function DiamondTransitionOverlay() {
   const { notifyCleared, notifyCovered, phase, seedPoint, targetMode } =
     useBackgroundMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const asciiFieldRef = useRef<AsciiTransitionField | null>(null);
+  const asciiAnimationStartRef = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -75,6 +88,15 @@ export default function DiamondTransitionOverlay() {
     let { height, width } = fitCanvas(canvas, ctx);
     let animationFrame: number | null = null;
     let done = false;
+    const reducedMotion = prefersReducedMotion();
+    const startTime = performance.now();
+
+    if (targetMode === "ascii" && phase === "covering") {
+      asciiAnimationStartRef.current = startTime;
+    }
+
+    const getAsciiElapsed = (now: number) =>
+      now - (asciiAnimationStartRef.current ?? startTime);
 
     ctx.fillStyle = COLOR_PALETTE_STR.background;
 
@@ -83,21 +105,76 @@ export default function DiamondTransitionOverlay() {
       ctx.fillRect(0, 0, width, height);
     };
 
+    const getAsciiField = (force = false) => {
+      const existing = asciiFieldRef.current;
+
+      if (
+        !force &&
+        existing &&
+        existing.width === width &&
+        existing.height === height
+      ) {
+        return existing;
+      }
+
+      const seed = seedPoint ?? { x: width, y: height };
+      const field = buildAsciiTransitionField(width, height, seed.x, seed.y);
+      asciiFieldRef.current = field;
+      return field;
+    };
+
+    let asciiField =
+      targetMode === "ascii" ? getAsciiField(phase === "covering") : null;
+
     const handleResize = () => {
       ({ height, width } = fitCanvas(canvas, ctx));
 
+      if (targetMode === "ascii") {
+        asciiField = getAsciiField(true);
+      }
+
       if (phase === "covered") {
-        fillFullScreen();
+        if (targetMode === "ascii" && asciiField && !reducedMotion) {
+          renderAsciiTransitionFrame(
+            ctx,
+            asciiField,
+            "covered",
+            1,
+            getAsciiElapsed(performance.now()),
+          );
+        } else {
+          fillFullScreen();
+        }
       }
     };
 
     window.addEventListener("resize", handleResize);
 
     if (phase === "covered") {
-      fillFullScreen();
+      if (targetMode === "ascii" && asciiField && !reducedMotion) {
+        const renderCoveredField = (now: number) => {
+          if (!asciiField) {
+            return;
+          }
+          renderAsciiTransitionFrame(
+            ctx,
+            asciiField,
+            "covered",
+            1,
+            getAsciiElapsed(now),
+          );
+          animationFrame = requestAnimationFrame(renderCoveredField);
+        };
+        animationFrame = requestAnimationFrame(renderCoveredField);
+      } else {
+        fillFullScreen();
+      }
 
       return () => {
         window.removeEventListener("resize", handleResize);
+        if (animationFrame !== null) {
+          cancelAnimationFrame(animationFrame);
+        }
       };
     }
 
@@ -110,8 +187,19 @@ export default function DiamondTransitionOverlay() {
       done = true;
 
       if (isCovering) {
-        /* Absolute coverage guarantee regardless of easing or resizes. */
-        fillFullScreen();
+        /* ASCII retains its generated glyph field across the React phase
+           handoff. Other modes keep the solid coverage guarantee. */
+        if (targetMode === "ascii" && asciiField && !reducedMotion) {
+          renderAsciiTransitionFrame(
+            ctx,
+            asciiField,
+            "covered",
+            1,
+            getAsciiElapsed(performance.now()),
+          );
+        } else {
+          fillFullScreen();
+        }
         notifyCovered();
       } else {
         ctx.clearRect(0, 0, width, height);
@@ -119,9 +207,7 @@ export default function DiamondTransitionOverlay() {
       }
     };
 
-    const startTime = performance.now();
-
-    if (prefersReducedMotion()) {
+    if (reducedMotion) {
       const fadeMs = DIAMOND_TRANSITION.reducedMotionFadeMs;
 
       const renderFade = (now: number) => {
@@ -141,10 +227,42 @@ export default function DiamondTransitionOverlay() {
       };
 
       animationFrame = requestAnimationFrame(renderFade);
-    } else if (targetMode !== "2d") {
+    } else if (targetMode === "ascii" && asciiField) {
+      const durationMs = isCovering
+        ? ASCII_GRAPH_TRANSITION.coverDurationMs
+        : ASCII_GRAPH_TRANSITION.clearDurationMs;
+
+      const renderAsciiGraphTransition = (now: number) => {
+        const progress = Math.min(
+          1,
+          Math.max(0, (now - startTime) / durationMs),
+        );
+
+        if (!asciiField) {
+          finish();
+          return;
+        }
+
+        renderAsciiTransitionFrame(
+          ctx,
+          asciiField,
+          isCovering ? "covering" : "clearing",
+          progress,
+          getAsciiElapsed(now),
+        );
+
+        if (progress >= 1) {
+          finish();
+          return;
+        }
+
+        animationFrame = requestAnimationFrame(renderAsciiGraphTransition);
+      };
+
+      animationFrame = requestAnimationFrame(renderAsciiGraphTransition);
+    } else if (targetMode === "3d") {
       const seed = seedPoint ?? { x: width, y: height };
       const durationMs = 720;
-      const glyphs = ["#", "@", "%", "+", "=", ":"];
 
       const renderDestinationTransition = (now: number) => {
         const progress = Math.min(
@@ -156,67 +274,26 @@ export default function DiamondTransitionOverlay() {
         ctx.clearRect(0, 0, width, height);
         ctx.fillStyle = COLOR_PALETTE_STR.background;
 
-        if (targetMode === "3d") {
-          const maxRadius = Math.max(
-            Math.hypot(seed.x, seed.y),
-            Math.hypot(width - seed.x, seed.y),
-            Math.hypot(seed.x, height - seed.y),
-            Math.hypot(width - seed.x, height - seed.y),
-          );
-          const radius = maxRadius * revealProgress;
+        const maxRadius = Math.max(
+          Math.hypot(seed.x, seed.y),
+          Math.hypot(width - seed.x, seed.y),
+          Math.hypot(seed.x, height - seed.y),
+          Math.hypot(width - seed.x, height - seed.y),
+        );
+        const radius = maxRadius * revealProgress;
 
-          if (isCovering) {
-            ctx.beginPath();
-            ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
-            ctx.fill();
-          } else {
-            fillFullScreen();
-            ctx.save();
-            ctx.globalCompositeOperation = "destination-out";
-            ctx.beginPath();
-            ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-          }
+        if (isCovering) {
+          ctx.beginPath();
+          ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
+          ctx.fill();
         } else {
-          const cellWidth = 18;
-          const cellHeight = 22;
-          const columns = Math.ceil(width / cellWidth);
-          const rows = Math.ceil(height / cellHeight);
-          const maxDistance = Math.hypot(width, height);
-          ctx.font = '700 13px "Iosevka Term Web", monospace';
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-
-          for (let row = 0; row < rows; row += 1) {
-            for (let column = 0; column < columns; column += 1) {
-              const x = column * cellWidth;
-              const y = row * cellHeight;
-              const distance = Math.hypot(
-                x + cellWidth / 2 - seed.x,
-                y + cellHeight / 2 - seed.y,
-              );
-              const jitter = ((column * 17 + row * 29) % 11) / 55;
-              const threshold = Math.min(1, distance / maxDistance + jitter);
-              const isFilled = isCovering
-                ? threshold <= revealProgress
-                : threshold > revealProgress;
-
-              if (isFilled) {
-                ctx.fillStyle = COLOR_PALETTE_STR.background;
-                ctx.fillRect(x, y, cellWidth + 1, cellHeight + 1);
-              }
-
-              if (Math.abs(threshold - revealProgress) < 0.035) {
-                ctx.fillStyle = COLOR_PALETTE_STR.campfire;
-                ctx.fillText(
-                  glyphs[(column + row) % glyphs.length],
-                  x + cellWidth / 2,
-                  y + cellHeight / 2,
-                );
-              }
-            }
-          }
+          fillFullScreen();
+          ctx.save();
+          ctx.globalCompositeOperation = "destination-out";
+          ctx.beginPath();
+          ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
 
         if (progress >= 1) {
@@ -293,6 +370,8 @@ export default function DiamondTransitionOverlay() {
     <canvas
       aria-hidden="true"
       className="bg-transition-overlay"
+      data-phase={phase}
+      data-target-mode={targetMode}
       ref={canvasRef}
     />
   );

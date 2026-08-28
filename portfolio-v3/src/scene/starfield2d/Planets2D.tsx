@@ -10,24 +10,20 @@ import {
   ensurePlanetAtlasesLoading,
   subscribePlanetAtlases,
 } from "../starfield/planet-atlas-cache";
-import { lerp, sampleNormal } from "../starfield/starfield.math";
-import { getFlatMenuExclusionRadiusPx } from "../ui3d/main-menu.constants";
+import { clamp, lerp, sampleNormal } from "../starfield/starfield.math";
+import { getTwoDimensionalMenuExclusionRadiusPx } from "../ui3d/main-menu.constants";
 import { PLANETS_2D } from "./starfield2d.constants";
 
 const PLANET_PLANE_GEOMETRY = new PlaneGeometry(1, 1);
 
 interface VirtualPlanet2D {
   assetKey: string;
+  frameRate: number;
   frameTimeOffset: number;
   id: number;
-  revision: number;
   sizeScale: number;
   spawnAngle: number;
   spawnRadius: number;
-}
-
-function randomInRange(min: number, max: number) {
-  return min + Math.random() * (max - min);
 }
 
 /* Uniform-area sampling of a ring between the center exclusion radius and the
@@ -50,70 +46,54 @@ function createVirtualPlanets2D(
   viewportWidth: number,
   viewportHeight: number,
 ): VirtualPlanet2D[] {
+  if (!PLANETS_2D.enabled) {
+    return [];
+  }
+
   const atlasKeys = getPlanetAtlasKeys();
   const fieldRadius = getFieldRadius(viewportWidth, viewportHeight);
-  const exclusionRadius = getFlatMenuExclusionRadiusPx(
-    viewportWidth,
-    viewportHeight,
+  const exclusionRadius = Math.min(
+    fieldRadius,
+    getTwoDimensionalMenuExclusionRadiusPx(viewportWidth, viewportHeight),
   );
   const count = Math.min(
-    PLANETS_2D.maxCount,
+    PLANETS_2D.maximumCount,
     Math.max(
-      PLANETS_2D.minCount,
+      PLANETS_2D.minimumCount,
       Math.round(
         Math.PI *
           (fieldRadius ** 2 - exclusionRadius ** 2) *
-          PLANETS_2D.densityPerPx2,
+          (PLANETS_2D.densityPerMegapixel / 1_000_000) *
+          PLANETS_2D.densityMultiplier,
       ),
     ),
   );
 
-  return Array.from({ length: count }, (_, index) => ({
-    assetKey: atlasKeys[Math.floor(Math.random() * atlasKeys.length)],
-    frameTimeOffset: Math.random() * 100,
-    id: index,
-    revision: 0,
-    sizeScale: sampleNormal(
+  return Array.from({ length: count }, (_, index) => {
+    const frameRate = sampleNormal(
       Math.random,
-      PLANETS_2D.sizeScale.mean,
-      PLANETS_2D.sizeScale.stdDev,
-      PLANETS_2D.sizeScale.min,
-      PLANETS_2D.sizeScale.max,
-    ),
-    spawnAngle: Math.random() * Math.PI * 2,
-    spawnRadius: sampleRingRadius(fieldRadius, exclusionRadius),
-  }));
-}
+      PLANETS_2D.frameRate.mean,
+      PLANETS_2D.frameRate.stdDev,
+      PLANETS_2D.frameRate.min,
+      PLANETS_2D.frameRate.max,
+    );
 
-function rerollVirtualPlanet2D(
-  planet: VirtualPlanet2D,
-  viewportWidth: number,
-  viewportHeight: number,
-): VirtualPlanet2D {
-  const atlasKeys = getPlanetAtlasKeys();
-  const exclusionRadius = getFlatMenuExclusionRadiusPx(
-    viewportWidth,
-    viewportHeight,
-  );
-
-  return {
-    assetKey: atlasKeys[Math.floor(Math.random() * atlasKeys.length)],
-    frameTimeOffset: Math.random() * 100,
-    id: planet.id,
-    revision: planet.revision + 1,
-    sizeScale: sampleNormal(
-      Math.random,
-      PLANETS_2D.sizeScale.mean,
-      PLANETS_2D.sizeScale.stdDev,
-      PLANETS_2D.sizeScale.min,
-      PLANETS_2D.sizeScale.max,
-    ),
-    spawnAngle: Math.random() * Math.PI * 2,
-    spawnRadius: sampleRingRadius(
-      getFieldRadius(viewportWidth, viewportHeight),
-      exclusionRadius,
-    ),
-  };
+    return {
+      assetKey: atlasKeys[Math.floor(Math.random() * atlasKeys.length)],
+      frameRate,
+      frameTimeOffset: Math.random() * 100,
+      id: index,
+      sizeScale: sampleNormal(
+        Math.random,
+        PLANETS_2D.sizeScale.mean,
+        PLANETS_2D.sizeScale.stdDev,
+        PLANETS_2D.sizeScale.min,
+        PLANETS_2D.sizeScale.max,
+      ),
+      spawnAngle: Math.random() * Math.PI * 2,
+      spawnRadius: sampleRingRadius(fieldRadius, exclusionRadius),
+    };
+  });
 }
 
 interface CircularPlanetBody {
@@ -124,23 +104,98 @@ interface CircularPlanetBody {
   rotation: number;
 }
 
-function createBody(planet: VirtualPlanet2D): CircularPlanetBody {
-  const variance = PLANETS_2D.orbitSpeedVariance;
+function getFirstVisibleOrbitAngle(
+  radius: number,
+  planetHalfSize: number,
+  viewportHeight: number,
+) {
+  const expandedViewportBottom = viewportHeight + planetHalfSize;
+  if (radius <= expandedViewportBottom) {
+    const leftEdgeLead = Math.asin(
+      clamp(planetHalfSize / Math.max(radius, 1), 0, 1),
+    );
+
+    return Math.PI * 1.5 - leftEdgeLead;
+  }
+
+  const bottomEdgeOffset = Math.acos(
+    clamp(expandedViewportBottom / radius, 0, 1),
+  );
+
+  return Math.PI * 1.5 + bottomEdgeOffset;
+}
+
+function getNormalizedSizeScale(sizeScale: number) {
+  const sizeRange = PLANETS_2D.sizeScale.max - PLANETS_2D.sizeScale.min;
+
+  return clamp(
+    (sizeScale - PLANETS_2D.sizeScale.min) / Math.max(sizeRange, 0.0001),
+    0,
+    1,
+  );
+}
+
+function getOrbitAngularSpeed(sizeScale: number) {
+  const normalizedSize = getNormalizedSizeScale(sizeScale);
+  const speedProgress = lerp(
+    Math.random(),
+    normalizedSize,
+    clamp(PLANETS_2D.orbitSpeed.apparentSizeInfluence, 0, 1),
+  );
+  const speedMultiplier = lerp(
+    PLANETS_2D.orbitSpeed.minimumBaselineMultiplier,
+    PLANETS_2D.orbitSpeed.maximumBaselineMultiplier,
+    speedProgress,
+  );
+
+  return (
+    ((PLANETS_2D.orbitSpeed.baselineDegreesPerSecond * Math.PI) / 180) *
+    speedMultiplier
+  );
+}
+
+function createBody(
+  planet: VirtualPlanet2D,
+  planetSize: number,
+  viewportHeight: number,
+): CircularPlanetBody {
+  const angularSpeed = getOrbitAngularSpeed(planet.sizeScale);
+  const fadeDurationSeconds =
+    1 / Math.max(PLANETS_2D.fadeInAlphaPerSecond, 0.0001);
+  const fadeLeadRadians =
+    angularSpeed * fadeDurationSeconds * PLANETS_2D.offscreenFadeLeadMultiplier;
+  const paddingLeadRadians =
+    PLANETS_2D.offscreenSpawnPaddingPx / Math.max(planet.spawnRadius, 1);
+  const safeOffscreenSpawnAngle =
+    getFirstVisibleOrbitAngle(
+      planet.spawnRadius,
+      planetSize * 0.5,
+      viewportHeight,
+    ) - Math.max(fadeLeadRadians, paddingLeadRadians);
+  /* Treat the random angle as elapsed orbit phase measured from a safe
+     offscreen point. This starts with an evenly distributed field while
+     guaranteeing every partially transparent planet is still off screen. */
+  const initialPhaseRadians = planet.spawnAngle;
+  const prewarmedAlpha = Math.min(
+    1,
+    (initialPhaseRadians / Math.max(angularSpeed, 0.0001)) *
+      PLANETS_2D.fadeInAlphaPerSecond,
+  );
 
   return {
-    alpha: 0,
-    angle: planet.spawnAngle,
-    angularSpeed:
-      PLANETS_2D.orbitRadiansPerSecond *
-      randomInRange(1 - variance, 1 + variance),
+    alpha: prewarmedAlpha,
+    angle: safeOffscreenSpawnAngle + initialPhaseRadians,
+    angularSpeed,
     radius: planet.spawnRadius,
-    rotation: planet.spawnAngle - Math.PI / 4,
+    rotation:
+      safeOffscreenSpawnAngle +
+      initialPhaseRadians +
+      (PLANETS_2D.lightFacingRotationOffsetDegrees * Math.PI) / 180,
   };
 }
 
 interface PlanetSprite2DProps {
   atlas: PlanetAtlas;
-  onRecycle: () => void;
   planet: VirtualPlanet2D;
   viewportHeight: number;
   viewportWidth: number;
@@ -148,7 +203,6 @@ interface PlanetSprite2DProps {
 
 function PlanetSprite2DInner({
   atlas,
-  onRecycle,
   planet,
   viewportHeight,
   viewportWidth,
@@ -156,20 +210,19 @@ function PlanetSprite2DInner({
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
   const bodyRef = useRef<CircularPlanetBody | null>(null);
-  const hasEnteredViewportRef = useRef(false);
-  const hasRecycledRef = useRef(false);
+  const lastFrameIndexRef = useRef(-1);
+  /* UV transforms are per-planet, while the clone's atlas Source and its GPU
+     allocation are shared with 3D/ASCII. The atlas cache owns that source for
+     the page lifetime, so disposing clones here would force costly re-uploads
+     every time the user changes render mode. */
   const texture = useMemo(() => atlas.texture.clone(), [atlas]);
   const planetSize = atlas.frameWidth * planet.sizeScale;
+  const apparentDepth =
+    getNormalizedSizeScale(planet.sizeScale) * PLANETS_2D.apparentDepthRangePx;
 
   if (bodyRef.current === null) {
-    bodyRef.current = createBody(planet);
+    bodyRef.current = createBody(planet, planetSize, viewportHeight);
   }
-
-  useEffect(() => {
-    return () => {
-      texture.dispose();
-    };
-  }, [texture]);
 
   useFrame(({ clock }, delta) => {
     const mesh = meshRef.current;
@@ -182,28 +235,15 @@ function PlanetSprite2DInner({
 
     const deltaSeconds = Math.min(delta, 1 / 30);
 
-    body.angle += body.angularSpeed * deltaSeconds;
-    body.rotation += body.angularSpeed * deltaSeconds;
+    body.angle =
+      (body.angle + body.angularSpeed * deltaSeconds) % (Math.PI * 2);
+    body.rotation =
+      body.angle +
+      (PLANETS_2D.lightFacingRotationOffsetDegrees * Math.PI) / 180;
 
     body.alpha = Math.min(
       1,
       body.alpha + deltaSeconds * PLANETS_2D.fadeInAlphaPerSecond,
-    );
-
-    const frameIndex =
-      Math.floor(
-        (clock.getElapsedTime() + planet.frameTimeOffset) *
-          PLANETS_2D.framesPerSecond,
-      ) % atlas.frames.length;
-    const frame = atlas.frames[frameIndex];
-
-    texture.repeat.set(
-      frame.w / atlas.textureWidth,
-      frame.h / atlas.textureHeight,
-    );
-    texture.offset.set(
-      frame.x / atlas.textureWidth,
-      1 - (frame.y + frame.h) / atlas.textureHeight,
     );
 
     const x = Math.cos(body.angle) * body.radius;
@@ -216,18 +256,29 @@ function PlanetSprite2DInner({
       y >= -viewportHeight - halfSize;
 
     mesh.visible = isOnScreen;
-
-    if (isOnScreen) {
-      hasEnteredViewportRef.current = true;
-    } else if (hasEnteredViewportRef.current && !hasRecycledRef.current) {
-      hasRecycledRef.current = true;
-      onRecycle();
+    if (!isOnScreen) {
       return;
     }
 
-    mesh.position.set(x, y, 0);
+    const frameIndex =
+      Math.floor(
+        (clock.getElapsedTime() + planet.frameTimeOffset) * planet.frameRate,
+      ) % atlas.frames.length;
+    if (frameIndex !== lastFrameIndexRef.current) {
+      const frame = atlas.frames[frameIndex];
+      texture.repeat.set(
+        frame.w / atlas.textureWidth,
+        frame.h / atlas.textureHeight,
+      );
+      texture.offset.set(
+        frame.x / atlas.textureWidth,
+        1 - (frame.y + frame.h) / atlas.textureHeight,
+      );
+      lastFrameIndexRef.current = frameIndex;
+    }
+
+    mesh.position.set(x, y, apparentDepth);
     mesh.rotation.z = body.rotation;
-    mesh.scale.set(planetSize, planetSize, 1);
     material.opacity = body.alpha;
   });
 
@@ -237,6 +288,7 @@ function PlanetSprite2DInner({
       geometry={PLANET_PLANE_GEOMETRY}
       ref={meshRef}
       renderOrder={1}
+      scale={[planetSize, planetSize, 1]}
     >
       <meshBasicMaterial
         alphaTest={0.02}
@@ -255,18 +307,17 @@ const PlanetSprite2D = memo(PlanetSprite2DInner);
 
 interface PlanetSlot2DProps {
   atlasMap: ReadonlyMap<string, PlanetAtlas>;
-  initialPlanet: VirtualPlanet2D;
+  planet: VirtualPlanet2D;
   viewportHeight: number;
   viewportWidth: number;
 }
 
 function PlanetSlot2D({
   atlasMap,
-  initialPlanet,
+  planet,
   viewportHeight,
   viewportWidth,
 }: PlanetSlot2DProps) {
-  const [planet, setPlanet] = useState(initialPlanet);
   const atlas = atlasMap.get(planet.assetKey);
 
   if (!atlas) {
@@ -276,12 +327,6 @@ function PlanetSlot2D({
   return (
     <PlanetSprite2D
       atlas={atlas}
-      key={planet.revision}
-      onRecycle={() => {
-        setPlanet((current) =>
-          rerollVirtualPlanet2D(current, viewportWidth, viewportHeight),
-        );
-      }}
       planet={planet}
       viewportHeight={viewportHeight}
       viewportWidth={viewportWidth}
@@ -321,7 +366,7 @@ export default function Planets2D() {
         return (
           <PlanetSlot2D
             atlasMap={atlasMap}
-            initialPlanet={planet}
+            planet={planet}
             key={`${size.width}x${size.height}-${planet.id}`}
             viewportHeight={size.height}
             viewportWidth={size.width}

@@ -2,11 +2,16 @@ import { useRef } from "react";
 import { useThree } from "@react-three/fiber";
 import type { Group } from "three";
 import useTopLeftPosition from "../hooks/useTopLeftPosition";
-import { CAMERA_PROPS } from "../canvas.constants";
+import {
+  CAMERA_PROPS,
+  getTwoDimensionalVisibleHeight,
+  getTwoDimensionalWorldPerPixel,
+} from "../canvas.constants";
 import {
   LAYOUT,
   MODE_MENU_LAYOUT,
   RESPONSIVE_SCALE,
+  getTwoDimensionalMenuLayoutPx,
   UI_HALO,
 } from "./main-menu.constants";
 import { useAnimatedMainMenuRotation } from "./hooks/useMainMenuAnimation";
@@ -67,11 +72,25 @@ export default function MainMenu() {
     (visibleViewport.height * (1 - MODE_MENU_LAYOUT.asciiMarginRatioY * 2)) /
       MODE_MENU_LAYOUT.localHeight,
   );
+  const twoDimensionalLayout = getTwoDimensionalMenuLayoutPx(
+    size.width,
+    size.height,
+  );
+  const twoDimensionalScale = twoDimensionalLayout.menuScale;
+  /* Derive the orthographic bounds directly instead of reading camera.zoom
+     during the same resize commit in which SceneCamera updates it. This keeps
+     2D placement deterministic when switching modes or resizing quickly. */
+  const twoDimensionalVisibleHeight = getTwoDimensionalVisibleHeight();
+  const twoDimensionalVisibleWidth =
+    twoDimensionalVisibleHeight * (size.width / Math.max(1, size.height));
+  const twoDimensionalWorldPerPixel = getTwoDimensionalWorldPerPixel(
+    size.height,
+  );
   const scale =
     visualMode === "ascii"
       ? asciiScale
       : visualMode === "2d"
-        ? responsiveScale * MODE_MENU_LAYOUT.flatScaleMultiplier
+        ? twoDimensionalScale
         : responsiveScale;
 
   const topLeftPosition = useTopLeftPosition({
@@ -80,14 +99,55 @@ export default function MainMenu() {
     marginY: LAYOUT.marginY * scale,
     z: LAYOUT.z,
   });
+  const asciiMenuWidth = MODE_MENU_LAYOUT.localWidth * asciiScale;
+  const asciiMenuHeight = MODE_MENU_LAYOUT.localHeight * asciiScale;
+  const asciiCenteredTopWhitespace = Math.max(
+    0,
+    (visibleViewport.height - asciiMenuHeight) / 2,
+  );
+  const asciiHorizontalSideWhitespace = Math.max(
+    0,
+    (visibleViewport.width - asciiMenuWidth) / 2,
+  );
+  const asciiMinimumTopWhitespace =
+    (MODE_MENU_LAYOUT.asciiMinimumTopWhitespacePx / Math.max(1, size.height)) *
+    visibleViewport.height;
+  const asciiTopWhitespace = Math.min(
+    asciiCenteredTopWhitespace,
+    Math.max(
+      asciiMinimumTopWhitespace,
+      asciiHorizontalSideWhitespace *
+        MODE_MENU_LAYOUT.asciiTopWhitespaceSideGapMultiplier,
+    ),
+  );
+  const twoDimensionalMarginLeft =
+    twoDimensionalLayout.marginLeftPx * twoDimensionalWorldPerPixel;
+  const twoDimensionalMarginTop =
+    twoDimensionalLayout.marginTopPx * twoDimensionalWorldPerPixel;
+  const twoDimensionalMenuPosition = [
+    CAMERA_PROPS.position[0] -
+      twoDimensionalVisibleWidth / 2 +
+      twoDimensionalMarginLeft -
+      MODE_MENU_LAYOUT.localLeftX * twoDimensionalScale,
+    CAMERA_PROPS.position[1] +
+      twoDimensionalVisibleHeight / 2 -
+      twoDimensionalMarginTop -
+      MODE_MENU_LAYOUT.localTopY * twoDimensionalScale,
+    LAYOUT.z,
+  ] as const;
   const menuPosition =
     visualMode === "ascii"
       ? ([
           CAMERA_PROPS.position[0] - MODE_MENU_LAYOUT.localCenterX * scale,
-          CAMERA_PROPS.position[1] - MODE_MENU_LAYOUT.localCenterY * scale,
+          CAMERA_PROPS.position[1] +
+            visibleViewport.height / 2 -
+            asciiTopWhitespace -
+            MODE_MENU_LAYOUT.localTopY * scale,
           LAYOUT.z,
         ] as const)
-      : topLeftPosition;
+      : visualMode === "2d"
+        ? twoDimensionalMenuPosition
+        : topLeftPosition;
   const rotationFocusPosition = [
     menuPosition[0] + LAYOUT.rotationFocusOffset[0] * scale,
     menuPosition[1] + LAYOUT.rotationFocusOffset[1] * scale,

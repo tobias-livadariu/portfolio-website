@@ -26,13 +26,13 @@ export const CONTACT_ASCII_TITLE_PIECES = [
 export const CONTACT_DIVIDER = ["dBBBBBP"] as const;
 
 export const CONTACT_TERMINAL_CONTEXT: TerminalContext = {
-  directory: "repos/contact-tobi",
+  directory: "repos/reach-out",
   branch: "main",
 };
 
 export const CONTACT_SPRITE = {
   atlasKey: "ice-world-1",
-  imagePath: "/rotating-planet-spritesheets/ice-world/ice-world-1.png",
+  imagePath: "/rotating-planet-spritesheets/ice-world/ice-world-1.webp",
   jsonPath: "/rotating-planet-spritesheets/ice-world/ice-world-1.json",
   columns: 34,
   rows: 18,

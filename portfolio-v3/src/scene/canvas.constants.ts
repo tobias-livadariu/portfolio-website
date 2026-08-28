@@ -15,6 +15,22 @@ export const CAMERA_PROPS = {
   far: 100,
 } as const;
 
+/* 2D mode configures its orthographic camera to show the same world-space
+   height that the perspective camera shows at z=0. Derive this directly from
+   immutable camera settings during a resize; reading orthographicCamera.zoom
+   can otherwise observe the previous frame's value. */
+export function getTwoDimensionalVisibleHeight() {
+  const distanceToReferencePlane = Math.abs(CAMERA_PROPS.position[2]);
+
+  return (
+    2 * Math.tan((CAMERA_PROPS.fov * Math.PI) / 360) * distanceToReferencePlane
+  );
+}
+
+export function getTwoDimensionalWorldPerPixel(viewportHeight: number) {
+  return getTwoDimensionalVisibleHeight() / Math.max(1, viewportHeight);
+}
+
 // Cursor-driven camera head-shift. R3F pointer coordinates are normalized so
 // the canvas center is [0, 0], left/right are roughly -1/+1 on x, and
 // bottom/top are roughly -1/+1 on y. Mouse pointers can drive this continuously;

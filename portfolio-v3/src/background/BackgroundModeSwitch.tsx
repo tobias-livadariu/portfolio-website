@@ -3,28 +3,24 @@ import { type BackgroundMode, useBackgroundMode } from "./background-mode-core";
 import "./background-mode.css";
 
 const MODE_OPTIONS: ReadonlyArray<{
-  description: string;
   label: string;
   mode: BackgroundMode;
   sigil: string;
 }> = [
   {
-    description: "perspective starfield",
-    label: "DEPTH",
+    label: "DEEP",
     mode: "3d",
-    sigil: "◇",
+    sigil: "$",
   },
   {
-    description: "orthographic plane",
     label: "FLAT",
     mode: "2d",
-    sigil: "□",
+    sigil: "#",
   },
   {
-    description: "glyph rasterizer",
-    label: "ASCII",
+    label: "CHAR",
     mode: "ascii",
-    sigil: "#",
+    sigil: "@",
   },
 ];
 
@@ -40,7 +36,7 @@ export default function BackgroundModeSwitch({
   const panelId = useId();
   const shouldHide = hidden || isTransitioning;
   const activeSigil =
-    MODE_OPTIONS.find((option) => option.mode === targetMode)?.sigil ?? "◇";
+    MODE_OPTIONS.find((option) => option.mode === targetMode)?.sigil ?? "$";
 
   useEffect(() => {
     if (!shouldHide) {
@@ -103,12 +99,9 @@ export default function BackgroundModeSwitch({
         role="menu"
       >
         <div aria-hidden="true" className="bg-mode-panel-art">
-          ┌─ RENDER.MODE ─────────┐
+          ┌─ RENDER.MODE ─────────────────────────────────┐
         </div>
-        <div className="bg-mode-panel-status">
-          <span>SELECT PIPELINE</span>
-          <span>{String(MODE_OPTIONS.length).padStart(2, "0")} AVAILABLE</span>
-        </div>
+        <div className="bg-mode-panel-status" />
         <div className="bg-mode-options">
           {MODE_OPTIONS.map((option, index) => {
             const isActive = targetMode === option.mode;
@@ -132,12 +125,11 @@ export default function BackgroundModeSwitch({
                 type="button"
               >
                 <span className="bg-mode-option-index">
-                  {String(index + 1).padStart(2, "0")}
+                  {String(index).padStart(2, "0")}
                 </span>
                 <span className="bg-mode-option-sigil">{option.sigil}</span>
                 <span className="bg-mode-option-copy">
                   <strong>{option.label}</strong>
-                  <small>{option.description}</small>
                 </span>
                 <span aria-hidden="true" className="bg-mode-option-marker">
                   {isActive ? "[X]" : "[  ]"}

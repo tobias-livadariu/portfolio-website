@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ComponentType, CSSProperties } from "react";
+import type { ComponentType, CSSProperties, ReactNode } from "react";
 import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
@@ -106,7 +106,7 @@ function getRevealDistancePx() {
   return window.innerHeight * (1 + MODAL_SCROLL.homeOffsetVh / 100);
 }
 
-export default function ModalLayer() {
+export default function ModalLayer({ background }: { background: ReactNode }) {
   const { close, isOpen, navigationRequest, openSection, setIsOpen } =
     useModalController();
   const layerRef = useRef<HTMLDivElement>(null);
@@ -127,38 +127,6 @@ export default function ModalLayer() {
   useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
-
-  useEffect(() => {
-    const handleCanvasWheel = (event: WheelEvent) => {
-      const scrollRoot = scrollRootRef.current;
-
-      if (
-        !scrollRoot ||
-        event.ctrlKey ||
-        (event.target instanceof Node && scrollRoot.contains(event.target))
-      ) {
-        return;
-      }
-
-      const lineHeight = 16;
-      const pageHeight = scrollRoot.clientHeight;
-      const deltaScale =
-        event.deltaMode === WheelEvent.DOM_DELTA_LINE
-          ? lineHeight
-          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
-            ? pageHeight
-            : 1;
-
-      scrollRoot.scrollTop += event.deltaY * deltaScale;
-      event.preventDefault();
-    };
-
-    window.addEventListener("wheel", handleCanvasWheel, { passive: false });
-
-    return () => {
-      window.removeEventListener("wheel", handleCanvasWheel);
-    };
-  }, []);
 
   const updateIsOpen = useCallback(
     (nextIsOpen: boolean) => {
@@ -429,7 +397,8 @@ export default function ModalLayer() {
 
       if (
         target instanceof HTMLElement &&
-        (target.classList.contains("modal-home-spacer") ||
+        (target.classList.contains("modal-backdrop") ||
+          target.classList.contains("modal-home-spacer") ||
           target.classList.contains("modal-scroll-gap") ||
           target.classList.contains("modal-scroll-root") ||
           target.classList.contains("modal-scroll-stack"))
@@ -468,7 +437,6 @@ export default function ModalLayer() {
         ref={layerRef}
         style={layerStyle}
       >
-        <div aria-hidden="true" className="modal-backdrop" />
         <div
           aria-label="Portfolio sections"
           aria-modal={isOpen || undefined}
@@ -479,6 +447,11 @@ export default function ModalLayer() {
           role={isOpen ? "dialog" : undefined}
           tabIndex={-1}
         >
+          {/* Keep the fixed scene inside the real scroll container. Wheel
+              events can then remain browser-native for the entire gesture,
+              even while their hit target changes as the modal opens. */}
+          <div className="portfolio-canvas-layer">{background}</div>
+          <div aria-hidden="true" className="modal-backdrop" />
           <BackgroundModeSwitch hidden={isOpen} />
           <div className="modal-home-spacer" />
           {/* The switch above must stay outside this aria-hidden subtree so it

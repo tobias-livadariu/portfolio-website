@@ -19,7 +19,23 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 1;
+  pointer-events: none;
   background: rgb(0 0 0 / var(--modal-backdrop-opacity));
+}
+
+.modal-layer-open .modal-backdrop {
+  pointer-events: auto;
+}
+
+.portfolio-canvas-layer {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  margin-bottom: -100vh;
+  pointer-events: auto;
 }
 
 .modal-section-tabs {
@@ -77,10 +93,14 @@
 }
 
 .modal-home-spacer {
+  position: relative;
+  z-index: 2;
   height: calc(100vh + var(--modal-home-offset));
 }
 
 .modal-scroll-stack {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -272,6 +292,8 @@
 }
 
 .modal-terminal-body {
+  --modal-terminal-gutter-width: 6.35ch;
+
   display: grid;
   color: var(--dragon-fg);
   font-size: clamp(0.76rem, 0.95vw, 0.95rem);
@@ -280,7 +302,7 @@
 
 .modal-terminal-line {
   display: grid;
-  grid-template-columns: 6.35ch minmax(0, 1fr);
+  grid-template-columns: var(--modal-terminal-gutter-width) minmax(0, 1fr);
   min-width: 0;
 }
 
@@ -390,30 +412,138 @@
   overflow-wrap: normal;
 }
 
-/* Cat output character-wave coloring. Anchored so char 0 of any line matches
-   that line's gutter color, then cycles through the softened palette — gives
-   a diagonal flow where characters on the same NE/SW diagonal share a hue. */
-.modal-cat-c0 {
-  color: var(--dragon-yellow);
-}
-.modal-cat-c1 {
-  color: var(--dragon-orange);
-}
-.modal-cat-c2 {
-  color: var(--dragon-pink);
-}
-.modal-cat-c3 {
-  color: var(--dragon-lavender);
-}
-.modal-cat-c4 {
-  color: var(--dragon-cyan);
-}
-.modal-cat-c5 {
-  color: var(--dragon-mint);
-}
-
 .modal-terminal-block {
   min-width: 0;
+}
+
+/* INCOMING @ Finta — a transparent ASCII-filtered three.js strip. No border
+   or background of its own so the glyphs float directly on the modal. */
+.modal-incoming {
+  aspect-ratio: 1.35;
+  margin: 0.5rem 0 1.25rem;
+  /* The R3F canvas writes its measured dimensions inline. Without this,
+     flexbox treats the previous canvas height as the item's intrinsic
+     minimum after a live resize and the aspect ratio cannot shrink it. */
+  min-height: 0;
+}
+
+.modal-incoming canvas {
+  display: block;
+}
+
+/* Holographic company stories. The canvas spans a ledger of blank transcript
+   rows, keeping every gutter number aligned with the terminal grid. */
+.modal-terminal-line-story .modal-terminal-line-content {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+.modal-holographic-story {
+  position: relative;
+  min-width: 0;
+}
+
+.modal-holographic-story-mint {
+  --story-primary: var(--dragon-mint);
+  --story-accent: var(--dragon-yellow);
+}
+
+.modal-holographic-story-cyan {
+  --story-primary: var(--dragon-cyan);
+  --story-accent: var(--dragon-lavender);
+}
+
+.modal-story-hero {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.modal-terminal-line-story-blank .modal-terminal-line-content {
+  user-select: none;
+}
+
+.modal-story-canvas-shell {
+  position: absolute;
+  inset: 0 0 0 var(--modal-terminal-gutter-width);
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.modal-story-canvas-shell::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 4px,
+    color-mix(in srgb, var(--story-primary) 13%, transparent) 5px
+  );
+  opacity: 0.24;
+  pointer-events: none;
+}
+
+.modal-story-canvas-shell canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0;
+}
+
+.modal-story-motion-toggle {
+  position: absolute;
+  right: 0.5ch;
+  bottom: 0.25em;
+  z-index: 2;
+  padding: 0;
+  color: color-mix(in srgb, var(--story-primary) 68%, var(--dragon-comment));
+  font: inherit;
+  font-size: 0.72em;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  opacity: 0.82;
+}
+
+.modal-story-motion-toggle:hover,
+.modal-story-motion-toggle:focus-visible {
+  color: var(--story-accent);
+  outline: none;
+  opacity: 1;
+}
+
+.modal-story-cards {
+  margin-top: 0.15em;
+}
+
+.modal-story-frame {
+  color: color-mix(in srgb, var(--story-primary) 78%, var(--dragon-fg-bright));
+}
+
+.modal-story-heading {
+  color: var(--story-accent);
+  font-weight: 700;
+}
+
+.modal-story-body {
+  color: var(--dragon-fg-bright);
+}
+
+.modal-story-meta-label {
+  color: var(--story-primary);
+  font-weight: 700;
+}
+
+.modal-story-meta-accent {
+  color: var(--story-primary);
+  font-weight: 700;
+}
+
+.modal-story-meta {
+  color: var(--dragon-fg-dim);
 }
 
 .modal-terminal-wrapped-output {
@@ -428,6 +558,19 @@
   white-space: pre;
 }
 
+.modal-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .modal-terminal-note {
   color: var(--dragon-comment);
 }
@@ -440,19 +583,8 @@
   white-space: nowrap;
 }
 
-.modal-tobifetch-row {
-  display: inline-grid;
-  /* Column widths are set inline by TobifetchOutput from the measured
-     terminal-content width (capped at TOBIFETCH_COLUMNS = 105); this is the
-     fallback used before measurement settles. */
-  grid-template-columns: 105ch minmax(0, 1fr);
-  gap: clamp(1.25ch, 2vw, 3ch);
-  align-items: start;
-}
-
 .modal-tobifetch-art {
   display: inline-block;
-  width: 105ch;
   color: var(--dragon-fg-dim);
   white-space: pre;
 }
@@ -474,14 +606,19 @@
   white-space: pre-wrap;
 }
 
-/* Stacked mode (below 1050px): info lines render above the art. Info gets
-   a comfortable line-height; art keeps tight line-height for proportions. */
+/* When the measured terminal columns cannot hold both regions, info lines
+   render above the full-width art. */
 .modal-terminal-line-tobifetch-stacked-info {
   line-height: 1.32;
 }
 
 .modal-terminal-line-tobifetch-stacked-info .modal-terminal-line-content {
   white-space: pre-wrap;
+}
+
+.modal-terminal-line-tobifetch-side-by-side .modal-tobifetch-info {
+  line-height: 1;
+  white-space: pre;
 }
 
 .modal-tobifetch-host {
@@ -491,11 +628,24 @@
 
 .modal-tobifetch-rule {
   color: var(--dragon-comment);
+  font-weight: 700;
 }
 
 .modal-tobifetch-key {
   color: var(--dragon-yellow);
   font-weight: 700;
+}
+
+.modal-tobifetch-text-cyan {
+  color: var(--dragon-cyan);
+}
+
+.modal-tobifetch-text-purple {
+  color: var(--dragon-lavender);
+}
+
+.modal-tobifetch-text-red {
+  color: var(--dragon-pink);
 }
 
 .modal-bat {
@@ -641,6 +791,11 @@
 
 .modal-ls-name-file {
   color: var(--dragon-fg-bright);
+}
+
+.modal-ls-name-exec {
+  color: var(--dragon-mint);
+  font-weight: 700;
 }
 
 .modal-ls-name-link {
@@ -895,10 +1050,6 @@
     justify-content: flex-start;
   }
 
-  .modal-section-content {
-    --modal-header-ascii-font-size: 0.49rem;
-  }
-
   .modal-panel-body {
     padding: 0.8rem;
   }
@@ -934,11 +1085,13 @@
   }
 
   .modal-terminal-body {
+    --modal-terminal-gutter-width: 5.4ch;
+
     font-size: clamp(0.62rem, 2.25vw, 0.82rem);
   }
 
   .modal-terminal-line {
-    grid-template-columns: 5.4ch minmax(0, 1fr);
+    grid-template-columns: var(--modal-terminal-gutter-width) minmax(0, 1fr);
   }
 
   .modal-terminal-gutter {

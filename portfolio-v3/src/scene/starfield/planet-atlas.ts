@@ -6,7 +6,12 @@ import {
   Texture,
 } from "three";
 import publicPath from "../../utility/public-path";
-import { PLANETS, PLANET_TYPES, type PlanetType } from "./starfield.constants";
+import {
+  PLANET_ATLASES,
+  PLANET_ATLAS_LOADING,
+  PLANET_TYPES,
+  type PlanetType,
+} from "./starfield.constants";
 
 interface AtlasJsonFrame {
   frame: {
@@ -60,7 +65,7 @@ export function getPlanetAtlasKey(type: PlanetType, variant: number) {
 
 export function getPlanetAtlasKeys() {
   return PLANET_TYPES.flatMap((type) =>
-    Array.from({ length: PLANETS.variantsPerType }, (_, index) =>
+    Array.from({ length: PLANET_ATLASES.variantsPerType }, (_, index) =>
       getPlanetAtlasKey(type, index + 1),
     ),
   );
@@ -81,6 +86,31 @@ async function nextFrame() {
   });
 }
 
+interface BrowserScheduler {
+  yield?: () => Promise<void>;
+}
+
+/* scheduler.yield() lets pending input run before atlas publication resumes.
+   It is not available in every browser, so an animation-frame boundary remains
+   the portable scheduling primitive and also guarantees the current atlas has
+   had an opportunity to reach the renderer before another one is admitted. */
+async function waitForAtlasPublicationOpportunity() {
+  await nextFrame();
+
+  const scheduler = (
+    globalThis as typeof globalThis & { scheduler?: BrowserScheduler }
+  ).scheduler;
+
+  if (scheduler?.yield) {
+    await scheduler.yield();
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 function createBitmapLoader() {
   const loader = new ImageBitmapLoader();
   loader.setOptions({ imageOrientation: "flipY", premultiplyAlpha: "none" });
@@ -94,9 +124,11 @@ async function loadAtlas(
   signal?: AbortSignal,
 ): Promise<PlanetAtlas | null> {
   const key = getPlanetAtlasKey(type, variant);
-  const atlasBasePath = `${PLANETS.assetBasePath}/${type}/${key}`;
+  const atlasBasePath = `${PLANET_ATLASES.assetBasePath}/${type}/${key}`;
   const jsonUrl = publicPath(`${atlasBasePath}.json`);
-  const textureUrl = publicPath(`${atlasBasePath}.png`);
+  const textureUrl = publicPath(
+    `${atlasBasePath}.${PLANET_ATLASES.imageExtension}`,
+  );
 
   const [atlasJson, bitmap] = await Promise.all([
     fetch(jsonUrl, { signal }).then((response) => {
@@ -152,16 +184,69 @@ async function loadAtlas(
   };
 }
 
+interface AtlasDescriptor {
+  type: PlanetType;
+  variant: number;
+}
+
+/* Load one variant of every planet type before moving to the next variant.
+   The virtual populations and their random seeds remain unchanged; this only
+   makes the progressively revealed field visually diverse sooner. */
+function getAtlasLoadOrder(): AtlasDescriptor[] {
+  return Array.from(
+    { length: PLANET_ATLASES.variantsPerType },
+    (_, variantIndex) => variantIndex + 1,
+  ).flatMap((variant) => PLANET_TYPES.map((type) => ({ type, variant })));
+}
+
 export async function loadPlanetAtlases(
   onAtlasReady: (atlas: PlanetAtlas) => void,
   signal?: AbortSignal,
 ) {
   const bitmapLoader = createBitmapLoader();
-  const tasks: Array<Promise<PlanetAtlas | null>> = [];
+  const loadOrder = getAtlasLoadOrder();
+  const workerCount = Math.min(
+    Math.max(1, Math.floor(PLANET_ATLAS_LOADING.maximumConcurrentLoads)),
+    loadOrder.length,
+  );
+  let nextAtlasIndex = 0;
+  let hasPublishedAtlas = false;
+  let publicationQueue = Promise.resolve();
 
-  for (const type of PLANET_TYPES) {
-    for (let variant = 1; variant <= PLANETS.variantsPerType; variant++) {
-      const task = loadAtlas(type, variant, bitmapLoader, signal).catch(
+  /* Workers may finish out of order, but publication is serialized. This caps
+     decoded atlases waiting in memory at roughly the worker count and, more
+     importantly, prevents multiple new textures from reaching Three's first
+     GPU upload path during the same paint opportunity. */
+  const publishAtlas = (atlas: PlanetAtlas) => {
+    const publication = publicationQueue.then(async () => {
+      if (hasPublishedAtlas) {
+        await waitForAtlasPublicationOpportunity();
+      }
+
+      if (signal?.aborted) {
+        atlas.texture.dispose();
+        return;
+      }
+
+      onAtlasReady(atlas);
+      hasPublishedAtlas = true;
+    });
+
+    publicationQueue = publication.catch(() => undefined);
+    return publication;
+  };
+
+  const loadNextAtlas = async () => {
+    while (!signal?.aborted) {
+      const descriptor = loadOrder[nextAtlasIndex];
+      nextAtlasIndex += 1;
+
+      if (!descriptor) {
+        return;
+      }
+
+      const { type, variant } = descriptor;
+      const atlas = await loadAtlas(type, variant, bitmapLoader, signal).catch(
         (error) => {
           if (!signal?.aborted) {
             const key = getPlanetAtlasKey(type, variant);
@@ -170,25 +255,18 @@ export async function loadPlanetAtlases(
           return null;
         },
       );
-      tasks.push(task);
-    }
-  }
 
-  for (const task of tasks) {
-    if (signal?.aborted) {
-      return;
-    }
+      if (signal?.aborted) {
+        atlas?.texture.dispose();
+        return;
+      }
 
-    const atlas = await task;
-
-    if (signal?.aborted) {
-      atlas?.texture.dispose();
-      return;
+      if (atlas) {
+        await publishAtlas(atlas);
+      }
     }
+  };
 
-    if (atlas) {
-      onAtlasReady(atlas);
-      await nextFrame();
-    }
-  }
+  await Promise.all(Array.from({ length: workerCount }, () => loadNextAtlas()));
+  await publicationQueue;
 }

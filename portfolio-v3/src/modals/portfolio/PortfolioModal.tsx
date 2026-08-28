@@ -2,18 +2,18 @@ import { memo } from "react";
 import AsciiDivider from "../components/AsciiDivider";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
+import IncomingSection from "./IncomingSection";
 import {
+  holographicStoryOutput,
   lsOutputRows,
-  wrappedTextOutput,
 } from "../components/terminal-outputs";
-import ideaNotionSummary from "./ideanotion-summary.txt?raw";
+import { IDEANOTION_STORY, SHOPIFY_STORY } from "./portfolio-stories";
 import {
   PORTFOLIO_ASCII_TITLE_PIECES,
   PORTFOLIO_DIVIDER,
   PORTFOLIO_SPRITE,
   PORTFOLIO_TERMINAL_CONTEXT,
 } from "./portfolio.constants";
-import shopifySummary from "./shopify-summary.txt?raw";
 
 const PORTFOLIO_LEFT_SPRITE = {
   ...PORTFOLIO_SPRITE,
@@ -46,9 +46,9 @@ const shopifyRows = [
     date: "Apr 18 09:35",
   },
   {
-    name: "summary.txt",
-    type: "file",
-    size: "2.2k",
+    name: "what-i-built",
+    type: "exec",
+    size: "4.2k",
     date: "May 14 22:10",
   },
 ] as const;
@@ -67,9 +67,9 @@ const ideaNotionRows = [
     date: "Aug 28 17:42",
   },
   {
-    name: "summary.txt",
-    type: "file",
-    size: "2.0k",
+    name: "what-i-built",
+    type: "exec",
+    size: "3.8k",
     date: "May 14 22:12",
   },
 ] as const;
@@ -105,7 +105,7 @@ const personalRows = [
   },
   {
     name: "lights-on",
-    href: "https://github.com/tobias-livadariu/lights-on",
+    href: "https://www.tobias-livadariu.online/lights-on",
     type: "link",
     size: "128",
     date: "Aug 09 14:32",
@@ -148,6 +148,8 @@ function PortfolioModal() {
         titlePieces={PORTFOLIO_ASCII_TITLE_PIECES}
       />
 
+      <IncomingSection />
+
       <Terminal
         context={shopifyContext}
         commands={[
@@ -156,8 +158,8 @@ function PortfolioModal() {
             output: lsOutputRows(shopifyRows),
           },
           {
-            command: "cat summary.txt",
-            output: [wrappedTextOutput(shopifySummary)],
+            command: "./what-i-built",
+            output: [holographicStoryOutput(SHOPIFY_STORY)],
           },
         ]}
       />
@@ -172,8 +174,8 @@ function PortfolioModal() {
             output: lsOutputRows(ideaNotionRows),
           },
           {
-            command: "cat summary.txt",
-            output: [wrappedTextOutput(ideaNotionSummary)],
+            command: "./what-i-built",
+            output: [holographicStoryOutput(IDEANOTION_STORY)],
           },
         ]}
       />

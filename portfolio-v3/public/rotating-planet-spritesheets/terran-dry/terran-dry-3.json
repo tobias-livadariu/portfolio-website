@@ -357,7 +357,7 @@
   "meta": {
     "app": "Custom Spritesheet Generator",
     "version": "1.0",
-    "image": "terran-dry-3.png",
+    "image": "terran-dry-3.webp",
     "format": "RGBA8888",
     "size": {"w": 5000, "h": 100},
     "scale": "1"

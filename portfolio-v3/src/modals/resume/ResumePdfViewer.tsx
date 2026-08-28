@@ -6,6 +6,7 @@ import {
   getDocument,
 } from "pdfjs-dist";
 import type {
+  PDFDocumentLoadingTask,
   PDFDocumentProxy,
   RenderTask,
 } from "pdfjs-dist/types/src/display/api";
@@ -32,6 +33,7 @@ function ResumePdfViewer({ src }: Props) {
     }
 
     let cancelled = false;
+    let loadingTask: PDFDocumentLoadingTask | null = null;
     let pdf: PDFDocumentProxy | null = null;
     let activeTasks: RenderTask[] = [];
     let lastRenderedWidth = 0;
@@ -56,7 +58,8 @@ function ResumePdfViewer({ src }: Props) {
         }
 
         if (!pdf) {
-          pdf = await getDocument(src).promise;
+          loadingTask = getDocument({ url: src });
+          pdf = await loadingTask.promise;
           if (cancelled) return;
         }
 
@@ -110,7 +113,9 @@ function ResumePdfViewer({ src }: Props) {
           try {
             await renderTask.promise;
           } catch (err) {
-            if ((err as { name?: string })?.name === "RenderingCancelledException") {
+            if (
+              (err as { name?: string })?.name === "RenderingCancelledException"
+            ) {
               return;
             }
             throw err;
@@ -188,7 +193,7 @@ function ResumePdfViewer({ src }: Props) {
       cancelled = true;
       activeTasks.forEach((task) => task.cancel());
       observer.disconnect();
-      pdf?.destroy();
+      void loadingTask?.destroy();
     };
   }, [src]);
 

@@ -91,7 +91,10 @@ function createMinHeap(): MinHeap {
           const right = left + 1;
           let smallest = node;
 
-          if (left < distances.length && distances[left] < distances[smallest]) {
+          if (
+            left < distances.length &&
+            distances[left] < distances[smallest]
+          ) {
             smallest = left;
           }
 
@@ -179,7 +182,9 @@ export function buildDiamondField(
   const distances = new Float64Array(tileCount).fill(Infinity);
   const settled = new Uint8Array(tileCount);
 
-  let seedIndex = tileIndexByKey.get(`${toU(seedX, seedY)},${toV(seedX, seedY)}`);
+  let seedIndex = tileIndexByKey.get(
+    `${toU(seedX, seedY)},${toV(seedX, seedY)}`,
+  );
 
   if (seedIndex === undefined) {
     let bestDistance = Infinity;

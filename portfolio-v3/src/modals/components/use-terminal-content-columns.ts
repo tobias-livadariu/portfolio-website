@@ -19,6 +19,7 @@ export function useTerminalContentColumns({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLSpanElement>(null);
   const [columns, setColumns] = useState(fallback);
+  const [contentWidth, setContentWidth] = useState(0);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -43,6 +44,10 @@ export function useTerminalContentColumns({
         return;
       }
 
+      setContentWidth((current) =>
+        Math.abs(current - contentWidth) < 0.5 ? current : contentWidth,
+      );
+
       const exact = Math.floor(contentWidth / characterWidth);
       const snapped =
         step > 1 ? Math.max(min, Math.floor(exact / step) * step) : exact;
@@ -57,5 +62,5 @@ export function useTerminalContentColumns({
     return observeWithRaf(terminalBody, update);
   }, [fallback, min, step]);
 
-  return { columns, measureRef, wrapperRef };
+  return { columns, contentWidth, measureRef, wrapperRef };
 }

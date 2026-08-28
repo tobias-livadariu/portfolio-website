@@ -1,10 +1,8 @@
 import type { ReactNode } from "react";
 import type { TerminalOutputBlock, TerminalOutputLine } from "../modal.types";
-import {
-  LsOutputLine,
-  WrappedTextOutput,
-  type LsRow,
-} from "./terminal-internals";
+import HolographicStoryScene from "./HolographicStoryScene";
+import type { HolographicStoryDefinition } from "./HolographicStoryScene";
+import { LsOutputLine, type LsRow } from "./terminal-internals";
 
 export type { LsRow };
 export { useTerminalContentColumns } from "./use-terminal-content-columns";
@@ -26,12 +24,17 @@ export function plainTextRows(
   }));
 }
 
-export function wrappedTextOutput(text: string): TerminalOutputBlock {
+export function holographicStoryOutput(
+  definition: HolographicStoryDefinition,
+): TerminalOutputBlock {
   return {
     kind: "block",
     lineCount: 0,
     render: (firstLineNumber) => (
-      <WrappedTextOutput firstLineNumber={firstLineNumber} text={text} />
+      <HolographicStoryScene
+        definition={definition}
+        firstLineNumber={firstLineNumber}
+      />
     ),
   };
 }

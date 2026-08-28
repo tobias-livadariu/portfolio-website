@@ -1,73 +1,67 @@
-# React + TypeScript + Vite
+# portfolio-v3
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This directory contains `portfolio-v3`, the current React and Three.js version
+of Tobias Livadariu's portfolio. It is separate from `../portfolio-v2`; the
+commands and paths below apply to v3 only.
 
-Currently, two official plugins are available:
+The landing view is a space scene with a top-left menu. Its render switch moves
+between 3D, 2D, and ASCII versions of the background. Opening a menu item, or
+scrolling past the landing view, reveals a terminal-styled document containing
+the About, Resume, Portfolio, and Contact Me sections.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run it locally
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Vite serves the site with `/portfolio/` as its base path. The other useful
+commands are:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm run build         # type-check and create dist/
+npm run preview       # serve the production build locally
+npm run lint
+npm run format:check
+npm run test:e2e      # Playwright tests
 ```
+
+## Project map
+
+- `src/background/` owns render-mode state, the mode switch, and the diamond
+  transition between modes.
+- `src/scene/` contains the React Three Fiber canvas, cameras, lighting,
+  post-processing, the 3D menu, and both starfield implementations.
+- `src/modals/` contains the modal state and document layer. Its section
+  folders hold the copy and layouts; `components/` holds the terminal, static
+  image-to-ASCII renderer, and holographic portfolio scenes shared by them.
+- `src/theme/` is the small shared palette and runtime Three.js font registry.
+- `src/utility/` holds path and ASCII glyph-size helpers used across renderers.
+- `public/` contains files needed by the browser at runtime: planet atlases,
+  images, resume files, and active fonts.
+- `assets/` contains authoring copies of fonts and lossless source images.
+  They are intentionally outside `public/`, so Vite does not copy source and
+  delivery formats into `dist/` together.
+- `tests/e2e/` covers mode switching, modal navigation, scrolling, and the
+  responsive cases that have caused regressions.
+- `deployment/` contains the Nginx and systemd files used by the deployed site.
+- `docs/` contains completed design plans kept for implementation history.
+
+## Common edit points
+
+| Change                                                 | Start here                                                  |
+| ------------------------------------------------------ | ----------------------------------------------------------- |
+| 3D or ASCII star and planet density, depth, and motion | `src/scene/starfield/starfield.constants.ts`                |
+| 2D star and planet behavior                            | `src/scene/starfield2d/starfield2d.constants.ts`            |
+| Landing menu scale, position, and materials            | `src/scene/ui3d/main-menu.constants.ts`                     |
+| Full-scene ASCII cell sizing                           | `src/scene/postprocessing/AsciiPass.ts`                     |
+| Portfolio-modal ASCII cell sizing                      | `src/scene/hooks/usePortfolioAsciiGlyphSize.ts`             |
+| Static planet and portrait ASCII conversion            | `src/modals/components/ascii-image-profiles.ts`             |
+| Modal text and section-specific settings               | `src/modals/about/`, `resume/`, `portfolio/`, or `contact/` |
+| Terminal and modal styling                             | `src/modals/modals.css`                                     |
+
+The tunable values are generally grouped near the top of their constants or
+component file. Before adding a new control, check whether that render mode
+already has a separate 2D, 3D, or ASCII profile; those profiles are kept apart
+where matching one mode would make another look worse.

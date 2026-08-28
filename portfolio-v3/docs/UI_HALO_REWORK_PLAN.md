@@ -1,5 +1,10 @@
 # UI Halo Rework Handoff Plan
 
+> **Implementation status (August 27, 2026): complete.** The screen-space
+> halo, final UI overlay render, and optional SMAA pass described below are
+> implemented in `src/scene/ui3d/UiHaloPass.tsx`. This document is retained as
+> design history; the current source is authoritative.
+
 Status date: May 14, 2026
 
 This document is a handoff plan for the next agent working on the portfolio v3 3D UI readability halo. It summarizes the project context, the current implementation, the bug we are solving, the recommended implementation strategy, verification sources, and concrete acceptance criteria.
@@ -361,7 +366,6 @@ Three's docs confirm objects render only when their layers overlap the camera.
 However, R3F scene inheritance and the current component tree may make a layer migration more invasive than this bugfix deserves. The current code already uses explicit root traversal and temporary material/visibility mutation for the mask pass. That traversal approach is acceptable if the agent keeps it contained, restores state in `finally`, and avoids mutating unrelated user-visible state.
 
 Do not treat layers as mandatory. Treat them as the cleaner option if implementation is straightforward. Treat traversal as the pragmatic fallback if layers create broader risk.
-
 
 ### 9. Verification Steps
 

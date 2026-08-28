@@ -357,7 +357,7 @@
   "meta": {
     "app": "Custom Spritesheet Generator",
     "version": "1.0",
-    "image": "lava-world-5.png",
+    "image": "lava-world-5.webp",
     "format": "RGBA8888",
     "size": {"w": 5000, "h": 100},
     "scale": "1"

@@ -27,8 +27,10 @@ export default function getCameraFacingRotation(
 ): Vec3Tuple {
   setFromVec3Like(SCRATCH_OBJECT_POSITION, objectPosition);
   setFromVec3Like(SCRATCH_CAMERA_POSITION, cameraPosition);
-  SCRATCH_DIRECTION.subVectors(SCRATCH_CAMERA_POSITION, SCRATCH_OBJECT_POSITION)
-    .normalize();
+  SCRATCH_DIRECTION.subVectors(
+    SCRATCH_CAMERA_POSITION,
+    SCRATCH_OBJECT_POSITION,
+  ).normalize();
   SCRATCH_QUATERNION.setFromUnitVectors(TEXT_FRONT_NORMAL, SCRATCH_DIRECTION);
   SCRATCH_EULER.setFromQuaternion(SCRATCH_QUATERNION, "XYZ");
 

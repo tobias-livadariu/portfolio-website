@@ -6,8 +6,8 @@ export type BackgroundMode = (typeof BACKGROUND_MODES)[number];
 
 export type TransitionPhase = "idle" | "covering" | "covered" | "clearing";
 
-/* Viewport coordinates in CSS pixels; the diamond transition grows outward
-   from this point (the center of the toggle switch). */
+/* Viewport coordinates in CSS pixels; the active destination transition grows
+   outward from this point (the center of the render-mode toggle). */
 export interface SeedPoint {
   x: number;
   y: number;
