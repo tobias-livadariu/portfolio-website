@@ -23,8 +23,6 @@ export const DIAMOND_TRANSITION = {
   // Per-edge random weight is 1 + jitter * random(); higher jitter makes the
   // growth more chaotic and branch-like.
   edgeWeightJitter: 1.6,
-  // Solid-fade duration used when prefers-reduced-motion is set.
-  reducedMotionFadeMs: 220,
 } as const;
 
 export interface DiamondTile {

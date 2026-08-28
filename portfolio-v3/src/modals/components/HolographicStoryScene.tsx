@@ -779,10 +779,8 @@ function TelemetryRail({ color }: { color: string }) {
 
 function HologramContent({
   definition,
-  motionEnabled,
 }: {
   definition: HolographicStoryDefinition;
-  motionEnabled: boolean;
 }) {
   const titleGroupRef = useRef<Group>(null);
   const subtitleGroupRef = useRef<Group>(null);
@@ -897,17 +895,6 @@ function HologramContent({
     }
 
     const { logoY, subtitleY, titleY } = basePositions.current;
-
-    if (!motionEnabled) {
-      titleGroup.rotation.set(0, 0, 0);
-      subtitleGroup.rotation.set(0, 0, 0);
-      logoGroup.rotation.set(0, 0, 0);
-      railGroup.rotation.set(0, 0, 0);
-      titleGroup.position.y = titleY;
-      subtitleGroup.position.y = subtitleY;
-      logoGroup.position.y = logoY;
-      return;
-    }
 
     const time = state.clock.elapsedTime + definition.motionPhase;
     const damping = 1 - Math.exp(-delta * STORY_SCENE_TUNING.motionDamping);
@@ -1037,29 +1024,6 @@ function HologramContent({
   );
 }
 
-function getPrefersReducedMotion() {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-function usePrefersReducedMotion() {
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
-    getPrefersReducedMotion,
-  );
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setPrefersReducedMotion(media.matches);
-
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, []);
-
-  return prefersReducedMotion;
-}
-
 export default function HolographicStoryScene({
   definition,
   firstLineNumber,
@@ -1074,10 +1038,9 @@ export default function HolographicStoryScene({
       step: STORY_SCENE_TUNING.contentSnapStepColumns,
     });
   const heroRef = useRef<HTMLDivElement>(null);
-  const [isOnScreen, setIsOnScreen] = useState(false);
-  const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
-  const prefersReducedMotion = usePrefersReducedMotion();
-  const motionEnabled = motionOverride ?? !prefersReducedMotion;
+  const [isOnScreen, setIsOnScreen] = useState(
+    () => typeof IntersectionObserver === "undefined",
+  );
   const measuredHeroWidth = contentWidth || Number.POSITIVE_INFINITY;
   const heroLineCount =
     measuredHeroWidth < STORY_SCENE_TUNING.heroNarrowMaxWidthPx
@@ -1094,6 +1057,10 @@ export default function HolographicStoryScene({
     const hero = heroRef.current;
 
     if (!hero) {
+      return;
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
       return;
     }
 
@@ -1147,14 +1114,11 @@ export default function HolographicStoryScene({
             }}
             dpr={CANVAS_DPR}
             flat
-            frameloop={isOnScreen && motionEnabled ? "always" : "demand"}
+            frameloop={isOnScreen ? "always" : "demand"}
             gl={{ alpha: true, antialias: true }}
           >
             <Suspense fallback={null}>
-              <HologramContent
-                definition={definition}
-                motionEnabled={motionEnabled}
-              />
+              <HologramContent definition={definition} />
             </Suspense>
             <TransparentAsciiRenderer
               baseCellHeight={STORY_SCENE_TUNING.asciiGlyphCellHeightPx}
@@ -1162,16 +1126,6 @@ export default function HolographicStoryScene({
             />
           </Canvas>
         </div>
-        <button
-          aria-label={
-            motionEnabled ? "Pause hologram motion" : "Resume hologram motion"
-          }
-          className="modal-story-motion-toggle"
-          onClick={() => setMotionOverride(!motionEnabled)}
-          type="button"
-        >
-          [motion:{motionEnabled ? "on" : "off"}]
-        </button>
       </div>
 
       <div aria-hidden="true" className="modal-story-cards">

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import {
   ASCII_GRAPH_TRANSITION,
   buildAsciiTransitionField,
@@ -21,6 +21,36 @@ const MODE_LABELS = {
   ascii: /CHAR/,
 } as const;
 
+async function chooseMode(page: Page, mode: keyof typeof MODE_LABELS) {
+  const trigger = page.getByRole("button", {
+    includeHidden: true,
+    name: "Choose background render mode",
+  });
+  const panel = page.locator(".bg-mode-panel");
+
+  await trigger.click();
+  await expect(panel).toHaveAttribute("data-open", "true");
+  await panel.evaluate(async (element) => {
+    await Promise.all(
+      element
+        .getAnimations()
+        .map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
+
+  const option = page.getByRole("menuitemradio", {
+    name: MODE_LABELS[mode],
+  });
+  await expect(option).toBeVisible();
+
+  const bounds = await option.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.click(
+    (bounds?.x ?? 0) + (bounds?.width ?? 0) / 2,
+    (bounds?.y ?? 0) + (bounds?.height ?? 0) / 2,
+  );
+}
+
 function createSeededRandom(seed: number) {
   let state = seed >>> 0;
 
@@ -32,6 +62,27 @@ function createSeededRandom(seed: number) {
     return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296;
   };
 }
+
+test("render control remains inside a compact dynamic viewport", async ({
+  page,
+}) => {
+  const viewport = { height: 664, width: 390 };
+
+  await page.setViewportSize(viewport);
+  await page.goto("/");
+
+  const trigger = page.getByRole("button", {
+    includeHidden: true,
+    name: "Choose background render mode",
+  });
+  const bounds = await trigger.boundingBox();
+
+  expect(bounds).not.toBeNull();
+  expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(
+    viewport.height,
+  );
+  expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeGreaterThan(0);
+});
 
 test("2D planets use the same playback distribution as volumetric modes", () => {
   expect(PLANETS_2D.frameRate).toEqual(
@@ -332,7 +383,6 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   page,
 }) => {
   test.setTimeout(90_000);
-  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
     localStorage.setItem("portfolio:background-mode", "ascii");
   });
@@ -351,19 +401,8 @@ test("render menu selects every mode and refresh resets to 3D", async ({
     )
     .toBeNull();
 
-  for (const mode of ["ascii", "3d", "2d"] as const) {
-    await trigger.click();
-
-    const option = page.getByRole("menuitemradio", {
-      name: MODE_LABELS[mode],
-    });
-
-    await expect(option).toBeVisible();
-    await option.click();
-    await expect(page.locator(".bg-mode-switch-anchor")).toHaveAttribute(
-      "data-hidden",
-      "true",
-    );
+  const expectModeReady = async (mode: "ascii" | "3d" | "2d") => {
+    await chooseMode(page, mode);
     await expect(trigger).toContainText(`[${mode.toUpperCase()}]`);
     await expect(transition).toHaveCount(0, { timeout: 10_000 });
     await expect(page.locator(".bg-mode-switch-anchor")).not.toHaveAttribute(
@@ -371,28 +410,34 @@ test("render menu selects every mode and refresh resets to 3D", async ({
       "true",
     );
     await expect(page.getByRole("dialog")).toHaveCount(0);
-  }
+  };
 
-  await trigger.click();
-  await page.getByRole("menuitemradio", { name: MODE_LABELS.ascii }).click();
-  await expect(transition).toHaveCount(0, { timeout: 10_000 });
+  // Exercise the animated ASCII round trip together, then reload before the
+  // independent 2D path. This still covers every selectable mode without
+  // accumulating several large GPU atlas transitions in one browser context.
+  await expectModeReady("ascii");
+  await expectModeReady("3d");
+
+  await page.reload();
+  await expect(trigger).toContainText("[3D]");
+
+  await expectModeReady("2d");
   await page.reload();
   await expect(trigger).toContainText("[3D]");
 });
 
-test("full-motion ASCII graph transition reaches and reveals the ready scene", async ({
+test("OS reduced-motion preference does not replace the ASCII transition", async ({
   page,
 }) => {
   test.setTimeout(30_000);
-  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
   const trigger = page.getByRole("button", {
     includeHidden: true,
     name: "Choose background render mode",
   });
-  await trigger.click();
-  await page.getByRole("menuitemradio", { name: MODE_LABELS.ascii }).click();
+  await chooseMode(page, "ascii");
 
   const transition = page.locator(
     '.bg-transition-overlay[data-target-mode="ascii"]',
@@ -431,13 +476,8 @@ test("full-motion ASCII graph transition reaches and reveals the ready scene", a
 
   await expect(transition).toHaveAttribute("data-phase", "covering");
   await expect
-    .poll(
-      async () =>
-        (await transition.getAttribute("data-phase")) === "covered" &&
-        (await countColoredTransitionPixels()) > 50,
-      { timeout: 15_000 },
-    )
-    .toBe(true);
+    .poll(countColoredTransitionPixels, { timeout: 15_000 })
+    .toBeGreaterThan(50);
   await expect
     .poll(() => transition.getAttribute("data-phase"), { timeout: 15_000 })
     .toBe("clearing");

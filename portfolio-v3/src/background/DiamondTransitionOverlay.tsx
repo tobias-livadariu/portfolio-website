@@ -22,10 +22,6 @@ function easeInCubic(t: number) {
   return t ** 3;
 }
 
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 function fitCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const width = window.innerWidth;
@@ -88,7 +84,6 @@ export default function DiamondTransitionOverlay() {
     let { height, width } = fitCanvas(canvas, ctx);
     let animationFrame: number | null = null;
     let done = false;
-    const reducedMotion = prefersReducedMotion();
     const startTime = performance.now();
 
     if (targetMode === "ascii" && phase === "covering") {
@@ -134,7 +129,7 @@ export default function DiamondTransitionOverlay() {
       }
 
       if (phase === "covered") {
-        if (targetMode === "ascii" && asciiField && !reducedMotion) {
+        if (targetMode === "ascii" && asciiField) {
           renderAsciiTransitionFrame(
             ctx,
             asciiField,
@@ -151,7 +146,7 @@ export default function DiamondTransitionOverlay() {
     window.addEventListener("resize", handleResize);
 
     if (phase === "covered") {
-      if (targetMode === "ascii" && asciiField && !reducedMotion) {
+      if (targetMode === "ascii" && asciiField) {
         const renderCoveredField = (now: number) => {
           if (!asciiField) {
             return;
@@ -189,7 +184,7 @@ export default function DiamondTransitionOverlay() {
       if (isCovering) {
         /* ASCII retains its generated glyph field across the React phase
            handoff. Other modes keep the solid coverage guarantee. */
-        if (targetMode === "ascii" && asciiField && !reducedMotion) {
+        if (targetMode === "ascii" && asciiField) {
           renderAsciiTransitionFrame(
             ctx,
             asciiField,
@@ -207,27 +202,7 @@ export default function DiamondTransitionOverlay() {
       }
     };
 
-    if (reducedMotion) {
-      const fadeMs = DIAMOND_TRANSITION.reducedMotionFadeMs;
-
-      const renderFade = (now: number) => {
-        const progress = Math.min(1, (now - startTime) / fadeMs);
-
-        ctx.clearRect(0, 0, width, height);
-        ctx.globalAlpha = isCovering ? progress : 1 - progress;
-        fillFullScreen();
-        ctx.globalAlpha = 1;
-
-        if (progress >= 1) {
-          finish();
-          return;
-        }
-
-        animationFrame = requestAnimationFrame(renderFade);
-      };
-
-      animationFrame = requestAnimationFrame(renderFade);
-    } else if (targetMode === "ascii" && asciiField) {
+    if (targetMode === "ascii" && asciiField) {
       const durationMs = isCovering
         ? ASCII_GRAPH_TRANSITION.coverDurationMs
         : ASCII_GRAPH_TRANSITION.clearDurationMs;

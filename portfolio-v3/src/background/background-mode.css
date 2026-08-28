@@ -4,9 +4,17 @@
    when a modal opens. */
 .bg-mode-switch-anchor {
   position: absolute;
+  /* Legacy `vh` is retained as a fallback. Mobile Safari's `vh` can describe
+     the larger layout viewport behind its expanded browser chrome, so use the
+     visible dynamic viewport where supported and keep clear of device safe
+     areas. Without this override, the bottom toolbar can cover the switch. */
   top: calc(100vh - 3.6rem);
+  top: calc(100dvh - 3.6rem - env(safe-area-inset-bottom, 0px));
   right: clamp(1rem, 3vw, 2.2rem);
-  z-index: 2;
+  /* Stay above `.modal-home-spacer` (z-index: 2). Equal stacking levels let
+     that later DOM sibling intercept clicks on the visually open menu in
+     some engines even though the menu itself remained visible. */
+  z-index: 3;
   pointer-events: none;
   opacity: 1;
   transform: translateX(0);
@@ -193,17 +201,13 @@
   white-space: nowrap;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bg-mode-panel {
-    transition-duration: 1ms;
-  }
-}
-
 .bg-transition-overlay {
   position: fixed;
   inset: 0;
   z-index: 50;
   width: 100vw;
   height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
   pointer-events: auto;
 }

@@ -8,8 +8,13 @@ async function wheelGesture(page: Page) {
 }
 
 test("one wheel stream survives the closed-to-open modal handoff", async ({
+  browserName,
   page,
 }) => {
+  test.skip(
+    browserName !== "chromium",
+    "The uninterrupted wheel stream uses Chromium's CDP input transaction API.",
+  );
   test.setTimeout(30_000);
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
@@ -216,8 +221,8 @@ test("modal document opens from scroll and supports section navigation", async (
     activePanel.getByText("./what-i-learnt", { exact: true }),
   ).toHaveCount(0);
   await expect(
-    activePanel.getByRole("button", { name: "Pause hologram motion" }),
-  ).toHaveCount(2);
+    activePanel.getByRole("button", { name: /hologram motion/i }),
+  ).toHaveCount(0);
   const shopifyCards = activePanel.locator(".modal-story-cards").first();
   await expect(
     shopifyCards.locator(".modal-story-heading").first(),
@@ -297,7 +302,8 @@ test("modal reveal scrolls continuously and closes from keyboard or backdrop", a
     .toBe(0);
 
   await page.mouse.move(900, 120);
-  await page.mouse.wheel(0, revealTop * 4);
+  await wheelGesture(page);
+  await wheelGesture(page);
   await expect(
     page.getByRole("dialog", {
       name: "Portfolio sections",
@@ -311,7 +317,8 @@ test("modal reveal scrolls continuously and closes from keyboard or backdrop", a
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.mouse.move(900, 120);
-  await page.mouse.wheel(0, revealTop * 4);
+  await wheelGesture(page);
+  await wheelGesture(page);
   await expect(
     page.getByRole("dialog", {
       name: "Portfolio sections",

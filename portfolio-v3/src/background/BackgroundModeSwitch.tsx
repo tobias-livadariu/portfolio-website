@@ -120,6 +120,11 @@ export default function BackgroundModeSwitch({
                     requestMode(option.mode, getSeedPoint());
                   }
                   setIsOpen(false);
+                  /* Do not leave focus inside the collapsing absolute panel.
+                     WebKit and Firefox may scroll the nearest container to
+                     retain that focused element, which can cross the modal's
+                     reveal threshold. */
+                  buttonRef.current?.focus({ preventScroll: true });
                 }}
                 role="menuitemradio"
                 type="button"

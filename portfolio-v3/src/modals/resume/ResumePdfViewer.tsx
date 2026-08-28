@@ -184,15 +184,29 @@ function ResumePdfViewer({ src }: Props) {
       }
     };
 
-    const observer = new ResizeObserver(() => {
+    const handleResize = () => {
       void renderAll();
-    });
-    observer.observe(container);
+    };
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(handleResize);
+
+    if (observer) {
+      observer.observe(container);
+    } else {
+      /* Older embedded web views may not expose ResizeObserver. Render once
+         immediately and retain viewport-resize support instead of leaving the
+         resume permanently stuck in its loading state. */
+      handleResize();
+      window.addEventListener("resize", handleResize);
+    }
 
     return () => {
       cancelled = true;
       activeTasks.forEach((task) => task.cancel());
-      observer.disconnect();
+      observer?.disconnect();
+      window.removeEventListener("resize", handleResize);
       void loadingTask?.destroy();
     };
   }, [src]);

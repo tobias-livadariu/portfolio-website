@@ -35,6 +35,7 @@
   width: 100%;
   height: 100%;
   margin-bottom: -100vh;
+  margin-bottom: -100dvh;
   pointer-events: auto;
 }
 
@@ -96,6 +97,7 @@
   position: relative;
   z-index: 2;
   height: calc(100vh + var(--modal-home-offset));
+  height: calc(100dvh + var(--modal-home-offset));
 }
 
 .modal-scroll-stack {
@@ -284,6 +286,9 @@
 }
 
 .modal-terminal {
+  /* `hidden` keeps the terminal clipped in older clients that do not support
+     the non-scrolling `clip` overflow value. */
+  overflow: hidden;
   overflow: clip;
   padding: clamp(0.8rem, 1.45vw, 1.18rem);
   background: var(--dragon-bg-dim);
@@ -491,28 +496,6 @@
   width: 100% !important;
   height: 100% !important;
   min-height: 0;
-}
-
-.modal-story-motion-toggle {
-  position: absolute;
-  right: 0.5ch;
-  bottom: 0.25em;
-  z-index: 2;
-  padding: 0;
-  color: color-mix(in srgb, var(--story-primary) 68%, var(--dragon-comment));
-  font: inherit;
-  font-size: 0.72em;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  opacity: 0.82;
-}
-
-.modal-story-motion-toggle:hover,
-.modal-story-motion-toggle:focus-visible {
-  color: var(--story-accent);
-  outline: none;
-  opacity: 1;
 }
 
 .modal-story-cards {

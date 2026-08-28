@@ -635,7 +635,9 @@ function IncomingContent({
  */
 export default function IncomingSection() {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [isOnScreen, setIsOnScreen] = useState(false);
+  const [isOnScreen, setIsOnScreen] = useState(
+    () => typeof IntersectionObserver === "undefined",
+  );
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number>();
   const fallbackAspectRatio =
     INCOMING_SCENE_TUNING.fallbackLayoutAspectRatio /
@@ -652,6 +654,10 @@ export default function IncomingSection() {
     const wrapper = wrapperRef.current;
 
     if (!wrapper) {
+      return;
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
       return;
     }
 
