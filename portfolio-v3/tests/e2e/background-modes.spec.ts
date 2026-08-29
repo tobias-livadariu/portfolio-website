@@ -191,7 +191,9 @@ test("starfield and modal selectors share one responsive option scale", async ({
       (railOptionBounds?.height ?? 0) - (modalOptionBounds?.height ?? 0),
     ),
   ).toBeLessThan(0.75);
-  await expect(activePanel.locator(".modal-render-trigger-label")).toBeHidden();
+  await expect(
+    activePanel.locator(".modal-render-trigger-label"),
+  ).toBeVisible();
   await expect(
     activePanel.locator(".modal-render-trigger-value"),
   ).toBeVisible();
@@ -199,6 +201,57 @@ test("starfield and modal selectors share one responsive option scale", async ({
     Math.max(fileBounds?.y ?? 0, controlsBounds?.y ?? 0) +
       Math.max(fileBounds?.height ?? 0, controlsBounds?.height ?? 0),
   );
+
+  await page.setViewportSize({ height: 720, width: 520 });
+  await expect(
+    activePanel.locator(".modal-render-trigger-label"),
+  ).toBeVisible();
+  await expect(
+    activePanel.locator(".modal-render-trigger-leader"),
+  ).toBeHidden();
+  await expect(activePanel.locator(".modal-render-trigger-value")).toBeHidden();
+
+  await page.setViewportSize({ height: 720, width: 400 });
+  await expect(activePanel.locator(".modal-render-trigger-label")).toBeHidden();
+  await expect(
+    activePanel.locator(".modal-render-trigger-value"),
+  ).toBeVisible();
+});
+
+test("closing the modal also closes its persistent render menu", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const trigger = page.locator(".modal-render-trigger");
+  const menu = page.locator(".modal-render-panel");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(page.locator(".modal-render-menu")).toHaveAttribute(
+    "data-motion",
+    "idle",
+  );
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+  await page.locator(".modal-quit-button").first().click();
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeLessThanOrEqual(1);
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(page.locator(".modal-render-menu")).toHaveAttribute(
+    "data-motion",
+    "idle",
+  );
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(menu).not.toHaveAttribute("data-open");
 });
 
 test("one open render menu follows the topmost modal header", async ({

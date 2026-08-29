@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useId, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useRef } from "react";
 import { useBackgroundMode } from "./background-mode-core";
 import RenderModeArt from "./RenderModeArt";
 import { RENDER_MODE_OPTIONS } from "./render-mode.constants";
@@ -17,13 +17,16 @@ import { useRenderModeRequest } from "./use-render-mode-request";
  * so this instance retains its open state as the reader changes documents.
  */
 function ModalRenderModeMenu({
+  isMenuRequested,
   motion,
+  onMenuRequestedChange,
 }: {
+  isMenuRequested: boolean;
   motion: "idle" | "leaving" | "entering" | "revealing";
+  onMenuRequestedChange: (isRequested: boolean) => void;
 }) {
   const { isTransitioning, targetMode, visualMode } = useBackgroundMode();
   const requestRenderMode = useRenderModeRequest();
-  const [isMenuRequested, setIsMenuRequested] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -38,7 +41,7 @@ function ModalRenderModeMenu({
 
     const handlePointerDown = (event: PointerEvent) => {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setIsMenuRequested(false);
+        onMenuRequestedChange(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -46,7 +49,7 @@ function ModalRenderModeMenu({
         /* Beat ModalLayer's global Escape handler: closing the menu should not
            also close the section the reader is in. */
         event.stopPropagation();
-        setIsMenuRequested(false);
+        onMenuRequestedChange(false);
         triggerRef.current?.focus({ preventScroll: true });
       }
     };
@@ -58,18 +61,18 @@ function ModalRenderModeMenu({
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [isOpen]);
+  }, [isOpen, onMenuRequestedChange]);
 
   const handleSelect = useCallback(
     (mode: (typeof RENDER_MODE_OPTIONS)[number]["mode"]) => {
-      setIsMenuRequested(false);
+      onMenuRequestedChange(false);
       /* Drop focus before the unscroll: WebKit and Firefox will scroll a
          container to keep a focused descendant in view, which fights the
          programmatic return to the starfield. */
       triggerRef.current?.blur();
       requestRenderMode(mode);
     },
-    [requestRenderMode],
+    [onMenuRequestedChange, requestRenderMode],
   );
 
   return (
@@ -87,7 +90,7 @@ function ModalRenderModeMenu({
           disabled={isTransitioning}
           onClick={(event) => {
             event.stopPropagation();
-            setIsMenuRequested((value) => !value);
+            onMenuRequestedChange(!isMenuRequested);
           }}
           ref={triggerRef}
           type="button"

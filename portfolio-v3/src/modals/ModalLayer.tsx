@@ -159,6 +159,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   const renderMenuTargetRef = useRef<ModalSectionKey | null>(null);
   const [renderMenuMotion, setRenderMenuMotion] =
     useState<RenderMenuMotion>("idle");
+  const [isRenderMenuRequested, setIsRenderMenuRequested] = useState(false);
   const renderMenuMotionRef = useRef<RenderMenuMotion>("idle");
   const renderMenuTimeoutRef = useRef<number | null>(null);
   const renderMenuPlacementFrameRef = useRef<number | null>(null);
@@ -432,6 +433,10 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     syncRenderMenuOwnership();
 
     if (scrollRoot.scrollTop <= 1) {
+      /* The persistent portal survives outside the visible modal stack; its
+         dropdown state should not. A manual return home is a real close just
+         like [q], Escape, or a backdrop click. */
+      setIsRenderMenuRequested(false);
       currentSectionRef.current = null;
       setActiveSection(null);
       updateIsOpen(false);
@@ -574,6 +579,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   }, [navigationRequest, updateIsOpen]);
 
   const requestClose = useCallback(() => {
+    setIsRenderMenuRequested(false);
     close();
   }, [close]);
 
@@ -747,7 +753,11 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
           </div>
         </div>
         {createPortal(
-          <ModalRenderModeMenu motion={renderMenuMotion} />,
+          <ModalRenderModeMenu
+            isMenuRequested={isRenderMenuRequested}
+            motion={renderMenuMotion}
+            onMenuRequestedChange={setIsRenderMenuRequested}
+          />,
           renderMenuHost,
         )}
       </div>
