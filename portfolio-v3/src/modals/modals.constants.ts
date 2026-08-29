@@ -23,6 +23,12 @@ export const MODAL_SCROLL = {
   maxBackdropOpacity: 0.72,
 } as const;
 
+/* One knob for both a normal render-dropdown opening and the complete
+   retract-then-reveal handoff between sticky modal headers. */
+export const MODAL_RENDER_MENU_TIMING = {
+  openMs: 220,
+} as const;
+
 export const DRAGON_LUCY = {
   bg: "#181616",
   bgDim: "#121111",

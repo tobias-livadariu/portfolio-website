@@ -75,7 +75,7 @@ export default function BackgroundModeSwitch() {
             return (
               <button
                 aria-pressed={isActive}
-                className="rm-tile"
+                className="rm-mode-option rm-tile"
                 data-active={isActive ? "true" : undefined}
                 data-mode={option.mode}
                 /* Also removes the tile from the tab order while the rail is

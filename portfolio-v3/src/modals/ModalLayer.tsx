@@ -1,5 +1,14 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ComponentType, CSSProperties, ReactNode } from "react";
+import { createPortal } from "react-dom";
 import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
 import ModalRenderModeMenu from "../background/ModalRenderModeMenu";
 import AboutModal from "./about/AboutModal";
@@ -11,6 +20,7 @@ import { useModalController } from "./modal-context-core";
 import { registerModalScrollRoot } from "./modal-scroll-controller";
 import {
   MODAL_SCROLL,
+  MODAL_RENDER_MENU_TIMING,
   MODAL_SECTIONS,
   MODAL_SECTION_KEYS,
   getModalIndex,
@@ -25,12 +35,21 @@ const SECTION_COMPONENTS: Record<ModalSectionKey, ComponentType> = {
   contactMe: ContactModal,
 };
 
+const RENDER_MENU_HANDOFF_PHASE_MS = MODAL_RENDER_MENU_TIMING.openMs / 2;
+
+type RenderMenuMotion = "idle" | "leaving" | "entering" | "revealing";
+
 interface ModalPanelProps {
   Section: ComponentType;
   isActive: boolean;
   isLast: boolean;
+  ownsRenderMenu: boolean;
   onClose: () => void;
   onOpenSection: (section: ModalSectionKey) => void;
+  registerRenderMenuSlot: (
+    key: ModalSectionKey,
+    element: HTMLDivElement | null,
+  ) => void;
   registerRef: (key: ModalSectionKey, element: HTMLElement | null) => void;
   sectionKey: ModalSectionKey;
   sectionLabel: string;
@@ -41,8 +60,10 @@ const ModalPanel = memo(function ModalPanel({
   Section,
   isActive,
   isLast,
+  ownsRenderMenu,
   onClose,
   onOpenSection,
+  registerRenderMenuSlot,
   registerRef,
   sectionKey,
   sectionLabel,
@@ -52,12 +73,18 @@ const ModalPanel = memo(function ModalPanel({
     (element: HTMLElement | null) => registerRef(sectionKey, element),
     [registerRef, sectionKey],
   );
+  const setRenderMenuSlotRef = useCallback(
+    (element: HTMLDivElement | null) =>
+      registerRenderMenuSlot(sectionKey, element),
+    [registerRenderMenuSlot, sectionKey],
+  );
 
   return (
     <section
       aria-label={`${sectionLabel} section`}
       className="modal-panel"
       data-active={isActive ? "true" : undefined}
+      data-render-menu-owner={ownsRenderMenu ? "true" : undefined}
       ref={setRef}
     >
       <div className="modal-panel-frame">
@@ -84,7 +111,10 @@ const ModalPanel = memo(function ModalPanel({
               ))}
             </nav>
             <div className="modal-toolbar-right">
-              <ModalRenderModeMenu />
+              <div
+                className="modal-render-menu-slot"
+                ref={setRenderMenuSlotRef}
+              />
               <button
                 aria-label="Close section"
                 className="modal-quit-button"
@@ -123,12 +153,170 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   const [activeSection, setActiveSection] = useState<ModalSectionKey | null>(
     null,
   );
+  const [renderMenuSection, setRenderMenuSection] =
+    useState<ModalSectionKey | null>(null);
+  const renderMenuSectionRef = useRef<ModalSectionKey | null>(null);
+  const renderMenuTargetRef = useRef<ModalSectionKey | null>(null);
+  const [renderMenuMotion, setRenderMenuMotion] =
+    useState<RenderMenuMotion>("idle");
+  const renderMenuMotionRef = useRef<RenderMenuMotion>("idle");
+  const renderMenuTimeoutRef = useRef<number | null>(null);
+  const renderMenuPlacementFrameRef = useRef<number | null>(null);
+  const renderMenuRevealFrameRef = useRef<number | null>(null);
+  const [renderMenuHost] = useState(() => {
+    const element = document.createElement("div");
+
+    element.className = "modal-render-menu-host";
+    return element;
+  });
   const sectionOffsetsRef = useRef<Partial<Record<ModalSectionKey, number>>>(
     {},
   );
   const scrollRootHeightRef = useRef(0);
   const sectionRefs = useRef<Partial<Record<ModalSectionKey, HTMLElement>>>({});
+  const renderMenuSlotRefs = useRef<
+    Partial<Record<ModalSectionKey, HTMLDivElement>>
+  >({});
   const sections = useMemo(() => MODAL_SECTIONS, []);
+
+  const cancelRenderMenuMotion = useCallback(() => {
+    if (renderMenuTimeoutRef.current !== null) {
+      window.clearTimeout(renderMenuTimeoutRef.current);
+      renderMenuTimeoutRef.current = null;
+    }
+    if (renderMenuPlacementFrameRef.current !== null) {
+      window.cancelAnimationFrame(renderMenuPlacementFrameRef.current);
+      renderMenuPlacementFrameRef.current = null;
+    }
+    if (renderMenuRevealFrameRef.current !== null) {
+      window.cancelAnimationFrame(renderMenuRevealFrameRef.current);
+      renderMenuRevealFrameRef.current = null;
+    }
+  }, []);
+
+  const scheduleRenderMenuReveal = useCallback(() => {
+    renderMenuPlacementFrameRef.current = window.requestAnimationFrame(() => {
+      renderMenuPlacementFrameRef.current = null;
+      renderMenuRevealFrameRef.current = window.requestAnimationFrame(() => {
+        renderMenuRevealFrameRef.current = null;
+        renderMenuMotionRef.current = "revealing";
+        setRenderMenuMotion("revealing");
+      });
+    });
+  }, []);
+
+  /* Start the reveal clock only after React has committed the visible phase.
+     This prevents a busy WebGL frame from batching `revealing` and `idle`
+     together and skipping the CSS transition entirely. */
+  useEffect(() => {
+    if (renderMenuMotion !== "revealing") {
+      return;
+    }
+
+    renderMenuTimeoutRef.current = window.setTimeout(() => {
+      renderMenuTimeoutRef.current = null;
+      renderMenuMotionRef.current = "idle";
+      setRenderMenuMotion("idle");
+    }, RENDER_MENU_HANDOFF_PHASE_MS);
+
+    return () => {
+      if (renderMenuTimeoutRef.current !== null) {
+        window.clearTimeout(renderMenuTimeoutRef.current);
+        renderMenuTimeoutRef.current = null;
+      }
+    };
+  }, [renderMenuMotion]);
+
+  /* Start each ownership change by retracting the current control. The host
+     moves only after that motion completes, so it appears to pass behind [q]
+     instead of jumping directly between two sticky headers. */
+  const updateRenderMenuSection = useCallback(
+    (section: ModalSectionKey | null) => {
+      if (renderMenuTargetRef.current === section) {
+        return;
+      }
+
+      renderMenuTargetRef.current = section;
+      cancelRenderMenuMotion();
+
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        renderMenuSectionRef.current = section;
+        renderMenuMotionRef.current = "idle";
+        setRenderMenuSection(section);
+        setRenderMenuMotion("idle");
+        return;
+      }
+
+      const currentSection = renderMenuSectionRef.current;
+
+      if (currentSection === section) {
+        if (section !== null && renderMenuMotionRef.current !== "idle") {
+          renderMenuMotionRef.current = "entering";
+          setRenderMenuMotion("entering");
+          scheduleRenderMenuReveal();
+        }
+        return;
+      }
+
+      if (currentSection === null) {
+        renderMenuSectionRef.current = section;
+        setRenderMenuSection(section);
+
+        if (section !== null) {
+          renderMenuMotionRef.current = "entering";
+          setRenderMenuMotion("entering");
+          scheduleRenderMenuReveal();
+        }
+        return;
+      }
+
+      renderMenuMotionRef.current = "leaving";
+      setRenderMenuMotion("leaving");
+      renderMenuTimeoutRef.current = window.setTimeout(() => {
+        renderMenuTimeoutRef.current = null;
+        const nextSection = renderMenuTargetRef.current;
+
+        renderMenuSectionRef.current = nextSection;
+        setRenderMenuSection(nextSection);
+
+        if (nextSection === null) {
+          renderMenuMotionRef.current = "idle";
+          setRenderMenuMotion("idle");
+          return;
+        }
+
+        renderMenuMotionRef.current = "entering";
+        setRenderMenuMotion("entering");
+        scheduleRenderMenuReveal();
+      }, RENDER_MENU_HANDOFF_PHASE_MS);
+    },
+    [cancelRenderMenuMotion, scheduleRenderMenuReveal],
+  );
+
+  /* The portal target never changes, so ModalRenderModeMenu remains one React
+     instance. Moving its host node between header slots preserves open state,
+     focus bookkeeping, and the pending/current render-mode readout. */
+  useLayoutEffect(() => {
+    const slot = renderMenuSection
+      ? renderMenuSlotRefs.current[renderMenuSection]
+      : null;
+
+    if (slot) {
+      if (renderMenuHost.parentElement !== slot) {
+        slot.append(renderMenuHost);
+      }
+    } else {
+      renderMenuHost.remove();
+    }
+  }, [renderMenuHost, renderMenuSection]);
+
+  useEffect(
+    () => () => {
+      cancelRenderMenuMotion();
+      renderMenuHost.remove();
+    },
+    [cancelRenderMenuMotion, renderMenuHost],
+  );
 
   useEffect(() => {
     isOpenRef.current = isOpen;
@@ -195,6 +383,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     if (scrollRoot.scrollTop <= 1) {
       currentSectionRef.current = null;
       setActiveSection(null);
+      updateRenderMenuSection(null);
       updateIsOpen(false);
       return;
     }
@@ -204,8 +393,38 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     if (scrollRoot.scrollTop < revealDistance) {
       currentSectionRef.current = null;
       setActiveSection(null);
+      updateRenderMenuSection(null);
       return;
     }
+
+    /* Sticky headers overlap during the handoff between documents. Menu
+       ownership belongs to the first header that is still visible from the
+       top of the real scroll root, not the deeper reading-position probe used
+       to update navigation state below. */
+    const scrollRootRect = scrollRoot.getBoundingClientRect();
+    let topmostVisibleSection: ModalSectionKey | null = null;
+
+    for (const section of sections) {
+      const chrome = sectionRefs.current[section.key]?.querySelector(
+        ".modal-panel-chrome",
+      );
+
+      if (!(chrome instanceof HTMLElement)) {
+        continue;
+      }
+
+      const chromeRect = chrome.getBoundingClientRect();
+
+      if (
+        chromeRect.bottom > scrollRootRect.top + 1 &&
+        chromeRect.top < scrollRootRect.bottom
+      ) {
+        topmostVisibleSection = section.key;
+        break;
+      }
+    }
+
+    updateRenderMenuSection(topmostVisibleSection);
 
     const maxScrollTop = Math.max(
       0,
@@ -233,7 +452,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
 
     currentSectionRef.current = nextActiveSection;
     setActiveSection(nextActiveSection);
-  }, [sections, updateIsOpen]);
+  }, [sections, updateIsOpen, updateRenderMenuSection]);
 
   const scheduleScrollSync = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -434,11 +653,24 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     [],
   );
 
+  const registerRenderMenuSlot = useCallback(
+    (key: ModalSectionKey, element: HTMLDivElement | null) => {
+      if (element) {
+        renderMenuSlotRefs.current[key] = element;
+      } else {
+        delete renderMenuSlotRefs.current[key];
+      }
+    },
+    [],
+  );
+
   const layerStyle = useMemo(
     () =>
       ({
         "--modal-home-offset": `${MODAL_SCROLL.homeOffsetVh}vh`,
         "--modal-section-gap": `${MODAL_SCROLL.sectionGapVh}vh`,
+        "--modal-render-open-duration": `${MODAL_RENDER_MENU_TIMING.openMs}ms`,
+        "--modal-render-handoff-phase-duration": `${RENDER_MENU_HANDOFF_PHASE_MS}ms`,
       }) as CSSProperties,
     [],
   );
@@ -480,8 +712,10 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
                   isActive={activeSection === section.key}
                   isLast={index === sections.length - 1}
                   key={section.key}
+                  ownsRenderMenu={renderMenuSection === section.key}
                   onClose={requestClose}
                   onOpenSection={openSection}
+                  registerRenderMenuSlot={registerRenderMenuSlot}
                   registerRef={registerSectionRef}
                   sectionKey={section.key}
                   sectionLabel={section.label}
@@ -491,6 +725,10 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
             })}
           </div>
         </div>
+        {createPortal(
+          <ModalRenderModeMenu motion={renderMenuMotion} />,
+          renderMenuHost,
+        )}
       </div>
     </>
   );

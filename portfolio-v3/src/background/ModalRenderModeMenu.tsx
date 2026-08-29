@@ -8,15 +8,19 @@ import { useRenderModeRequest } from "./use-render-mode-request";
  * Render-mode control for the sticky modal toolbar.
  *
  * The starfield rail scrolls away with the backdrop, so the modals carry their
- * own copy between the section tabs and the quit button. Selecting a mode here
- * unscrolls to the starfield first — see useRenderModeRequest — so the reveal
- * always plays against the scene it is actually changing.
+ * carry one persistent control between the section tabs and the quit button.
+ * Selecting a mode here unscrolls to the starfield first — see
+ * useRenderModeRequest — so the reveal always plays against the scene it is
+ * actually changing.
  *
- * Memoised because one instance is mounted per modal panel and the panels
- * re-render as the reader scrolls between sections; the menu takes no props,
- * so it only ever needs to re-render for its own state.
+ * ModalLayer moves the component's stable portal host between sticky headers,
+ * so this instance retains its open state as the reader changes documents.
  */
-function ModalRenderModeMenu() {
+function ModalRenderModeMenu({
+  motion,
+}: {
+  motion: "idle" | "leaving" | "entering" | "revealing";
+}) {
   const { isTransitioning, targetMode, visualMode } = useBackgroundMode();
   const requestRenderMode = useRenderModeRequest();
   const [isMenuRequested, setIsMenuRequested] = useState(false);
@@ -69,34 +73,36 @@ function ModalRenderModeMenu() {
   );
 
   return (
-    <div className="modal-render-menu" ref={rootRef}>
-      {/* Deliberately borderless: "render:" mirrors the toolbar's own
-          "File: about.modal" label and the bracketed value mirrors [q], so the
-          control reads as another field of the header rather than a widget
-          dropped on top of it. */}
-      <button
-        aria-controls={panelId}
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
-        className="modal-render-trigger"
-        data-open={isOpen ? "true" : undefined}
-        disabled={isTransitioning}
-        onClick={(event) => {
-          event.stopPropagation();
-          setIsMenuRequested((value) => !value);
-        }}
-        ref={triggerRef}
-        type="button"
-      >
-        <span className="modal-render-trigger-label">render:</span>
-        <span className="modal-render-trigger-value">
-          [{visualMode.toUpperCase()}
-          <span aria-hidden="true" className="modal-render-trigger-caret">
-            {isOpen ? "^" : "v"}
+    <div className="modal-render-menu" data-motion={motion} ref={rootRef}>
+      {/* The method-like label and dotted frame preserve the toolbar's terminal
+          syntax while making this field read as an action, not a status label. */}
+      <div className="modal-render-trigger-motion">
+        <button
+          aria-controls={panelId}
+          aria-expanded={isOpen}
+          aria-haspopup="menu"
+          aria-label={`Change background render mode. Current mode ${visualMode.toUpperCase()}`}
+          className="modal-render-trigger"
+          data-open={isOpen ? "true" : undefined}
+          disabled={isTransitioning}
+          onClick={(event) => {
+            event.stopPropagation();
+            setIsMenuRequested((value) => !value);
+          }}
+          ref={triggerRef}
+          type="button"
+        >
+          <span className="modal-render-trigger-label">
+            RENDER.MODE.CHANGE()
           </span>
-          ]
-        </span>
-      </button>
+          <span aria-hidden="true" className="modal-render-trigger-leader">
+            \\
+          </span>
+          <span className="modal-render-trigger-value">
+            [{visualMode.toUpperCase()}]
+          </span>
+        </button>
+      </div>
       <div
         aria-label="Background render mode"
         className="modal-render-panel"
@@ -104,13 +110,13 @@ function ModalRenderModeMenu() {
         id={panelId}
         role="menu"
       >
-        {RENDER_MODE_OPTIONS.map((option, index) => {
+        {RENDER_MODE_OPTIONS.map((option) => {
           const isActive = targetMode === option.mode;
 
           return (
             <button
               aria-checked={isActive}
-              className="modal-render-option"
+              className="modal-render-option rm-mode-option"
               data-active={isActive ? "true" : undefined}
               data-mode={option.mode}
               disabled={isTransitioning}
@@ -123,22 +129,14 @@ function ModalRenderModeMenu() {
               tabIndex={isOpen ? undefined : -1}
               type="button"
             >
-              <span aria-hidden="true" className="modal-render-option-index">
-                {String(index).padStart(2, "0")}
-              </span>
               <RenderModeArt mode={option.mode} />
-              <span className="modal-render-option-copy">
-                <strong>
-                  <span aria-hidden="true" className="rm-tile-sigil">
-                    {option.sigil}
-                  </span>
-                  {option.label}
-                </strong>
-                <small>{option.blurb}</small>
+              <span className="rm-tile-name">
+                <span aria-hidden="true" className="rm-tile-sigil">
+                  {option.sigil}
+                </span>
+                {option.label}
               </span>
-              <span aria-hidden="true" className="modal-render-option-marker">
-                {isActive ? "[X]" : "[ ]"}
-              </span>
+              <span aria-hidden="true" className="rm-tile-underline" />
             </button>
           );
         })}

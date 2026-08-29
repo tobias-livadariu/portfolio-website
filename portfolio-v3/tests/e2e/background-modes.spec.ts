@@ -30,15 +30,72 @@ async function chooseModeFromModal(page: Page, mode: RenderMode) {
   const trigger = page.locator(".modal-render-trigger").first();
 
   await trigger.click();
-  const option = page.locator(
-    `.modal-render-panel[data-open="true"] .modal-render-option[data-mode="${mode}"]`,
-  );
+  const panel = page.locator('.modal-render-panel[data-open="true"]');
+  const option = panel.locator(`.modal-render-option[data-mode="${mode}"]`);
+
+  await expect(panel.locator(".modal-render-option")).toHaveCount(3);
+  await expect(
+    panel.locator(
+      ".modal-render-option-index, .modal-render-option-copy, .modal-render-option-marker",
+    ),
+  ).toHaveCount(0);
+  await expect(option.locator(":scope > .rm-art")).toHaveCount(1);
+  await expect(option.locator(":scope > .rm-tile-name")).toHaveCount(1);
+  await expect(option.locator(":scope > .rm-tile-underline")).toHaveCount(1);
   await expect(option).toBeVisible();
   await option.click();
 }
 
 function currentModeLabel(page: Page) {
   return page.locator(".rm-rail-value");
+}
+
+function countConnectedGlyphClusters(text: string, glyph: string) {
+  const remaining = new Set<string>();
+
+  text.split("\n").forEach((row, y) => {
+    Array.from(row).forEach((character, x) => {
+      if (character === glyph) {
+        remaining.add(`${x},${y}`);
+      }
+    });
+  });
+
+  let clusterCount = 0;
+
+  while (remaining.size > 0) {
+    clusterCount += 1;
+    const first = remaining.values().next().value;
+
+    if (first === undefined) {
+      break;
+    }
+
+    remaining.delete(first);
+    const pending = [first];
+
+    while (pending.length > 0) {
+      const point = pending.pop();
+
+      if (point === undefined) {
+        continue;
+      }
+
+      const [x, y] = point.split(",").map(Number);
+
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+          const neighbour = `${x + offsetX},${y + offsetY}`;
+
+          if (remaining.delete(neighbour)) {
+            pending.push(neighbour);
+          }
+        }
+      }
+    }
+  }
+
+  return clusterCount;
 }
 
 function createSeededRandom(seed: number) {
@@ -56,20 +113,204 @@ function createSeededRandom(seed: number) {
 test("render control remains inside a compact dynamic viewport", async ({
   page,
 }) => {
-  const viewport = { height: 664, width: 390 };
+  const viewport = { height: 568, width: 320 };
 
   await page.setViewportSize(viewport);
   await page.goto("/");
 
-  const bounds = await page.locator(".rm-rail").boundingBox();
+  const rail = page.locator(".rm-rail");
+  const bounds = await rail.boundingBox();
+  const overflow = await rail.evaluate(
+    (element) => element.scrollWidth - element.clientWidth,
+  );
 
   expect(bounds).not.toBeNull();
+  expect(overflow).toBeLessThanOrEqual(1);
   expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(
     viewport.height,
   );
   expect(bounds?.y ?? 0).toBeGreaterThan(0);
   expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(
     viewport.width,
+  );
+});
+
+test("starfield and modal selectors share one responsive option scale", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 920 });
+  await page.goto("/");
+
+  const railOption = page.locator('.rm-tile[data-mode="3d"]');
+  const railOptionBounds = await railOption.boundingBox();
+  const railArt = await railOption.locator(".rm-art").boundingBox();
+  const scrollRoot = page.locator(".modal-scroll-root");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ top: window.innerHeight * 2.2 }),
+  );
+
+  const activePanel = page.locator('.modal-panel[data-active="true"]');
+  const trigger = activePanel.locator(".modal-render-trigger");
+
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await page.waitForTimeout(250);
+
+  const modalOption = activePanel.locator(
+    '.modal-render-option[data-mode="3d"]',
+  );
+  const modalOptionBounds = await modalOption.boundingBox();
+  const modalArt = await modalOption.locator(".rm-art").boundingBox();
+  const fileBounds = await activePanel
+    .locator(".modal-file-label")
+    .boundingBox();
+  const tabsBounds = await activePanel
+    .locator(".modal-section-tabs")
+    .boundingBox();
+  const controlsBounds = await activePanel
+    .locator(".modal-toolbar-right")
+    .boundingBox();
+
+  expect(railArt).not.toBeNull();
+  expect(modalArt).not.toBeNull();
+  expect(railOptionBounds).not.toBeNull();
+  expect(modalOptionBounds).not.toBeNull();
+  expect(Math.abs((railArt?.width ?? 0) - (modalArt?.width ?? 0))).toBeLessThan(
+    0.75,
+  );
+  expect(
+    Math.abs((railArt?.height ?? 0) - (modalArt?.height ?? 0)),
+  ).toBeLessThan(0.75);
+  expect(
+    Math.abs((railOptionBounds?.width ?? 0) - (modalOptionBounds?.width ?? 0)),
+  ).toBeLessThan(0.75);
+  expect(
+    Math.abs(
+      (railOptionBounds?.height ?? 0) - (modalOptionBounds?.height ?? 0),
+    ),
+  ).toBeLessThan(0.75);
+  await expect(activePanel.locator(".modal-render-trigger-label")).toBeHidden();
+  await expect(
+    activePanel.locator(".modal-render-trigger-value"),
+  ).toBeVisible();
+  expect(tabsBounds?.y ?? 0).toBeGreaterThanOrEqual(
+    Math.max(fileBounds?.y ?? 0, controlsBounds?.y ?? 0) +
+      Math.max(fileBounds?.height ?? 0, controlsBounds?.height ?? 0),
+  );
+});
+
+test("one open render menu follows the topmost modal header", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const panels = page.locator(".modal-panel");
+  const aboutPanel = panels.nth(0);
+  const resumePanel = panels.nth(1);
+  const trigger = page.locator(".modal-render-trigger");
+  const menu = page.locator(".modal-render-panel");
+  const motionRoot = page.locator(".modal-render-menu");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ top: window.innerHeight * 2.2 }),
+  );
+
+  await expect(trigger).toHaveCount(1);
+  await expect(trigger).toBeVisible();
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(resumePanel.locator(".modal-render-trigger")).toHaveCount(0);
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(menu).toHaveAttribute("data-open", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  /* Move the next document under the open menu without completing the sticky
+     header handoff. The menu must remain the topmost hit target there. */
+  const resumeBounds = await resumePanel.boundingBox();
+  const scrollRootBounds = await scrollRoot.boundingBox();
+
+  expect(resumeBounds).not.toBeNull();
+  expect(scrollRootBounds).not.toBeNull();
+
+  await scrollRoot.evaluate(
+    (element, offset) => element.scrollBy({ top: offset }),
+    (resumeBounds?.y ?? 0) - (scrollRootBounds?.y ?? 0) - 320,
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+
+  const overlayState = await page.evaluate(() => {
+    const owner = document.querySelector<HTMLElement>(
+      '.modal-panel[data-render-menu-owner="true"]',
+    );
+    const followingPanel = owner?.nextElementSibling;
+    const openMenu = document.querySelector<HTMLElement>(
+      '.modal-render-panel[data-open="true"]',
+    );
+
+    if (!(followingPanel instanceof HTMLElement) || !openMenu || !owner) {
+      return null;
+    }
+
+    const followingBounds = followingPanel.getBoundingClientRect();
+    const menuBounds = openMenu.getBoundingClientRect();
+    const overlapTop = Math.max(followingBounds.top, menuBounds.top);
+    const overlapBottom = Math.min(followingBounds.bottom, menuBounds.bottom);
+    const hitTarget = document.elementFromPoint(
+      menuBounds.left + 8,
+      overlapTop + Math.min(8, (overlapBottom - overlapTop) / 2),
+    );
+
+    return {
+      contain: getComputedStyle(owner).contain,
+      hasOverlap: overlapBottom > overlapTop,
+      hitMenu: openMenu.contains(hitTarget),
+      ownerZIndex: Number(getComputedStyle(owner).zIndex),
+      followingZIndex: Number(getComputedStyle(followingPanel).zIndex),
+    };
+  });
+
+  expect(overlayState).not.toBeNull();
+  expect(overlayState?.hasOverlap).toBe(true);
+  expect(overlayState?.hitMenu).toBe(true);
+  expect(overlayState?.contain).toBe("layout");
+  expect(overlayState?.ownerZIndex ?? 0).toBeGreaterThan(
+    overlayState?.followingZIndex ?? 0,
+  );
+
+  await motionRoot.evaluate((element) => {
+    element.setAttribute("data-motion-history", element.dataset.motion ?? "");
+    new MutationObserver(() => {
+      const history = element.getAttribute("data-motion-history") ?? "";
+
+      element.setAttribute(
+        "data-motion-history",
+        `${history},${element.dataset.motion ?? ""}`,
+      );
+    }).observe(element, {
+      attributeFilter: ["data-motion"],
+      attributes: true,
+    });
+  });
+
+  await resumePanel.evaluate((element) =>
+    element.scrollIntoView({ block: "start" }),
+  );
+
+  await expect(resumePanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(aboutPanel).not.toHaveAttribute("data-render-menu-owner");
+  await expect(trigger).toHaveCount(1);
+  await expect(resumePanel.locator(".modal-render-trigger")).toHaveCount(1);
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(menu).toHaveAttribute("data-open", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+  await expect(motionRoot).toHaveAttribute(
+    "data-motion-history",
+    /leaving.*entering.*revealing/,
   );
 });
 
@@ -88,7 +329,7 @@ test("every render mode is offered without opening anything", async ({
   );
 });
 
-test("vault sigils preserve their one, two, three source count", async ({
+test("vault sigils preserve their one, two, three source clusters", async ({
   page,
 }) => {
   await page.goto("/");
@@ -102,7 +343,10 @@ test("vault sigils preserve their one, two, three source count", async ({
       .locator(`.rm-tile[data-mode="${mode}"] .rm-art`)
       .textContent();
 
-    expect(text?.match(/@/g) ?? []).toHaveLength(sourceCount);
+    /* At the high-resolution 63-by-33 field, a source occupies several cells.
+       Count connected markers so increased sampling cannot invalidate the
+       semantic one/two/three-source contract. */
+    expect(countConnectedGlyphClusters(text ?? "", "@")).toBe(sourceCount);
   }
 });
 
