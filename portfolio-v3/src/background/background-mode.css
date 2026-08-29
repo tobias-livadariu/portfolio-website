@@ -46,8 +46,7 @@
   box-shadow:
     inset 0 0 0 1px rgb(220 215 186 / 0.04),
     0 0 0 1px var(--dragon-black),
-    0 0.2em 0 0 var(--color-campfire-dark),
-    0 0.33em 0 0 var(--dragon-black),
+    0 0.31em 0 0 var(--color-campfire-dark),
     0 0.6em 1.7em rgb(0 0 0 / 0.62);
   opacity: 1;
   transform: translate(0, 0);
@@ -89,7 +88,7 @@
   height: 1px;
   background: repeating-linear-gradient(
     90deg,
-    var(--dragon-border-bright) 0 2px,
+    var(--dragon-comment) 0 2px,
     transparent 2px 5px
   );
 }
