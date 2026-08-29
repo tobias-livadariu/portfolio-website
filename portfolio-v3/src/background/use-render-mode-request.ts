@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { flushSync } from "react-dom";
 import {
+  BACKGROUND_TRANSITION,
   useBackgroundMode,
   type BackgroundMode,
   type SeedPoint,
@@ -30,27 +31,44 @@ function getFallbackSeedPoint(): SeedPoint {
  * Shared entry point for every render-mode control.
  *
  * From inside a modal the sequence is: freeze the pointer camera tilt, close
- * back to the starfield, wait for that scroll to land, then start the render
- * transition. Freezing first is what keeps a moving cursor from skewing the
- * scene while the page glides upward.
+ * back to the starfield, wait for that scroll to land, hold for the configured
+ * visual pause, then start the render transition. Freezing first is what keeps
+ * a moving cursor from skewing the scene while the page glides upward.
  */
 export function useRenderModeRequest() {
   const { close } = useModalController();
-  const { isTransitioning, requestMode, targetMode } = useBackgroundMode();
+  const {
+    isRenderModeInputLocked,
+    isTransitioning,
+    requestMode,
+    setRenderModeInputLocked,
+    targetMode,
+  } = useBackgroundMode();
   const isRunningRef = useRef(false);
   const sawTransitionRef = useRef(false);
   const fallbackTimerRef = useRef<number | null>(null);
+  const modalReturnPauseFrameRef = useRef<number | null>(null);
+  const modalReturnPauseTimerRef = useRef<number | null>(null);
 
   const releaseLock = useCallback(() => {
     if (fallbackTimerRef.current !== null) {
       window.clearTimeout(fallbackTimerRef.current);
       fallbackTimerRef.current = null;
     }
+    if (modalReturnPauseTimerRef.current !== null) {
+      window.clearTimeout(modalReturnPauseTimerRef.current);
+      modalReturnPauseTimerRef.current = null;
+    }
+    if (modalReturnPauseFrameRef.current !== null) {
+      window.cancelAnimationFrame(modalReturnPauseFrameRef.current);
+      modalReturnPauseFrameRef.current = null;
+    }
 
     isRunningRef.current = false;
     sawTransitionRef.current = false;
+    setRenderModeInputLocked(false);
     setPointerShiftLocked(false);
-  }, []);
+  }, [setRenderModeInputLocked]);
 
   /* Hold the tilt for the whole transition, then release on the way out. */
   useEffect(() => {
@@ -69,38 +87,79 @@ export function useRenderModeRequest() {
 
   return useCallback(
     (mode: BackgroundMode, getSeedPoint?: () => SeedPoint) => {
-      if (isRunningRef.current || isTransitioning || mode === targetMode) {
+      if (
+        isRunningRef.current ||
+        isRenderModeInputLocked ||
+        isTransitioning ||
+        mode === targetMode
+      ) {
         return;
       }
 
       isRunningRef.current = true;
       setPointerShiftLocked(true);
+      const isReturningFromModal = (getModalScrollRoot()?.scrollTop ?? 0) > 1;
 
       /* Only ask the modal layer to close when there is something to close.
          Requesting navigation while already at the starfield would mark the
          layer open without a following scroll event to correct it. */
-      if ((getModalScrollRoot()?.scrollTop ?? 0) > 1) {
+      if (isReturningFromModal) {
+        /* Lock the starfield rail before the close starts. A synchronous
+           commit removes the click target before the upward scroll can expose
+           it beneath the pointer. */
+        flushSync(() => setRenderModeInputLocked(true));
         close();
       }
 
       runWhenModalScrolledToTop(() => {
-        /* Commit the phase change inside the frame that saw the scroll land.
-           Left to React's own scheduling the overlay would mount a frame or
-           two later, which reads as a pause between the unscroll and the
-           transition. */
-        flushSync(() => {
-          requestMode(mode, getSeedPoint?.() ?? getFallbackSeedPoint());
-        });
+        const startTransition = () => {
+          modalReturnPauseTimerRef.current = null;
 
-        fallbackTimerRef.current = window.setTimeout(() => {
-          fallbackTimerRef.current = null;
+          /* Commit in the same task as the intentional pause ending. React's
+             normal scheduling should not add an accidental extra frame. */
+          flushSync(() => {
+            requestMode(mode, getSeedPoint?.() ?? getFallbackSeedPoint());
+          });
 
-          if (!sawTransitionRef.current) {
-            releaseLock();
-          }
-        }, LOCK_RELEASE_FALLBACK_MS);
+          fallbackTimerRef.current = window.setTimeout(() => {
+            fallbackTimerRef.current = null;
+
+            if (!sawTransitionRef.current) {
+              releaseLock();
+            }
+          }, LOCK_RELEASE_FALLBACK_MS);
+        };
+
+        if (
+          isReturningFromModal &&
+          BACKGROUND_TRANSITION.modalReturnPauseMs > 0
+        ) {
+          /* The final snap to zero happens before paint. Begin the pause on the
+             following frame so its full duration is visible against the
+             restored starfield in every browser engine. */
+          modalReturnPauseFrameRef.current = window.requestAnimationFrame(
+            () => {
+              modalReturnPauseFrameRef.current = null;
+              modalReturnPauseTimerRef.current = window.setTimeout(
+                startTransition,
+                BACKGROUND_TRANSITION.modalReturnPauseMs,
+              );
+            },
+          );
+          return;
+        }
+
+        startTransition();
       });
     },
-    [close, isTransitioning, releaseLock, requestMode, targetMode],
+    [
+      close,
+      isRenderModeInputLocked,
+      isTransitioning,
+      releaseLock,
+      requestMode,
+      setRenderModeInputLocked,
+      targetMode,
+    ],
   );
 }

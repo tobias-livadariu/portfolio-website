@@ -3,6 +3,7 @@ import {
   ASCII_GRAPH_TRANSITION,
   buildAsciiTransitionField,
 } from "../../src/background/ascii-graph-transition";
+import { BACKGROUND_TRANSITION } from "../../src/background/background-mode-core";
 import {
   getTwoDimensionalVisibleHeight,
   getTwoDimensionalWorldPerPixel,
@@ -811,13 +812,83 @@ test("the modal toolbar returns to the starfield before transitioning", async ({
   const scrollRoot = page.locator(".modal-scroll-root");
 
   await scrollRoot.evaluate((element) =>
-    element.scrollTo({ top: window.innerHeight * 2.2 }),
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
   );
   await expect
     .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
+  await expect(page.locator(".modal-render-menu")).toHaveAttribute(
+    "data-motion",
+    "idle",
+  );
+
+  await scrollRoot.evaluate((element) => {
+    const root = document.documentElement;
+
+    delete root.dataset.modalReturnLandedAt;
+    delete root.dataset.modalTransitionStartedAt;
+
+    element.addEventListener(
+      "scroll",
+      () => {
+        if (
+          element.scrollTop <= 0 &&
+          root.dataset.modalReturnLandedAt === undefined
+        ) {
+          root.dataset.modalReturnLandedAt = String(performance.now());
+        }
+      },
+      { passive: true },
+    );
+
+    new MutationObserver(() => {
+      if (
+        document.querySelector(".bg-transition-overlay") &&
+        root.dataset.modalTransitionStartedAt === undefined
+      ) {
+        root.dataset.modalTransitionStartedAt = String(performance.now());
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
 
   await chooseModeFromModal(page, "2d");
+
+  const starfieldRail = page.locator(".bg-mode-switch-anchor");
+  const starfieldTiles = starfieldRail.locator(".rm-tile");
+
+  await expect(starfieldRail).toHaveAttribute("data-input-locked", "true");
+  await expect(starfieldRail.locator(".rm-rail-options")).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await expect(starfieldTiles).toHaveCount(3);
+  await expect(starfieldRail.locator("button.rm-tile")).toHaveCount(0);
+
+  for (const tile of await starfieldTiles.all()) {
+    await expect(tile).toHaveAttribute("aria-disabled", "true");
+    await expect(tile).toHaveClass(/rm-tile-static/);
+  }
+
+  const selectedTileText = await starfieldTiles.first().evaluate((tile) => {
+    const selection = window.getSelection();
+    const range = document.createRange();
+
+    range.selectNodeContents(tile);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    const text = selection?.toString() ?? "";
+    selection?.removeAllRanges();
+
+    return text;
+  });
+  expect(selectedTileText.trim().length).toBeGreaterThan(0);
+
+  /* Even a programmatic click during the return cannot replace the mode that
+     initiated it. The static tile and shared request lock both protect this
+     interval. */
+  await starfieldRail
+    .locator('.rm-tile[data-mode="ascii"]')
+    .evaluate((tile: HTMLElement) => tile.click());
 
   /* The unscroll must complete before the transition covers the screen; the
      reveal would otherwise play against a modal rather than the scene. */
@@ -826,6 +897,28 @@ test("the modal toolbar returns to the starfield before transitioning", async ({
       timeout: 10_000,
     })
     .toBeLessThanOrEqual(1);
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Number(document.documentElement.dataset.modalReturnLandedAt) > 0 &&
+          Number(document.documentElement.dataset.modalTransitionStartedAt) > 0,
+      ),
+    )
+    .toBe(true);
+
+  const modalReturnTiming = await page.evaluate(() => ({
+    landedAt: Number(document.documentElement.dataset.modalReturnLandedAt),
+    startedAt: Number(
+      document.documentElement.dataset.modalTransitionStartedAt,
+    ),
+  }));
+
+  expect(modalReturnTiming.landedAt).toBeGreaterThan(0);
+  expect(
+    modalReturnTiming.startedAt - modalReturnTiming.landedAt,
+  ).toBeGreaterThanOrEqual(BACKGROUND_TRANSITION.modalReturnPauseMs - 25);
 
   await expect(page.locator(".bg-transition-overlay")).toHaveCount(0, {
     timeout: 20_000,

@@ -82,6 +82,15 @@
   transform: translateX(calc(100% + 3rem));
 }
 
+/* While a modal selection is returning to the starfield, the rail remains
+   readable/selectable but ceases to behave like an interactive control. */
+.bg-mode-switch-anchor[data-input-locked="true"] .rm-rail,
+.bg-mode-switch-anchor[data-input-locked="true"] .rm-mode-option,
+.bg-mode-switch-anchor[data-input-locked="true"] .rm-mode-option * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .rm-rail-head {
   display: flex;
   gap: 0.5em;
@@ -140,20 +149,20 @@
     transform 160ms ease;
 }
 
-.rm-mode-option:hover,
-.rm-mode-option:focus-visible {
+button.rm-mode-option:not(:disabled):hover,
+button.rm-mode-option:focus-visible {
   color: var(--dragon-cyan);
   background: var(--dragon-bg-highlight);
   border-color: var(--dragon-border-bright);
   outline: none;
 }
 
-.rm-tile:hover,
-.rm-tile:focus-visible {
+button.rm-tile:not(:disabled):hover,
+button.rm-tile:focus-visible {
   transform: translateY(-0.12em);
 }
 
-.rm-mode-option:focus-visible {
+button.rm-mode-option:focus-visible {
   border-color: var(--dragon-cyan);
 }
 
@@ -163,7 +172,8 @@
   border-color: var(--color-campfire);
 }
 
-.rm-mode-option:disabled {
+.rm-mode-option:disabled,
+.rm-mode-option[aria-disabled="true"] {
   cursor: default;
 }
 
@@ -211,8 +221,8 @@
   color: var(--dragon-comment);
 }
 
-.rm-mode-option:hover .rm-art,
-.rm-mode-option:focus-visible .rm-art {
+button.rm-mode-option:not(:disabled):hover .rm-art,
+button.rm-mode-option:focus-visible .rm-art {
   color: var(--dragon-cyan);
 }
 
