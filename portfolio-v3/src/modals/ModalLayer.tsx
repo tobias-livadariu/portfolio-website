@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import type { ComponentType, CSSProperties, ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
 import ModalRenderModeMenu from "../background/ModalRenderModeMenu";
 import AboutModal from "./about/AboutModal";
@@ -172,6 +172,9 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   const sectionOffsetsRef = useRef<Partial<Record<ModalSectionKey, number>>>(
     {},
   );
+  const renderMenuEndOffsetsRef = useRef<
+    Partial<Record<ModalSectionKey, number>>
+  >({});
   const scrollRootHeightRef = useRef(0);
   const sectionRefs = useRef<Partial<Record<ModalSectionKey, HTMLElement>>>({});
   const renderMenuSlotRefs = useRef<
@@ -356,13 +359,60 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
       const element = sectionRefs.current[section.key];
 
       if (element) {
-        sectionOffsetsRef.current[section.key] =
+        const offsetTop =
           scrollRoot.scrollTop +
           element.getBoundingClientRect().top -
           scrollRootRect.top;
+
+        sectionOffsetsRef.current[section.key] = offsetTop;
+
+        const chrome = element.querySelector(".modal-panel-chrome");
+
+        if (chrome instanceof HTMLElement) {
+          renderMenuEndOffsetsRef.current[section.key] =
+            offsetTop + element.offsetHeight - chrome.offsetHeight;
+        }
       }
     }
   }, [sections]);
+
+  const getTopmostVisibleSection = useCallback(() => {
+    const scrollRoot = scrollRootRef.current;
+
+    if (!scrollRoot || scrollRoot.scrollTop < getRevealDistancePx()) {
+      return null;
+    }
+
+    for (const section of sections) {
+      const endOffset = renderMenuEndOffsetsRef.current[section.key];
+
+      if (endOffset !== undefined && scrollRoot.scrollTop < endOffset - 1) {
+        return section.key;
+      }
+    }
+
+    return sections[sections.length - 1]?.key ?? null;
+  }, [sections]);
+
+  const syncRenderMenuOwnership = useCallback(
+    (commitImmediately = false) => {
+      const nextSection = getTopmostVisibleSection();
+
+      if (renderMenuTargetRef.current === nextSection) {
+        return;
+      }
+
+      if (commitImmediately) {
+        /* Ownership changes only at four document boundaries. Paying for one
+           synchronous commit there lets CSS begin the retraction in the same
+           scroll event instead of one or two rendered frames later. */
+        flushSync(() => updateRenderMenuSection(nextSection));
+      } else {
+        updateRenderMenuSection(nextSection);
+      }
+    },
+    [getTopmostVisibleSection, updateRenderMenuSection],
+  );
 
   const syncScrollState = useCallback(() => {
     const scrollRoot = scrollRootRef.current;
@@ -379,11 +429,11 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     const opacity = revealProgress * MODAL_SCROLL.maxBackdropOpacity;
 
     layer.style.setProperty("--modal-backdrop-opacity", opacity.toFixed(3));
+    syncRenderMenuOwnership();
 
     if (scrollRoot.scrollTop <= 1) {
       currentSectionRef.current = null;
       setActiveSection(null);
-      updateRenderMenuSection(null);
       updateIsOpen(false);
       return;
     }
@@ -393,38 +443,8 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     if (scrollRoot.scrollTop < revealDistance) {
       currentSectionRef.current = null;
       setActiveSection(null);
-      updateRenderMenuSection(null);
       return;
     }
-
-    /* Sticky headers overlap during the handoff between documents. Menu
-       ownership belongs to the first header that is still visible from the
-       top of the real scroll root, not the deeper reading-position probe used
-       to update navigation state below. */
-    const scrollRootRect = scrollRoot.getBoundingClientRect();
-    let topmostVisibleSection: ModalSectionKey | null = null;
-
-    for (const section of sections) {
-      const chrome = sectionRefs.current[section.key]?.querySelector(
-        ".modal-panel-chrome",
-      );
-
-      if (!(chrome instanceof HTMLElement)) {
-        continue;
-      }
-
-      const chromeRect = chrome.getBoundingClientRect();
-
-      if (
-        chromeRect.bottom > scrollRootRect.top + 1 &&
-        chromeRect.top < scrollRootRect.bottom
-      ) {
-        topmostVisibleSection = section.key;
-        break;
-      }
-    }
-
-    updateRenderMenuSection(topmostVisibleSection);
 
     const maxScrollTop = Math.max(
       0,
@@ -452,7 +472,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
 
     currentSectionRef.current = nextActiveSection;
     setActiveSection(nextActiveSection);
-  }, [sections, updateIsOpen, updateRenderMenuSection]);
+  }, [sections, syncRenderMenuOwnership, updateIsOpen]);
 
   const scheduleScrollSync = useCallback(() => {
     if (animationFrameRef.current !== null) {
@@ -621,8 +641,9 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   }, [openSection, requestClose]);
 
   const handleScroll = useCallback(() => {
+    syncRenderMenuOwnership(true);
     scheduleScrollSync();
-  }, [scheduleScrollSync]);
+  }, [scheduleScrollSync, syncRenderMenuOwnership]);
 
   const handleScrollRootClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {

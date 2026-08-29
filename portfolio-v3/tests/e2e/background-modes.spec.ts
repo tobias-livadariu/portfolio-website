@@ -297,9 +297,37 @@ test("one open render menu follows the topmost modal header", async ({
     });
   });
 
-  await resumePanel.evaluate((element) =>
-    element.scrollIntoView({ block: "start" }),
+  const motionDuringBoundaryScroll = await page.evaluate(
+    () =>
+      new Promise<string>((resolve) => {
+        const scrollRootElement = document.querySelector(".modal-scroll-root");
+        const resumeElement = document.querySelector(
+          '.modal-panel[aria-label="RESUME section"]',
+        );
+
+        if (!scrollRootElement || !(resumeElement instanceof HTMLElement)) {
+          resolve("missing");
+          return;
+        }
+
+        scrollRootElement.addEventListener(
+          "scroll",
+          () => {
+            queueMicrotask(() => {
+              resolve(
+                document
+                  .querySelector<HTMLElement>(".modal-render-menu")
+                  ?.getAttribute("data-motion") ?? "missing",
+              );
+            });
+          },
+          { once: true },
+        );
+        resumeElement.scrollIntoView({ block: "start" });
+      }),
   );
+
+  expect(motionDuringBoundaryScroll).toBe("leaving");
 
   await expect(resumePanel).toHaveAttribute("data-render-menu-owner", "true");
   await expect(aboutPanel).not.toHaveAttribute("data-render-menu-owner");
