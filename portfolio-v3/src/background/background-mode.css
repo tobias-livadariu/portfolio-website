@@ -182,7 +182,7 @@
      slightly tightened rows occupy the same physical extent, keeping the mark
      round and its glyphs large enough to read on the compact mobile rail. */
   font-family: var(--font-iosevka-term);
-  font-size: 0.417em;
+  font-size: 0.2875em;
   line-height: 0.955;
   white-space: pre;
 }

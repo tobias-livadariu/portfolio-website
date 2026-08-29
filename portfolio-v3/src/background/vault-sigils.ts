@@ -14,8 +14,8 @@ import { ASCII_DENSITY_RAMP } from "../utility/ascii-density-ramp";
  * climb the shared About-portrait density ramp and visibly interfere.
  */
 
-export const VAULT_SIGIL_COLUMNS = 21;
-export const VAULT_SIGIL_ROWS = 11;
+export const VAULT_SIGIL_COLUMNS = 63;
+export const VAULT_SIGIL_ROWS = 33;
 
 const VIEW = 1.08;
 const SUPERSAMPLES = 6;
