@@ -284,7 +284,8 @@
 }
 
 .modal-render-option .rm-art {
-  font-size: 0.3rem;
+  /* Keep the hot-rendered 21-by-11 field at the rail's ~60px artwork size. */
+  font-size: 0.357rem;
 }
 
 .modal-render-option-index,

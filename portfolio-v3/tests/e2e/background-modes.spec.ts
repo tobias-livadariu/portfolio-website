@@ -88,6 +88,24 @@ test("every render mode is offered without opening anything", async ({
   );
 });
 
+test("vault sigils preserve their one, two, three source count", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  for (const [mode, sourceCount] of [
+    ["3d", 1],
+    ["2d", 2],
+    ["ascii", 3],
+  ] as const) {
+    const text = await page
+      .locator(`.rm-tile[data-mode="${mode}"] .rm-art`)
+      .textContent();
+
+    expect(text?.match(/@/g) ?? []).toHaveLength(sourceCount);
+  }
+});
+
 test("2D planets use the same playback distribution as volumetric modes", () => {
   expect(PLANETS_2D.frameRate).toEqual(
     VOLUMETRIC_STARFIELD_TUNING["3d"].planets.frameRate,

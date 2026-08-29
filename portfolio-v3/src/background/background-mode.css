@@ -171,19 +171,19 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Mode artwork: the three Outer Wilds vault-lock sigils, pre-quantised into
-   glyphs by scripts/generate-vault-sigils.mjs. They are plain text, so they
-   inherit the terminal font and cost nothing per frame.
+   Mode artwork: three small tone-quantised vault-lock sigils. Their analytic
+   fields are calculated once when the source module loads, then rendered as
+   plain text, so they inherit the terminal font and cost nothing per frame.
    ------------------------------------------------------------------------ */
 .rm-art {
   display: block;
   color: var(--dragon-orange);
-  /* 25 glyph columns at half-width advance = 12.5em of text against 13 lines
-     at line-height 1, so this one value sets both axes and the mark stays
-     round. */
+  /* At Iosevka Term's half-width advance, 21 columns occupy 10.5em. Eleven
+     slightly tightened rows occupy the same physical extent, keeping the mark
+     round and its glyphs large enough to read on the compact mobile rail. */
   font-family: var(--font-iosevka-term);
-  font-size: 0.35em;
-  line-height: 1;
+  font-size: 0.417em;
+  line-height: 0.955;
   white-space: pre;
 }
 
@@ -227,7 +227,7 @@
   }
 
   .rm-art {
-    font-size: 0.29em;
+    font-size: 0.345em;
   }
 }
 
