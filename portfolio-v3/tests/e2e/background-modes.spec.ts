@@ -254,6 +254,141 @@ test("closing the modal also closes its persistent render menu", async ({
   await expect(menu).not.toHaveAttribute("data-open");
 });
 
+test("closing suppresses render-menu handoffs until returning home", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const panels = page.locator(".modal-panel");
+  const aboutPanel = panels.first();
+  const resumePanel = panels.nth(1);
+  const motionRoot = page.locator(".modal-render-menu");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await aboutPanel
+    .locator(".modal-section-tabs")
+    .getByRole("button", { name: "RESUME" })
+    .click();
+  await expect(resumePanel).toHaveAttribute("data-render-menu-owner", "true", {
+    timeout: 10_000,
+  });
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  await page.evaluate(() => {
+    const stack = document.querySelector(".modal-scroll-stack");
+    const motion = document.querySelector(".modal-render-menu");
+    const root = document.documentElement;
+    const readOwner = () =>
+      document
+        .querySelector<HTMLElement>(
+          '.modal-panel[data-render-menu-owner="true"]',
+        )
+        ?.getAttribute("aria-label") ?? "none";
+
+    root.dataset.renderMenuClosingOwners = readOwner();
+    new MutationObserver(() => {
+      const owner = readOwner();
+      const owners = root.dataset.renderMenuClosingOwners?.split(",") ?? [];
+
+      if (owners[owners.length - 1] !== owner) {
+        root.dataset.renderMenuClosingOwners = [...owners, owner].join(",");
+      }
+    }).observe(stack!, {
+      attributeFilter: ["data-render-menu-owner"],
+      attributes: true,
+      subtree: true,
+    });
+
+    root.dataset.renderMenuClosingMotions =
+      motion?.getAttribute("data-motion") ?? "missing";
+    new MutationObserver(() => {
+      const nextMotion = motion?.getAttribute("data-motion") ?? "missing";
+      const motions = root.dataset.renderMenuClosingMotions?.split(",") ?? [];
+
+      if (motions[motions.length - 1] !== nextMotion) {
+        root.dataset.renderMenuClosingMotions = [...motions, nextMotion].join(
+          ",",
+        );
+      }
+    }).observe(motion!, {
+      attributeFilter: ["data-motion"],
+      attributes: true,
+    });
+  });
+
+  const quitButton = resumePanel.locator(".modal-quit-button");
+
+  await quitButton.click();
+  await expect(quitButton).not.toBeFocused();
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeLessThanOrEqual(1);
+  await expect(page.locator(".modal-render-trigger")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.dataset.renderMenuClosingOwners,
+      ),
+    )
+    .toBe("RESUME section,none");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.dataset.renderMenuClosingMotions,
+      ),
+    )
+    .toMatch(/idle,leaving/);
+
+  /* Reaching home rearms ownership; the next downward journey may reveal the
+     trigger normally again. */
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(page.locator(".modal-render-trigger")).toBeVisible();
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+});
+
+test("reversing scroll during a reveal cannot strand the render trigger", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const panels = page.locator(".modal-panel");
+  const aboutPanel = panels.first();
+  const resumePanel = panels.nth(1);
+  const motionRoot = page.locator(".modal-render-menu");
+  const trigger = page.locator(".modal-render-trigger");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  await resumePanel.evaluate((element) =>
+    element.scrollIntoView({ behavior: "instant", block: "start" }),
+  );
+  await expect(resumePanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "revealing");
+
+  /* This reversal used to let the reveal effect cancel the newly-created
+     handoff timer, leaving the persistent trigger clipped forever. */
+  await aboutPanel.evaluate((element) =>
+    element.scrollIntoView({ behavior: "instant", block: "start" }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+  await expect(trigger).toBeVisible();
+});
+
 test("one open render menu follows the topmost modal header", async ({
   page,
 }) => {

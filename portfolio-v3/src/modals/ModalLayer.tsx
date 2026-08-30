@@ -157,11 +157,13 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     useState<ModalSectionKey | null>(null);
   const renderMenuSectionRef = useRef<ModalSectionKey | null>(null);
   const renderMenuTargetRef = useRef<ModalSectionKey | null>(null);
+  const isRenderMenuClosingRef = useRef(false);
   const [renderMenuMotion, setRenderMenuMotion] =
     useState<RenderMenuMotion>("idle");
   const [isRenderMenuRequested, setIsRenderMenuRequested] = useState(false);
   const renderMenuMotionRef = useRef<RenderMenuMotion>("idle");
-  const renderMenuTimeoutRef = useRef<number | null>(null);
+  const renderMenuHandoffTimeoutRef = useRef<number | null>(null);
+  const renderMenuIdleTimeoutRef = useRef<number | null>(null);
   const renderMenuPlacementFrameRef = useRef<number | null>(null);
   const renderMenuRevealFrameRef = useRef<number | null>(null);
   const [renderMenuHost] = useState(() => {
@@ -184,9 +186,13 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   const sections = useMemo(() => MODAL_SECTIONS, []);
 
   const cancelRenderMenuMotion = useCallback(() => {
-    if (renderMenuTimeoutRef.current !== null) {
-      window.clearTimeout(renderMenuTimeoutRef.current);
-      renderMenuTimeoutRef.current = null;
+    if (renderMenuHandoffTimeoutRef.current !== null) {
+      window.clearTimeout(renderMenuHandoffTimeoutRef.current);
+      renderMenuHandoffTimeoutRef.current = null;
+    }
+    if (renderMenuIdleTimeoutRef.current !== null) {
+      window.clearTimeout(renderMenuIdleTimeoutRef.current);
+      renderMenuIdleTimeoutRef.current = null;
     }
     if (renderMenuPlacementFrameRef.current !== null) {
       window.cancelAnimationFrame(renderMenuPlacementFrameRef.current);
@@ -217,16 +223,16 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
       return;
     }
 
-    renderMenuTimeoutRef.current = window.setTimeout(() => {
-      renderMenuTimeoutRef.current = null;
+    renderMenuIdleTimeoutRef.current = window.setTimeout(() => {
+      renderMenuIdleTimeoutRef.current = null;
       renderMenuMotionRef.current = "idle";
       setRenderMenuMotion("idle");
     }, RENDER_MENU_HANDOFF_PHASE_MS);
 
     return () => {
-      if (renderMenuTimeoutRef.current !== null) {
-        window.clearTimeout(renderMenuTimeoutRef.current);
-        renderMenuTimeoutRef.current = null;
+      if (renderMenuIdleTimeoutRef.current !== null) {
+        window.clearTimeout(renderMenuIdleTimeoutRef.current);
+        renderMenuIdleTimeoutRef.current = null;
       }
     };
   }, [renderMenuMotion]);
@@ -276,8 +282,8 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
 
       renderMenuMotionRef.current = "leaving";
       setRenderMenuMotion("leaving");
-      renderMenuTimeoutRef.current = window.setTimeout(() => {
-        renderMenuTimeoutRef.current = null;
+      renderMenuHandoffTimeoutRef.current = window.setTimeout(() => {
+        renderMenuHandoffTimeoutRef.current = null;
         const nextSection = renderMenuTargetRef.current;
 
         renderMenuSectionRef.current = nextSection;
@@ -397,7 +403,20 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
 
   const syncRenderMenuOwnership = useCallback(
     (commitImmediately = false) => {
-      const nextSection = getTopmostVisibleSection();
+      let nextSection = getTopmostVisibleSection();
+
+      if (isRenderMenuClosingRef.current) {
+        const closingSection = renderMenuTargetRef.current;
+
+        /* Preserve the current trigger until its normal sticky-header
+           boundary. Once it leaves, retract to no owner and suppress every
+           intermediate header for the remainder of the trip home. */
+        if (closingSection === null || closingSection === nextSection) {
+          return;
+        }
+
+        nextSection = null;
+      }
 
       if (renderMenuTargetRef.current === nextSection) {
         return;
@@ -437,6 +456,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
          dropdown state should not. A manual return home is a real close just
          like [q], Escape, or a backdrop click. */
       setIsRenderMenuRequested(false);
+      isRenderMenuClosingRef.current = false;
       currentSectionRef.current = null;
       setActiveSection(null);
       updateIsOpen(false);
@@ -547,6 +567,8 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
       return;
     }
 
+    isRenderMenuClosingRef.current = navigationRequest.section === null;
+
     updateIsOpen(true);
 
     window.requestAnimationFrame(() => {
@@ -579,9 +601,21 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   }, [navigationRequest, updateIsOpen]);
 
   const requestClose = useCallback(() => {
+    isRenderMenuClosingRef.current = true;
     setIsRenderMenuRequested(false);
+    updateRenderMenuSection(null);
+
+    const activeElement = document.activeElement;
+
+    if (
+      activeElement instanceof HTMLElement &&
+      layerRef.current?.contains(activeElement)
+    ) {
+      activeElement.blur();
+    }
+
     close();
-  }, [close]);
+  }, [close, updateRenderMenuSection]);
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) =>
