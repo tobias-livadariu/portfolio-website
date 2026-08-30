@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   ASCII_GRAPH_TRANSITION,
   buildAsciiTransitionField,
+  getAsciiTransitionGlyphPlacements,
 } from "../../src/background/ascii-graph-transition";
 import { BACKGROUND_TRANSITION } from "../../src/background/background-mode-core";
 import {
@@ -598,6 +599,12 @@ test("ASCII transition graph propagates from the renderer to complete faces", ()
   for (const node of field.nodes) {
     expect(node.startProgress).toBeGreaterThanOrEqual(0);
     expect(node.startProgress).toBeLessThanOrEqual(1);
+    expect(node.initialGlyphIndex).toBeGreaterThanOrEqual(
+      ASCII_GRAPH_TRANSITION.nodeMinimumGlyphIndex,
+    );
+    expect(node.targetGlyphIndex).toBeGreaterThanOrEqual(
+      ASCII_GRAPH_TRANSITION.nodeMinimumGlyphIndex,
+    );
   }
 
   for (const face of field.faces) {
@@ -609,6 +616,63 @@ test("ASCII transition graph propagates from the renderer to complete faces", ()
       ),
     );
   }
+});
+
+test("ASCII transition assigns at most one glyph to each visual cell", () => {
+  const field = buildAsciiTransitionField(
+    1_440,
+    900,
+    1_400,
+    860,
+    createSeededRandom(42),
+  );
+  const minimumSpacing =
+    ASCII_GRAPH_TRANSITION.glyphMinimumSpacingPx * field.responsiveScale;
+
+  for (const [progress, clearing] of [
+    [0.35, false],
+    [0.7, false],
+    [1, false],
+    [0.4, true],
+  ] as const) {
+    const placements = getAsciiTransitionGlyphPlacements(
+      field,
+      progress,
+      640,
+      clearing,
+    );
+
+    expect(placements.length).toBeGreaterThan(20);
+    let closestPairDistance = Number.POSITIVE_INFINITY;
+
+    for (let left = 0; left < placements.length; left += 1) {
+      for (let right = left + 1; right < placements.length; right += 1) {
+        closestPairDistance = Math.min(
+          closestPairDistance,
+          Math.hypot(
+            placements[left].x - placements[right].x,
+            placements[left].y - placements[right].y,
+          ),
+        );
+      }
+    }
+
+    expect(closestPairDistance).toBeGreaterThanOrEqual(minimumSpacing - 1e-6);
+  }
+
+  const settledPlacements = getAsciiTransitionGlyphPlacements(
+    field,
+    1,
+    1_180,
+    false,
+  );
+
+  expect(
+    settledPlacements.filter(({ source }) => source === "node"),
+  ).toHaveLength(field.nodes.length);
+  expect(
+    settledPlacements.filter(({ source }) => source === "edge").length,
+  ).toBeGreaterThan(0);
 });
 
 test("volumetric modes own independent tuning and preserve ASCII appearance", () => {
