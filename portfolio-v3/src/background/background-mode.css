@@ -226,12 +226,21 @@ button.rm-mode-option:focus-visible {
   white-space: pre;
 }
 
-/* BackgroundModeSwitch enables this only after measuring a meaningful cell
-   aspect-ratio mismatch. `1ch` is the active monospace face's real advance, so
-   this converts any wider fallback to the authored half-em cell without a
-   browser/OS sniff or a hard-coded Safari correction. */
-:root[data-rm-normalize-cells="true"] .rm-art {
-  letter-spacing: calc(0.5em - 1ch);
+/* WebKit versions that floor a fractional line-height once per line compound
+   that error across a 33-line text node, visibly flattening the circle. Give
+   every row its own explicit fractional block instead: block placement keeps
+   the fractional remainder while the glyphs remain ordinary selectable text. */
+.rm-art-row {
+  display: block;
+  width: max-content;
+  height: 0.955em;
+}
+
+/* Applied only when the measured font advance differs meaningfully from
+   Iosevka's authored half-em terminal cell. The em-valued correction remains
+   valid through viewport changes without another layout measurement. */
+:root[data-rm-normalize-cell-width="true"] .rm-art {
+  letter-spacing: var(--rm-cell-width-adjustment);
 }
 
 .rm-mode-option:not([data-active="true"]) .rm-art {

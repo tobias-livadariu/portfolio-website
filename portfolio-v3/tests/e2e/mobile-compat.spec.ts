@@ -6,12 +6,32 @@ async function waitForStartupReveal(page: Page) {
   ).toHaveCount(0, { timeout: 15_000 });
 }
 
+async function reloadWithFallbackSigilFont(page: Page) {
+  await page.route(
+    "**/portfolio/",
+    async (route) => {
+      const response = await route.fetch();
+      const html = (await response.text()).replace(
+        "</head>",
+        '<style id="rm-fallback-test">.rm-art { font-family: monospace !important; }</style></head>',
+      );
+
+      await route.fulfill({ body: html, response });
+    },
+    { times: 1 },
+  );
+  await page.reload();
+  await waitForStartupReveal(page);
+}
+
 test("phone render selector retains square ASCII cells without overflow", async ({
   page,
 }) => {
   await page.goto("/");
   await waitForStartupReveal(page);
-  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() =>
+    document.fonts.load('400 16px "Iosevka Term Web"', "05irsXAMH#9B&@"),
+  );
 
   const rail = page.locator(".rm-rail");
   /* Startup hands off to the existing rail entrance; wait until that visual
@@ -58,22 +78,25 @@ test("phone render selector retains square ASCII cells without overflow", async 
   expect(railArtBounds?.width ?? Infinity).toBeLessThanOrEqual(
     (railOptionBounds?.width ?? 0) + 1,
   );
+  const artRows = railArt.locator(".rm-art-row");
+
+  await expect(artRows).toHaveCount(33);
+  expect(
+    await artRows.evaluateAll((rows) =>
+      rows.map((row) => row.textContent?.length ?? 0),
+    ),
+  ).toEqual(Array.from({ length: 33 }, () => 63));
   await expect(page.locator("html")).not.toHaveAttribute(
-    "data-rm-normalize-cells",
+    "data-rm-normalize-cell-width",
     "true",
   );
 
   /* iOS can temporarily or permanently use its system monospace when a web
      font is delayed, rejected, or disabled. The ASCII cell contract must not
      depend on that fallback having Iosevka's unusually narrow advance. */
-  await page.addStyleTag({
-    content: ".rm-art { font-family: monospace !important; }",
-  });
-  await page.evaluate(() =>
-    document.fonts.dispatchEvent(new Event("loadingdone")),
-  );
+  await reloadWithFallbackSigilFont(page);
   await expect(page.locator("html")).toHaveAttribute(
-    "data-rm-normalize-cells",
+    "data-rm-normalize-cell-width",
     "true",
   );
   const fallbackArtBounds = await railArt.boundingBox();
@@ -95,7 +118,7 @@ test("phone render selector retains square ASCII cells without overflow", async 
     window.dispatchEvent(new Event("orientationchange"));
   });
   await expect(page.locator("html")).toHaveAttribute(
-    "data-rm-normalize-cells",
+    "data-rm-normalize-cell-width",
     "true",
   );
   const landscapeFallbackArtBounds = await railArt.boundingBox();
@@ -112,7 +135,7 @@ test("phone render selector retains square ASCII cells without overflow", async 
     window.dispatchEvent(new Event("orientationchange"));
   });
   await expect(page.locator("html")).toHaveAttribute(
-    "data-rm-normalize-cells",
+    "data-rm-normalize-cell-width",
     "true",
   );
   const restoredFallbackArtBounds = await railArt.boundingBox();

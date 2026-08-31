@@ -25,6 +25,24 @@ async function waitForStartupReveal(page: Page) {
   ).toHaveCount(0, { timeout: 15_000 });
 }
 
+async function reloadWithFallbackSigilFont(page: Page) {
+  await page.route(
+    "**/portfolio/",
+    async (route) => {
+      const response = await route.fetch();
+      const html = (await response.text()).replace(
+        "</head>",
+        '<style id="rm-fallback-test">.rm-art { font-family: monospace !important; }</style></head>',
+      );
+
+      await route.fulfill({ body: html, response });
+    },
+    { times: 1 },
+  );
+  await page.reload();
+  await waitForStartupReveal(page);
+}
+
 /** The starfield rail shows every mode at once, so there is nothing to open. */
 async function chooseMode(page: Page, mode: RenderMode) {
   const tile = page.locator(`.rm-tile[data-mode="${mode}"]`);
@@ -153,21 +171,24 @@ test("render control remains inside a compact dynamic viewport", async ({
   expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(
     viewport.width,
   );
+  const artRows = rail.locator(".rm-art").first().locator(".rm-art-row");
+
+  await expect(artRows).toHaveCount(33);
+  expect(
+    await artRows.evaluateAll((rows) =>
+      rows.map((row) => row.textContent?.length ?? 0),
+    ),
+  ).toEqual(Array.from({ length: 33 }, () => 63));
   await expect(page.locator("html")).not.toHaveAttribute(
-    "data-rm-normalize-cells",
+    "data-rm-normalize-cell-width",
     "true",
   );
 
   /* The sigils must retain their authored 2:1 cell geometry even if a client
      cannot use Iosevka and resolves the stack to its wider system monospace. */
-  await page.addStyleTag({
-    content: ".rm-art { font-family: monospace !important; }",
-  });
-  await page.evaluate(() =>
-    document.fonts.dispatchEvent(new Event("loadingdone")),
-  );
+  await reloadWithFallbackSigilFont(page);
   await expect(page.locator("html")).toHaveAttribute(
-    "data-rm-normalize-cells",
+    "data-rm-normalize-cell-width",
     "true",
   );
   const fallbackArtBounds = await rail.locator(".rm-art").first().boundingBox();
@@ -188,7 +209,7 @@ test("render control remains inside a compact dynamic viewport", async ({
     window.dispatchEvent(new Event("orientationchange"));
   });
   await expect(page.locator("html")).toHaveAttribute(
-    "data-rm-normalize-cells",
+    "data-rm-normalize-cell-width",
     "true",
   );
   const landscapeFallbackArtBounds = await rail
@@ -624,14 +645,15 @@ test("vault sigils preserve their one, two, three source clusters", async ({
     ["2d", 2],
     ["ascii", 3],
   ] as const) {
-    const text = await page
+    const rows = await page
       .locator(`.rm-tile[data-mode="${mode}"] .rm-art`)
-      .textContent();
+      .locator(".rm-art-row")
+      .allTextContents();
 
     /* At the high-resolution 63-by-33 field, a source occupies several cells.
        Count connected markers so increased sampling cannot invalidate the
        semantic one/two/three-source contract. */
-    expect(countConnectedGlyphClusters(text ?? "", "@")).toBe(sourceCount);
+    expect(countConnectedGlyphClusters(rows.join("\n"), "@")).toBe(sourceCount);
   }
 });
 

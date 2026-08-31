@@ -11,9 +11,10 @@ import { RENDER_MODE_OPTIONS } from "./render-mode.constants";
 import { useRenderModeRequest } from "./use-render-mode-request";
 import "./background-mode.css";
 
-const CELL_NORMALIZATION_ATTRIBUTE = "data-rm-normalize-cells";
-const EXPECTED_SIGIL_ASPECT_RATIO = 1;
-const SIGIL_ASPECT_RATIO_TOLERANCE = 0.04;
+const CELL_WIDTH_NORMALIZATION_ATTRIBUTE = "data-rm-normalize-cell-width";
+const CELL_WIDTH_ADJUSTMENT_PROPERTY = "--rm-cell-width-adjustment";
+const EXPECTED_CELL_ADVANCE_EM = 0.5;
+const CELL_ADVANCE_TOLERANCE_EM = 0.02;
 
 /**
  * Always-expanded render-mode rail for the starfield.
@@ -35,13 +36,12 @@ export default function BackgroundModeSwitch() {
   const shouldHide = isTransitioning;
   const isInteractionLocked = isRenderModeInputLocked || isTransitioning;
 
-  /* ASCII artwork is the only UI whose geometry depends on a font metric:
-     63 half-width columns must occupy the same space as 33 rows. Most system
-     monospace fallbacks use a ~0.6em advance instead of Iosevka's 0.5em. If a
-     browser delays, rejects, or replaces the webfont, detect that meaningful
-     deviation and enable metric-relative tracking for every selector. Keeping
-     a tolerance around the authored ratio means the established Iosevka
-     rendering receives no additional typography rules at all. */
+  /* Iosevka advances each terminal cell by 0.5em, while common system
+     monospace fallbacks use roughly 0.6em. Measure one complete authored row
+     before paint, then store any fallback correction in em so it continues to
+     scale with responsive CSS without resize work. Explicit FontFaceSet.load
+     avoids WebKit's unreliable ready/loadingdone timing and gives the intended
+     face one final bounded calibration when it resolves. */
   useLayoutEffect(() => {
     const root = document.documentElement;
     let calibrationFrame: number | null = null;
@@ -49,22 +49,31 @@ export default function BackgroundModeSwitch() {
 
     const calibrateCellGeometry = () => {
       calibrationFrame = null;
-      root.removeAttribute(CELL_NORMALIZATION_ATTRIBUTE);
+      root.removeAttribute(CELL_WIDTH_NORMALIZATION_ATTRIBUTE);
+      root.style.removeProperty(CELL_WIDTH_ADJUSTMENT_PROPERTY);
 
-      const art = railRef.current?.querySelector<HTMLElement>(".rm-art");
-      const bounds = art?.getBoundingClientRect();
+      const row = railRef.current?.querySelector<HTMLElement>(".rm-art-row");
+      const cellCount = row?.textContent?.length ?? 0;
+      const bounds = row?.getBoundingClientRect();
+      const fontSize = row
+        ? Number.parseFloat(getComputedStyle(row).fontSize)
+        : 0;
 
-      if (!bounds || bounds.height <= 0) {
+      if (!bounds || bounds.width <= 0 || cellCount <= 0 || fontSize <= 0) {
         return;
       }
 
-      const aspectRatio = bounds.width / bounds.height;
+      const cellAdvanceEm = bounds.width / cellCount / fontSize;
 
       if (
-        Math.abs(aspectRatio - EXPECTED_SIGIL_ASPECT_RATIO) >
-        SIGIL_ASPECT_RATIO_TOLERANCE
+        Math.abs(cellAdvanceEm - EXPECTED_CELL_ADVANCE_EM) >
+        CELL_ADVANCE_TOLERANCE_EM
       ) {
-        root.setAttribute(CELL_NORMALIZATION_ATTRIBUTE, "true");
+        root.style.setProperty(
+          CELL_WIDTH_ADJUSTMENT_PROPERTY,
+          `${EXPECTED_CELL_ADVANCE_EM - cellAdvanceEm}em`,
+        );
+        root.setAttribute(CELL_WIDTH_NORMALIZATION_ATTRIBUTE, "true");
       }
     };
 
@@ -81,8 +90,9 @@ export default function BackgroundModeSwitch() {
     };
 
     calibrateCellGeometry();
-    void document.fonts.ready.then(scheduleCalibration);
-    document.fonts.addEventListener("loadingdone", scheduleCalibration);
+    void document.fonts
+      .load('400 16px "Iosevka Term Web"', "05irsXAMH#9B&@")
+      .then(scheduleCalibration, scheduleCalibration);
 
     return () => {
       isDisposed = true;
@@ -91,8 +101,8 @@ export default function BackgroundModeSwitch() {
         cancelAnimationFrame(calibrationFrame);
       }
 
-      document.fonts.removeEventListener("loadingdone", scheduleCalibration);
-      root.removeAttribute(CELL_NORMALIZATION_ATTRIBUTE);
+      root.removeAttribute(CELL_WIDTH_NORMALIZATION_ATTRIBUTE);
+      root.style.removeProperty(CELL_WIDTH_ADJUSTMENT_PROPERTY);
     };
   }, []);
 

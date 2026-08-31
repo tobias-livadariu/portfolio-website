@@ -19,7 +19,11 @@ const SIGIL_BY_MODE: Record<BackgroundMode, readonly string[]> = {
 export default function RenderModeArt({ mode }: { mode: BackgroundMode }) {
   return (
     <span aria-hidden="true" className="rm-art">
-      {SIGIL_BY_MODE[mode].join("\n")}
+      {SIGIL_BY_MODE[mode].map((row, rowIndex) => (
+        <span className="rm-art-row" key={rowIndex}>
+          {row}
+        </span>
+      ))}
     </span>
   );
 }
