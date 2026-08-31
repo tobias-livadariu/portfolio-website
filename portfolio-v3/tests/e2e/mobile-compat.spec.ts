@@ -24,6 +24,78 @@ async function reloadWithFallbackSigilFont(page: Page) {
   await waitForStartupReveal(page);
 }
 
+test("phone modal ASCII decorations retain explicit row geometry after rotation", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForStartupReveal(page);
+
+  const portraitViewport = page.viewportSize();
+
+  expect(portraitViewport).not.toBeNull();
+
+  for (const viewport of [
+    portraitViewport ?? { height: 844, width: 390 },
+    {
+      height: portraitViewport?.width ?? 390,
+      width: portraitViewport?.height ?? 844,
+    },
+    portraitViewport ?? { height: 844, width: 390 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      window.dispatchEvent(new Event("orientationchange"));
+    });
+
+    const result = await page.evaluate(() => {
+      const inspect = (containerSelector: string, rowSelector: string) => {
+        return Array.from(document.querySelectorAll(containerSelector)).map(
+          (container) => {
+            const rows = Array.from(container.querySelectorAll(rowSelector));
+            const lineHeight = Number.parseFloat(
+              getComputedStyle(container).lineHeight,
+            );
+
+            return {
+              containerHeight: container.getBoundingClientRect().height,
+              lineHeight,
+              rowHeights: rows.map((row) => row.getBoundingClientRect().height),
+              rowCount: rows.length,
+            };
+          },
+        );
+      };
+
+      return {
+        brackets: inspect(
+          ".modal-contact-note-bracket",
+          ".modal-contact-note-bracket-line",
+        ),
+        titles: inspect(".modal-ascii-title-piece", ".modal-ascii-title-line"),
+      };
+    });
+
+    expect(result.titles.map(({ rowCount }) => rowCount)).toEqual([
+      7, 7, 7, 7, 10, 10, 10, 8, 8,
+    ]);
+    expect(result.brackets.map(({ rowCount }) => rowCount)).toEqual([9, 9]);
+
+    for (const group of [...result.titles, ...result.brackets]) {
+      expect(group.containerHeight).toBeCloseTo(
+        group.rowHeights.reduce((sum, height) => sum + height, 0),
+        2,
+      );
+      for (const rowHeight of group.rowHeights) {
+        expect(rowHeight).toBeGreaterThan(0);
+        expect(
+          Math.abs(rowHeight - group.lineHeight) / group.lineHeight,
+        ).toBeLessThan(0.02);
+      }
+    }
+  }
+});
+
 test("phone render selector retains square ASCII cells without overflow", async ({
   page,
 }) => {

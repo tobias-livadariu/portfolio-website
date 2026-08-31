@@ -70,7 +70,11 @@ function ModalHeader({
         >
           {titlePieces.map((piece, index) => (
             <pre className="modal-ascii-title-piece" key={index}>
-              {piece.join("\n")}
+              {piece.map((line, lineIndex) => (
+                <span className="modal-ascii-title-line" key={lineIndex}>
+                  {line}
+                </span>
+              ))}
             </pre>
           ))}
         </div>

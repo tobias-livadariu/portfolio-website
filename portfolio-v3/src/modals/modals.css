@@ -476,6 +476,15 @@
   margin-right: 0;
 }
 
+/* Keep fractional row placement out of WebKit's multiline line-box path.
+   Older Safari versions round each tiny line independently, which compounds
+   across the 7-10 rows in these title glyphs. Explicit block heights retain
+   the authored line-height without changing the title's intrinsic width. */
+.modal-ascii-title-line {
+  display: block;
+  height: 1em;
+}
+
 .modal-ascii-divider {
   position: relative;
   display: flex;
@@ -499,6 +508,11 @@
   font: inherit;
   line-height: inherit;
   white-space: pre;
+}
+
+.modal-ascii-divider-line {
+  display: block;
+  height: 1em;
 }
 
 .modal-ascii-divider-measure,
@@ -1231,6 +1245,11 @@
 
 .modal-contact-note-bracket-right {
   transform: scaleX(-1);
+}
+
+.modal-contact-note-bracket-line {
+  display: block;
+  height: 0.92em;
 }
 
 .modal-contact-note-copy {
