@@ -1,4 +1,5 @@
 import { COLOR_PALETTE_STR } from "../../theme/colors";
+import type { BackgroundMode } from "../../background/background-mode-core";
 import { CAMERA_PROPS } from "../canvas.constants";
 
 // Copy shown in the stacked title above the navigation menu.
@@ -125,6 +126,32 @@ export const ASCII_UI_MATERIAL = {
   },
 } as const;
 
+/**
+ * Per-renderer controls for the cell-shaded matte surrounding the 3D UI.
+ *
+ * `radiusPx` is the primary thickness knob. `expandedMaskEnd` controls the
+ * transition at its outer edge: lower values produce a harder, more solid edge;
+ * higher values produce a softer edge. Both values are screen-space values, so
+ * changing camera projection or menu scale does not change their appearance.
+ */
+export const UI_HALO_MODE_TUNING = {
+  "3d": {
+    radiusPx: 4,
+    expandedMaskEnd: 0.24,
+  },
+  "2d": {
+    radiusPx: 6,
+    expandedMaskEnd: 0.18,
+  },
+  ascii: {
+    radiusPx: 4,
+    expandedMaskEnd: 0.24,
+  },
+} as const satisfies Record<
+  BackgroundMode,
+  { expandedMaskEnd: number; radiusPx: number }
+>;
+
 // Screen-space readability halo for the 3D UI. The postprocess pass renders the
 // moving scene without this root, builds a UI-only mask, expands that mask in
 // pixel space, composites a dark ember matte, then draws the real UI on top.
@@ -138,11 +165,6 @@ export const UI_HALO = {
   radiusScaleUserDataKey: "uiHaloRadiusScale",
   color: COLOR_PALETTE_STR.emberShadow,
   backgroundColor: COLOR_PALETTE_STR.background,
-  // Halo thickness in screen pixels; this should not scale with menu size.
-  radiusPx: 4,
-  // Thicker halo while the busier 2D background is active so a planet drifting
-  // behind the menu never costs glyph readability. Must stay <= maxSampleRadiusPx.
-  radiusPx2D: 6,
   // Strength of the matte color over the expanded mask.
   opacity: 1,
   sceneClearColor: COLOR_PALETTE_STR.background,
@@ -151,13 +173,11 @@ export const UI_HALO = {
   resolutionScale: 1,
   // MSAA samples for the UI mask render target.
   multisampleCount: 4,
-  // Compile-time shader loop cap. Keep this >= radiusPx * resolutionScale.
+  // Compile-time shader loop cap. Keep this >= every mode's radiusPx multiplied
+  // by resolutionScale.
   maxSampleRadiusPx: 8,
-  // Softness of the expanded halo edge.
+  // Beginning of the expanded halo edge shared by all render modes.
   expandedMaskStart: 0.01,
-  expandedMaskEnd: 0.24,
-  // Harder halo edge in 2D mode, pairing with radiusPx2D.
-  expandedMaskEnd2D: 0.18,
   outputAlpha: 1,
   // The red channel carries mask coverage. The mask pass overwrites green with
   // each object's radius scale so the composite shader can vary dilation.
