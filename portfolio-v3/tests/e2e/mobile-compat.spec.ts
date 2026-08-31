@@ -1,9 +1,16 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function waitForStartupReveal(page: Page) {
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, { timeout: 15_000 });
+}
 
 test("phone render selector retains square ASCII cells without overflow", async ({
   page,
 }) => {
   await page.goto("/");
+  await waitForStartupReveal(page);
   await page.evaluate(() => document.fonts.ready);
 
   const rail = page.locator(".rm-rail");
@@ -48,6 +55,7 @@ test("compact modal render control always animates between headers", async ({
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const scrollRoot = page.locator(".modal-scroll-root");
   const panels = page.locator(".modal-panel");

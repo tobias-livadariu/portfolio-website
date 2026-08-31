@@ -272,3 +272,11 @@ button.rm-mode-option:focus-visible .rm-art {
   height: 100dvh;
   pointer-events: auto;
 }
+
+/* The canvas bitmap is filled in a layout effect, but this authored background
+   also guarantees the very first composited frame is the scene's own black. It
+   is removed when DEEP begins clearing so the real destination-out aperture can
+   reveal the composed site underneath. */
+.bg-transition-overlay[data-startup="true"][data-phase="covered"] {
+  background: var(--color-background);
+}

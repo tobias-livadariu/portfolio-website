@@ -1,5 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
+async function waitForStartupReveal(page: Page) {
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, { timeout: 15_000 });
+}
+
 async function wheelGesture(page: Page) {
   for (let index = 0; index < 7; index += 1) {
     await page.mouse.wheel(0, 96);
@@ -18,6 +24,7 @@ test("one wheel stream survives the closed-to-open modal handoff", async ({
   test.setTimeout(30_000);
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto("/");
+  await waitForStartupReveal(page);
   const canvas = page.locator(".portfolio-canvas-layer canvas");
   const scrollRoot = page.locator(".modal-scroll-root");
   await expect(canvas).toBeVisible();
@@ -65,6 +72,7 @@ test("modal document opens from scroll and supports section navigation", async (
   test.setTimeout(70_000);
   await page.setViewportSize({ width: 2048, height: 720 });
   await page.goto("/");
+  await waitForStartupReveal(page);
   await expect(page.locator("canvas").first()).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
@@ -284,6 +292,7 @@ test("modal reveal scrolls continuously and closes from keyboard or backdrop", a
   page,
 }) => {
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const revealTop = await page.evaluate(() => window.innerHeight);
   const scrollRoot = page.locator(".modal-scroll-root");

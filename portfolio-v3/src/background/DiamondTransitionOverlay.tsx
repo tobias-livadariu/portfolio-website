@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { COLOR_PALETTE_STR } from "../theme/colors";
 import {
   ASCII_GRAPH_TRANSITION,
@@ -56,11 +56,39 @@ function traceDiamond(
    distinct visual language: a graph/glyph propagation for ASCII, a circular
    aperture for 3D, and the original randomized diamond flood for 2D. */
 export default function DiamondTransitionOverlay() {
-  const { notifyCleared, notifyCovered, phase, seedPoint, targetMode } =
-    useBackgroundMode();
+  const {
+    isInitialRevealComplete,
+    notifyCleared,
+    notifyCovered,
+    phase,
+    seedPoint,
+    targetMode,
+  } = useBackgroundMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const asciiFieldRef = useRef<AsciiTransitionField | null>(null);
   const asciiAnimationStartRef = useRef<number | null>(null);
+
+  /* Paint the startup cover before the browser can present the React tree.
+     The CSS background is a pre-canvas fallback; this bitmap fill is what the
+     normal DEEP clearing pass cuts its circular aperture through. Repeating it
+     for the clearing commit prevents a transparent frame between phases. */
+  useLayoutEffect(() => {
+    if (isInitialRevealComplete || phase === "idle") {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+
+    if (!canvas || !ctx) {
+      return;
+    }
+
+    const { height, width } = fitCanvas(canvas, ctx);
+
+    ctx.fillStyle = COLOR_PALETTE_STR.background;
+    ctx.fillRect(0, 0, width, height);
+  }, [isInitialRevealComplete, phase]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -346,6 +374,7 @@ export default function DiamondTransitionOverlay() {
       aria-hidden="true"
       className="bg-transition-overlay"
       data-phase={phase}
+      data-startup={!isInitialRevealComplete ? "true" : undefined}
       data-target-mode={targetMode}
       ref={canvasRef}
     />

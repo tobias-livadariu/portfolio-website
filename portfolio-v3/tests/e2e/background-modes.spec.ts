@@ -19,6 +19,12 @@ import { COLOR_PALETTE_STR } from "../../src/theme/colors";
 
 type RenderMode = "2d" | "3d" | "ascii";
 
+async function waitForStartupReveal(page: Page) {
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, { timeout: 15_000 });
+}
+
 /** The starfield rail shows every mode at once, so there is nothing to open. */
 async function chooseMode(page: Page, mode: RenderMode) {
   const tile = page.locator(`.rm-tile[data-mode="${mode}"]`);
@@ -119,8 +125,20 @@ test("render control remains inside a compact dynamic viewport", async ({
 
   await page.setViewportSize(viewport);
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const rail = page.locator(".rm-rail");
+  // The startup reveal deliberately hands off to the rail's existing slide-in.
+  // Firefox can remove the overlay early enough to observe that transform in
+  // flight, so measure the settled control rather than an entrance frame.
+  await expect
+    .poll(async () => {
+      const currentBounds = await rail.boundingBox();
+
+      return (currentBounds?.x ?? 0) + (currentBounds?.width ?? 0);
+    })
+    .toBeLessThanOrEqual(viewport.width);
+
   const bounds = await rail.boundingBox();
   const overflow = await rail.evaluate(
     (element) => element.scrollWidth - element.clientWidth,
@@ -142,6 +160,7 @@ test("starfield and modal selectors share one responsive option scale", async ({
 }) => {
   await page.setViewportSize({ height: 720, width: 920 });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const railOption = page.locator('.rm-tile[data-mode="3d"]');
   const railOptionBounds = await railOption.boundingBox();
@@ -159,18 +178,22 @@ test("starfield and modal selectors share one responsive option scale", async ({
   await trigger.click();
   await page.waitForTimeout(250);
 
-  const modalOption = activePanel.locator(
-    '.modal-render-option[data-mode="3d"]',
+  // The render control is one portal that can finish handing ownership to an
+  // adjacent sticky header after the click. Follow the open portal instead of
+  // retaining a dynamic `data-active` query that may now name another panel.
+  const menuOwner = page.locator(
+    '.modal-panel:has(.modal-render-panel[data-open="true"])',
   );
+  await expect(menuOwner).toHaveCount(1);
+
+  const modalOption = menuOwner.locator('.modal-render-option[data-mode="3d"]');
   const modalOptionBounds = await modalOption.boundingBox();
   const modalArt = await modalOption.locator(".rm-art").boundingBox();
-  const fileBounds = await activePanel
-    .locator(".modal-file-label")
-    .boundingBox();
-  const tabsBounds = await activePanel
+  const fileBounds = await menuOwner.locator(".modal-file-label").boundingBox();
+  const tabsBounds = await menuOwner
     .locator(".modal-section-tabs")
     .boundingBox();
-  const controlsBounds = await activePanel
+  const controlsBounds = await menuOwner
     .locator(".modal-toolbar-right")
     .boundingBox();
 
@@ -192,31 +215,21 @@ test("starfield and modal selectors share one responsive option scale", async ({
       (railOptionBounds?.height ?? 0) - (modalOptionBounds?.height ?? 0),
     ),
   ).toBeLessThan(0.75);
-  await expect(
-    activePanel.locator(".modal-render-trigger-label"),
-  ).toBeVisible();
-  await expect(
-    activePanel.locator(".modal-render-trigger-value"),
-  ).toBeVisible();
+  await expect(menuOwner.locator(".modal-render-trigger-label")).toBeVisible();
+  await expect(menuOwner.locator(".modal-render-trigger-value")).toBeVisible();
   expect(tabsBounds?.y ?? 0).toBeGreaterThanOrEqual(
     Math.max(fileBounds?.y ?? 0, controlsBounds?.y ?? 0) +
       Math.max(fileBounds?.height ?? 0, controlsBounds?.height ?? 0),
   );
 
   await page.setViewportSize({ height: 720, width: 520 });
-  await expect(
-    activePanel.locator(".modal-render-trigger-label"),
-  ).toBeVisible();
-  await expect(
-    activePanel.locator(".modal-render-trigger-leader"),
-  ).toBeHidden();
-  await expect(activePanel.locator(".modal-render-trigger-value")).toBeHidden();
+  await expect(menuOwner.locator(".modal-render-trigger-label")).toBeVisible();
+  await expect(menuOwner.locator(".modal-render-trigger-leader")).toBeHidden();
+  await expect(menuOwner.locator(".modal-render-trigger-value")).toBeHidden();
 
   await page.setViewportSize({ height: 720, width: 400 });
-  await expect(activePanel.locator(".modal-render-trigger-label")).toBeHidden();
-  await expect(
-    activePanel.locator(".modal-render-trigger-value"),
-  ).toBeVisible();
+  await expect(menuOwner.locator(".modal-render-trigger-label")).toBeHidden();
+  await expect(menuOwner.locator(".modal-render-trigger-value")).toBeVisible();
 });
 
 test("closing the modal also closes its persistent render menu", async ({
@@ -224,6 +237,7 @@ test("closing the modal also closes its persistent render menu", async ({
 }) => {
   await page.setViewportSize({ height: 720, width: 1280 });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const scrollRoot = page.locator(".modal-scroll-root");
   const trigger = page.locator(".modal-render-trigger");
@@ -260,6 +274,7 @@ test("closing suppresses render-menu handoffs until returning home", async ({
 }) => {
   await page.setViewportSize({ height: 720, width: 1280 });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const scrollRoot = page.locator(".modal-scroll-root");
   const panels = page.locator(".modal-panel");
@@ -360,6 +375,7 @@ test("reversing scroll during a reveal cannot strand the render trigger", async 
 }) => {
   await page.setViewportSize({ height: 720, width: 1280 });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const scrollRoot = page.locator(".modal-scroll-root");
   const panels = page.locator(".modal-panel");
@@ -395,6 +411,7 @@ test("one open render menu follows the topmost modal header", async ({
 }) => {
   await page.setViewportSize({ height: 720, width: 1280 });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const scrollRoot = page.locator(".modal-scroll-root");
   const panels = page.locator(".modal-panel");
@@ -536,6 +553,7 @@ test("every render mode is offered without opening anything", async ({
   page,
 }) => {
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   for (const mode of ["3d", "2d", "ascii"] as const) {
     await expect(page.locator(`.rm-tile[data-mode="${mode}"]`)).toBeVisible();
@@ -551,6 +569,7 @@ test("vault sigils preserve their one, two, three source clusters", async ({
   page,
 }) => {
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   for (const [mode, sourceCount] of [
     ["3d", 1],
@@ -909,6 +928,7 @@ test("planet atlases load through a bounded, diversity-first queue", async ({
   );
 
   await page.goto("/");
+  await waitForStartupReveal(page);
   await expect
     .poll(() => requestedAtlases.length, { timeout: 30_000 })
     .toBeGreaterThanOrEqual(8);
@@ -934,6 +954,7 @@ test("render menu selects every mode and refresh resets to 3D", async ({
     localStorage.setItem("portfolio:background-mode", "ascii");
   });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const modeLabel = currentModeLabel(page);
   const transition = page.locator(".bg-transition-overlay");
@@ -969,10 +990,12 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   await expectModeReady("3d");
 
   await page.reload();
+  await waitForStartupReveal(page);
   await expect(modeLabel).toContainText("[3D]");
 
   await expectModeReady("2d");
   await page.reload();
+  await waitForStartupReveal(page);
   await expect(modeLabel).toContainText("[3D]");
 });
 
@@ -982,6 +1005,7 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
   test.setTimeout(30_000);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   await chooseMode(page, "ascii");
 
@@ -1035,6 +1059,7 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
 test("the mode readout waits for the new scene to emerge", async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const modeLabel = currentModeLabel(page);
 
@@ -1060,6 +1085,7 @@ test("the modal toolbar returns to the starfield before transitioning", async ({
 }) => {
   test.setTimeout(60_000);
   await page.goto("/");
+  await waitForStartupReveal(page);
 
   const scrollRoot = page.locator(".modal-scroll-root");
 

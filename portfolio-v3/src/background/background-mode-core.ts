@@ -14,6 +14,7 @@ export interface SeedPoint {
 }
 
 export interface BackgroundModeContextValue {
+  isInitialRevealComplete: boolean;
   isRenderModeInputLocked: boolean;
   isTransitioning: boolean;
   notifyCleared: () => void;

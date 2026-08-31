@@ -42,10 +42,14 @@ function createPendingSceneReady(mode: BackgroundMode): PendingSceneReady {
 }
 
 export function BackgroundModeProvider({ children }: { children: ReactNode }) {
+  const [isInitialRevealComplete, setIsInitialRevealComplete] = useState(false);
   const [isRenderModeInputLocked, setRenderModeInputLocked] = useState(false);
   const [state, setState] = useState<BackgroundModeState>(() => {
     return {
-      phase: "idle",
+      /* Startup is the already-covered midpoint of a normal transition. The
+         first composed 3D frame advances directly into DEEP's real clearing
+         phase, so no interactive UI can precede the scene it controls. */
+      phase: "covered",
       seedPoint: null,
       targetMode: "3d",
       visualMode: "3d",
@@ -54,6 +58,8 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
   const stateRef = useRef(state);
   const pendingSceneReadyRef = useRef<PendingSceneReady | null>(null);
   const coveredGenerationRef = useRef(0);
+  const initialRevealStartedRef = useRef(false);
+  const initialRevealCompleteRef = useRef(false);
 
   useEffect(() => {
     stateRef.current = state;
@@ -147,9 +153,31 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
         ? { ...previous, phase: "idle", seedPoint: null }
         : previous,
     );
+
+    if (!initialRevealCompleteRef.current) {
+      initialRevealCompleteRef.current = true;
+      setIsInitialRevealComplete(true);
+    }
   }, []);
 
   const notifySceneReady = useCallback((mode: BackgroundMode) => {
+    if (!initialRevealCompleteRef.current) {
+      if (
+        mode === "3d" &&
+        !initialRevealStartedRef.current &&
+        stateRef.current.phase === "covered"
+      ) {
+        initialRevealStartedRef.current = true;
+        setState((previous) =>
+          previous.phase === "covered"
+            ? { ...previous, phase: "clearing" }
+            : previous,
+        );
+      }
+
+      return;
+    }
+
     const pending = pendingSceneReadyRef.current;
 
     if (pending && pending.mode === mode) {
@@ -160,6 +188,7 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      isInitialRevealComplete,
       isRenderModeInputLocked,
       isTransitioning: state.phase !== "idle",
       notifyCleared,
@@ -173,6 +202,7 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
       visualMode: state.visualMode,
     }),
     [
+      isInitialRevealComplete,
       isRenderModeInputLocked,
       notifyCleared,
       notifyCovered,

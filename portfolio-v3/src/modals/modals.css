@@ -16,6 +16,13 @@
   pointer-events: auto;
 }
 
+/* `inert` is the semantic/input lock. This explicit hit-test rule also covers
+   engines while they are parsing the initial tree or if inert is unavailable. */
+.modal-layer[data-startup-locked="true"],
+.modal-layer[data-startup-locked="true"] * {
+  pointer-events: none !important;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

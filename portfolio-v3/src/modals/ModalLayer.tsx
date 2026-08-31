@@ -11,6 +11,7 @@ import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { createPortal, flushSync } from "react-dom";
 import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
 import ModalRenderModeMenu from "../background/ModalRenderModeMenu";
+import { useBackgroundMode } from "../background/background-mode-core";
 import AboutModal from "./about/AboutModal";
 import ContactModal from "./contact/ContactModal";
 import ModalAssetPreloader from "./components/ModalAssetPreloader";
@@ -143,6 +144,7 @@ function getRevealDistancePx() {
 }
 
 export default function ModalLayer({ background }: { background: ReactNode }) {
+  const { isInitialRevealComplete } = useBackgroundMode();
   const { close, isOpen, navigationRequest, openSection, setIsOpen } =
     useModalController();
   const layerRef = useRef<HTMLDivElement>(null);
@@ -614,6 +616,10 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
         target.tagName === "SELECT");
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isInitialRevealComplete) {
+        return;
+      }
+
       if (
         event.key.toLowerCase() === "q" &&
         (isOpenRef.current || (scrollRootRef.current?.scrollTop ?? 0) > 1) &&
@@ -666,7 +672,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [openSection, requestClose]);
+  }, [isInitialRevealComplete, openSection, requestClose]);
 
   const handleScroll = useCallback(() => {
     syncRenderMenuOwnership(true);
@@ -728,7 +734,10 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     <>
       <ModalAssetPreloader />
       <div
+        aria-busy={!isInitialRevealComplete || undefined}
         className={`modal-layer ${isOpen ? "modal-layer-open" : ""}`}
+        data-startup-locked={!isInitialRevealComplete ? "true" : undefined}
+        inert={!isInitialRevealComplete}
         ref={layerRef}
         style={layerStyle}
       >
