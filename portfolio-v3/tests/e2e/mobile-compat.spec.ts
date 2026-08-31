@@ -14,6 +14,16 @@ test("phone render selector retains square ASCII cells without overflow", async 
   await page.evaluate(() => document.fonts.ready);
 
   const rail = page.locator(".rm-rail");
+  /* Startup hands off to the existing rail entrance; wait until that visual
+     transition has actually reached its bottom-right resting position. */
+  await expect
+    .poll(async () => {
+      const bounds = await rail.boundingBox();
+
+      return (bounds?.x ?? 0) + (bounds?.width ?? 0);
+    })
+    .toBeLessThanOrEqual(await page.evaluate(() => window.innerWidth));
+
   const railOption = rail.locator('.rm-tile[data-mode="3d"]');
   const railArt = railOption.locator(".rm-art");
   const railMetrics = await rail.evaluate((element) => {
@@ -48,6 +58,95 @@ test("phone render selector retains square ASCII cells without overflow", async 
   expect(railArtBounds?.width ?? Infinity).toBeLessThanOrEqual(
     (railOptionBounds?.width ?? 0) + 1,
   );
+  await expect(page.locator("html")).not.toHaveAttribute(
+    "data-rm-normalize-cells",
+    "true",
+  );
+
+  /* iOS can temporarily or permanently use its system monospace when a web
+     font is delayed, rejected, or disabled. The ASCII cell contract must not
+     depend on that fallback having Iosevka's unusually narrow advance. */
+  await page.addStyleTag({
+    content: ".rm-art { font-family: monospace !important; }",
+  });
+  await page.evaluate(() =>
+    document.fonts.dispatchEvent(new Event("loadingdone")),
+  );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-rm-normalize-cells",
+    "true",
+  );
+  const fallbackArtBounds = await railArt.boundingBox();
+
+  expect(fallbackArtBounds).not.toBeNull();
+  expect(
+    (fallbackArtBounds?.width ?? 0) / (fallbackArtBounds?.height ?? 1),
+  ).toBeCloseTo(1, 1);
+
+  const portraitViewport = page.viewportSize();
+
+  expect(portraitViewport).not.toBeNull();
+  await page.setViewportSize({
+    height: portraitViewport?.width ?? 1,
+    width: portraitViewport?.height ?? 1,
+  });
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("resize"));
+    window.dispatchEvent(new Event("orientationchange"));
+  });
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-rm-normalize-cells",
+    "true",
+  );
+  const landscapeFallbackArtBounds = await railArt.boundingBox();
+
+  expect(landscapeFallbackArtBounds).not.toBeNull();
+  expect(
+    (landscapeFallbackArtBounds?.width ?? 0) /
+      (landscapeFallbackArtBounds?.height ?? 1),
+  ).toBeCloseTo(1, 1);
+
+  await page.setViewportSize(portraitViewport ?? { height: 1, width: 1 });
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("resize"));
+    window.dispatchEvent(new Event("orientationchange"));
+  });
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-rm-normalize-cells",
+    "true",
+  );
+  const restoredFallbackArtBounds = await railArt.boundingBox();
+
+  expect(restoredFallbackArtBounds).not.toBeNull();
+  expect(
+    (restoredFallbackArtBounds?.width ?? 0) /
+      (restoredFallbackArtBounds?.height ?? 1),
+  ).toBeCloseTo(1, 1);
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+
+  const modalTrigger = page.locator(".modal-render-trigger");
+
+  await expect(modalTrigger).toBeVisible();
+  await modalTrigger.click();
+
+  const modalArt = page.locator(
+    '.modal-render-panel[data-open="true"] .rm-art',
+  );
+  await expect(modalArt.first()).toBeVisible();
+  /* The panel opens from scaleY(.82), which intentionally distorts every
+     descendant while in flight. Judge the settled text geometry. */
+  await expect
+    .poll(async () => {
+      const modalArtBounds = await modalArt.first().boundingBox();
+
+      return (modalArtBounds?.width ?? 0) / (modalArtBounds?.height ?? 1);
+    })
+    .toBeCloseTo(1, 1);
 });
 
 test("compact modal render control always animates between headers", async ({

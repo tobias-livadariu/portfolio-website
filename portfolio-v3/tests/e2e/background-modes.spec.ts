@@ -153,6 +153,54 @@ test("render control remains inside a compact dynamic viewport", async ({
   expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(
     viewport.width,
   );
+  await expect(page.locator("html")).not.toHaveAttribute(
+    "data-rm-normalize-cells",
+    "true",
+  );
+
+  /* The sigils must retain their authored 2:1 cell geometry even if a client
+     cannot use Iosevka and resolves the stack to its wider system monospace. */
+  await page.addStyleTag({
+    content: ".rm-art { font-family: monospace !important; }",
+  });
+  await page.evaluate(() =>
+    document.fonts.dispatchEvent(new Event("loadingdone")),
+  );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-rm-normalize-cells",
+    "true",
+  );
+  const fallbackArtBounds = await rail.locator(".rm-art").first().boundingBox();
+
+  expect(fallbackArtBounds).not.toBeNull();
+  expect(
+    (fallbackArtBounds?.width ?? 0) / (fallbackArtBounds?.height ?? 1),
+  ).toBeCloseTo(1, 1);
+
+  /* Once enabled, the metric-relative correction must survive viewport and
+     orientation events without another JavaScript measurement. */
+  await page.setViewportSize({
+    height: viewport.width,
+    width: viewport.height,
+  });
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event("resize"));
+    window.dispatchEvent(new Event("orientationchange"));
+  });
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-rm-normalize-cells",
+    "true",
+  );
+  const landscapeFallbackArtBounds = await rail
+    .locator(".rm-art")
+    .first()
+    .boundingBox();
+
+  expect(landscapeFallbackArtBounds).not.toBeNull();
+  expect(
+    (landscapeFallbackArtBounds?.width ?? 0) /
+      (landscapeFallbackArtBounds?.height ?? 1),
+  ).toBeCloseTo(1, 1);
 });
 
 test("starfield and modal selectors share one responsive option scale", async ({

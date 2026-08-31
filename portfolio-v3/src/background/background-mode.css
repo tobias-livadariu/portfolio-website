@@ -226,6 +226,14 @@ button.rm-mode-option:focus-visible {
   white-space: pre;
 }
 
+/* BackgroundModeSwitch enables this only after measuring a meaningful cell
+   aspect-ratio mismatch. `1ch` is the active monospace face's real advance, so
+   this converts any wider fallback to the authored half-em cell without a
+   browser/OS sniff or a hard-coded Safari correction. */
+:root[data-rm-normalize-cells="true"] .rm-art {
+  letter-spacing: calc(0.5em - 1ch);
+}
+
 .rm-mode-option:not([data-active="true"]) .rm-art {
   color: var(--dragon-comment);
 }

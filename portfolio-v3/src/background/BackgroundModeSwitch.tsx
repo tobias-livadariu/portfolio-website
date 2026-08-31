@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useBackgroundMode } from "./background-mode-core";
 import RenderModeArt from "./RenderModeArt";
 import { RENDER_MODE_OPTIONS } from "./render-mode.constants";
 import { useRenderModeRequest } from "./use-render-mode-request";
 import "./background-mode.css";
+
+const CELL_NORMALIZATION_ATTRIBUTE = "data-rm-normalize-cells";
+const EXPECTED_SIGIL_ASPECT_RATIO = 1;
+const SIGIL_ASPECT_RATIO_TOLERANCE = 0.04;
 
 /**
  * Always-expanded render-mode rail for the starfield.
@@ -24,6 +34,67 @@ export default function BackgroundModeSwitch() {
      backdrop, so the only reason to pull it is an in-flight transition. */
   const shouldHide = isTransitioning;
   const isInteractionLocked = isRenderModeInputLocked || isTransitioning;
+
+  /* ASCII artwork is the only UI whose geometry depends on a font metric:
+     63 half-width columns must occupy the same space as 33 rows. Most system
+     monospace fallbacks use a ~0.6em advance instead of Iosevka's 0.5em. If a
+     browser delays, rejects, or replaces the webfont, detect that meaningful
+     deviation and enable metric-relative tracking for every selector. Keeping
+     a tolerance around the authored ratio means the established Iosevka
+     rendering receives no additional typography rules at all. */
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    let calibrationFrame: number | null = null;
+    let isDisposed = false;
+
+    const calibrateCellGeometry = () => {
+      calibrationFrame = null;
+      root.removeAttribute(CELL_NORMALIZATION_ATTRIBUTE);
+
+      const art = railRef.current?.querySelector<HTMLElement>(".rm-art");
+      const bounds = art?.getBoundingClientRect();
+
+      if (!bounds || bounds.height <= 0) {
+        return;
+      }
+
+      const aspectRatio = bounds.width / bounds.height;
+
+      if (
+        Math.abs(aspectRatio - EXPECTED_SIGIL_ASPECT_RATIO) >
+        SIGIL_ASPECT_RATIO_TOLERANCE
+      ) {
+        root.setAttribute(CELL_NORMALIZATION_ATTRIBUTE, "true");
+      }
+    };
+
+    const scheduleCalibration = () => {
+      if (isDisposed) {
+        return;
+      }
+
+      if (calibrationFrame !== null) {
+        cancelAnimationFrame(calibrationFrame);
+      }
+
+      calibrationFrame = requestAnimationFrame(calibrateCellGeometry);
+    };
+
+    calibrateCellGeometry();
+    void document.fonts.ready.then(scheduleCalibration);
+    document.fonts.addEventListener("loadingdone", scheduleCalibration);
+
+    return () => {
+      isDisposed = true;
+
+      if (calibrationFrame !== null) {
+        cancelAnimationFrame(calibrationFrame);
+      }
+
+      document.fonts.removeEventListener("loadingdone", scheduleCalibration);
+      root.removeAttribute(CELL_NORMALIZATION_ATTRIBUTE);
+    };
+  }, []);
 
   /* One finite reveal on load draws the eye to the rail without leaving a
      compositor animation running behind the WebGL frame loop forever. */
