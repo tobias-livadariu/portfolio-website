@@ -140,8 +140,8 @@ export const UI_HALO_MODE_TUNING = {
     expandedMaskEnd: 0.24,
   },
   "2d": {
-    radiusPx: 6,
-    expandedMaskEnd: 0.18,
+    radiusPx: 4,
+    expandedMaskEnd: 0.24,
   },
   ascii: {
     radiusPx: 4,
