@@ -14,6 +14,7 @@ export interface SeedPoint {
 }
 
 export interface BackgroundModeContextValue {
+  isRenderModeInputLocked: boolean;
   isTransitioning: boolean;
   notifyCleared: () => void;
   notifyCovered: () => void;
@@ -21,11 +22,15 @@ export interface BackgroundModeContextValue {
   phase: TransitionPhase;
   requestMode: (mode: BackgroundMode, seed: SeedPoint) => void;
   seedPoint: SeedPoint | null;
+  setRenderModeInputLocked: (isLocked: boolean) => void;
   targetMode: BackgroundMode;
   visualMode: BackgroundMode;
 }
 
 export const BACKGROUND_TRANSITION = {
+  /* Pause after a modal's smooth return reaches the starfield. This keeps the
+     fullscreen wipe from visually colliding with the final upward motion. */
+  modalReturnPauseMs: 120,
   /* Keep the screen covered at least this long so the reveal never feels
      like a flicker, even when the target scene is already cached. */
   minCoveredHoldMs: 180,

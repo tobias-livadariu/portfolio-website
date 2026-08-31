@@ -20,8 +20,10 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { useBackgroundMode } from "../../background/background-mode-core";
-import { UI_HALO } from "./main-menu.constants";
+import { UI_HALO, UI_HALO_MODE_TUNING } from "./main-menu.constants";
 import AsciiPass from "../postprocessing/AsciiPass";
+
+const INITIAL_HALO_TUNING = UI_HALO_MODE_TUNING["3d"];
 
 type RenderableObject = Object3D & {
   isMesh?: boolean;
@@ -41,14 +43,14 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
   return new ShaderMaterial({
     uniforms: {
       backgroundColor: new Uniform(new Color(UI_HALO.backgroundColor)),
-      expandedMaskEnd: new Uniform(UI_HALO.expandedMaskEnd),
+      expandedMaskEnd: new Uniform(INITIAL_HALO_TUNING.expandedMaskEnd),
       expandedMaskStart: new Uniform(UI_HALO.expandedMaskStart),
       haloColor: new Uniform(new Color(UI_HALO.color)),
       inputTexture: new Uniform(null),
       maskTexture: new Uniform(maskTexture),
       opacity: new Uniform(UI_HALO.opacity),
       outputAlpha: new Uniform(UI_HALO.outputAlpha),
-      radiusPx: new Uniform(UI_HALO.radiusPx),
+      radiusPx: new Uniform(INITIAL_HALO_TUNING.radiusPx),
       texelSize: new Uniform(new Vector2(1, 1)),
     },
     vertexShader: `
@@ -322,7 +324,7 @@ class UiHaloCompositePass extends Pass {
   private readonly snapshotPool = new SnapshotPool();
   private readonly renderables: RenderableObject[] = [];
   private readonly targetSet = new Set<Object3D>();
-  private currentRadiusPx: number = UI_HALO.radiusPx;
+  private currentRadiusPx: number = INITIAL_HALO_TUNING.radiusPx;
 
   constructor(
     renderScene: Scene,
@@ -557,9 +559,11 @@ export default function UiHaloPass() {
   /* The mode only flips while the transition overlay covers the screen, so
      the halo strength change is never visible as a pop. */
   useLayoutEffect(() => {
+    const tuning = UI_HALO_MODE_TUNING[visualMode];
+
     haloPassRef.current?.setHaloStrength(
-      visualMode === "2d" ? UI_HALO.radiusPx2D : UI_HALO.radiusPx,
-      visualMode === "2d" ? UI_HALO.expandedMaskEnd2D : UI_HALO.expandedMaskEnd,
+      tuning.radiusPx,
+      tuning.expandedMaskEnd,
     );
   }, [camera, gl, scene, visualMode]);
 

@@ -1,204 +1,256 @@
 /* The anchor lives inside .modal-scroll-root (position: relative), pinned to
    the bottom-right of the first viewport of scroll content. Anchoring with
    `top` (not `bottom`) is what lets it scroll up off-screen with the backdrop
-   when a modal opens. */
+   when a modal opens, handing the render control over to the modal toolbar. */
 .bg-mode-switch-anchor {
   position: absolute;
   /* Legacy `vh` is retained as a fallback. Mobile Safari's `vh` can describe
      the larger layout viewport behind its expanded browser chrome, so use the
      visible dynamic viewport where supported and keep clear of device safe
      areas. Without this override, the bottom toolbar can cover the switch. */
-  top: calc(100vh - 3.6rem);
-  top: calc(100dvh - 3.6rem - env(safe-area-inset-bottom, 0px));
-  right: clamp(1rem, 3vw, 2.2rem);
+  top: calc(100vh - 1.05rem);
+  top: calc(100dvh - 1.05rem - env(safe-area-inset-bottom, 0px));
+  right: max(clamp(0.9rem, 2.6vw, 2.4rem), env(safe-area-inset-right, 0px));
+  max-width: calc(100vw - 1.8rem - env(safe-area-inset-right, 0px));
+  max-width: calc(100dvw - 1.8rem - env(safe-area-inset-right, 0px));
   /* Stay above `.modal-home-spacer` (z-index: 2). Equal stacking levels let
      that later DOM sibling intercept clicks on the visually open menu in
      some engines even though the menu itself remained visible. */
   z-index: 3;
   pointer-events: none;
-  opacity: 1;
-  transform: translateX(0);
-  transition:
-    opacity 180ms ease,
-    transform 360ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(-100%);
 }
 
-.bg-mode-switch-anchor[data-hidden="true"] {
-  opacity: 0;
-  transform: translateX(calc(100% + clamp(2rem, 5vw, 5rem)));
+/* Both render selectors use the same scale. The viewport-fit term models the
+   rail's three 63-column sigils plus their padding (~32em total), so the bottom
+   right control shrinks before its left edge can leave a narrow viewport. */
+.rm-rail,
+.modal-render-panel {
+  --rm-viewport-fit: calc((100vw - 2.5rem) / 32);
+  --rm-viewport-fit: calc((100dvw - 2.5rem) / 32);
+  --rm-em: clamp(
+    0.56rem,
+    min(0.34vw + 0.55rem, var(--rm-viewport-fit)),
+    1.06rem
+  );
 }
 
-.bg-mode-switch {
-  /* The modal layer is pointer-events: none while closed; the switch must
-     stay interactive on its own. */
+/* Everything inside the rail is sized in `em`, so --rm-em remains the single
+   knob that scales the complete control from phone to ultrawide. */
+.rm-rail {
+  /* The modal layer is pointer-events: none while closed; the rail must stay
+     interactive on its own. */
   pointer-events: auto;
-  display: inline-flex;
-  gap: 0.45rem;
-  align-items: center;
-  min-height: 2.15rem;
-  padding: 0.42rem 0.65rem;
-  color: var(--dragon-comment);
+  display: grid;
+  gap: 0.42em;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 0.5em 0.55em 0.6em;
+  color: var(--dragon-fg-dim);
   font-family: var(--font-iosevka-term);
-  font-size: 0.8rem;
+  font-size: var(--rm-em);
+  line-height: 1.1;
+  /* The exact material a modal body is made of: flat, opaque --dragon-bg.
+     Translucency let the starfield crawl through the panel, which read as a
+     HUD overlay rather than as part of the same terminal. */
   background: var(--dragon-bg);
   border: 1px solid var(--dragon-border-bright);
+  /* A hard offset edge in campfire-dark under a black lip reproduces the
+     extruded-slab look of the Text3D menu without a second WebGL pass. */
   box-shadow:
+    inset 0 0 0 1px rgb(220 215 186 / 0.04),
     0 0 0 1px var(--dragon-black),
-    0 0.35rem 1.4rem rgb(0 0 0 / 0.45);
-  cursor: pointer;
-}
-
-.bg-mode-switch-icon {
-  width: 1ch;
-  color: var(--dragon-orange);
-  font-weight: 700;
-  text-align: center;
-}
-
-.bg-mode-switch-value {
-  color: var(--dragon-yellow);
-  text-shadow:
-    -1px -1px 0 var(--dragon-bg-dim),
-    1px -1px 0 var(--dragon-bg-dim),
-    -1px 1px 0 var(--dragon-bg-dim),
-    1px 1px 0 var(--dragon-bg-dim);
-}
-
-.bg-mode-switch-caret {
-  color: var(--dragon-cyan);
-}
-
-.bg-mode-switch:hover .bg-mode-switch-value,
-.bg-mode-switch:focus-visible .bg-mode-switch-value {
-  color: var(--dragon-cyan);
-}
-
-.bg-mode-switch:focus-visible {
-  outline: 1px solid var(--dragon-cyan);
-  outline-offset: 2px;
-}
-
-.bg-mode-panel {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.55rem);
-  pointer-events: none;
-  width: min(21.5rem, calc(100vw - 2rem));
-  padding: 0.55rem;
-  color: var(--dragon-fg-dim);
-  font-family: var(--font-iosevka-term);
-  font-size: 0.78rem;
-  background:
-    linear-gradient(135deg, rgb(81 199 218 / 0.045), transparent 42%),
-    var(--dragon-bg);
-  border: 1px solid var(--dragon-border-bright);
-  box-shadow:
-    0 0 0 1px var(--dragon-black),
-    0 1rem 3rem rgb(0 0 0 / 0.62),
-    inset 0 0 0 1px rgb(220 215 186 / 0.035);
-  opacity: 0;
-  visibility: hidden;
-  transform: translate(0.8rem, 1rem) scale(0.18, 0.06) skewY(5deg);
-  transform-origin: 100% 100%;
-  clip-path: inset(82% 0 0 72% round 0.15rem);
-  transition:
-    clip-path 360ms cubic-bezier(0.18, 0.82, 0.18, 1),
-    opacity 130ms ease,
-    transform 430ms cubic-bezier(0.16, 1.18, 0.28, 1),
-    visibility 0s linear 430ms;
-}
-
-.bg-mode-panel[data-open="true"] {
-  pointer-events: auto;
+    0 0.31em 0 0 var(--color-campfire-dark),
+    0 0.6em 1.7em rgb(0 0 0 / 0.62);
   opacity: 1;
-  visibility: visible;
-  transform: translate(0, 0) scale(1) skewY(0);
-  clip-path: inset(0 0 0 0 round 0);
-  transition-delay: 0s;
+  transform: translate(0, 0);
+  transition:
+    opacity 200ms ease,
+    transform 420ms cubic-bezier(0.22, 0.85, 0.24, 1);
 }
 
-.bg-mode-panel-art {
-  overflow: hidden;
-  color: var(--dragon-comment);
-  letter-spacing: 0.02em;
-  white-space: pre;
+/* One finite entrance so the rail announces itself on load; there is no idle
+   animation, keeping the compositor idle beside the WebGL frame loop. */
+.bg-mode-switch-anchor:not([data-introduced]) .rm-rail {
+  opacity: 0;
+  transform: translateY(0.9em);
 }
 
-.bg-mode-panel-status {
+.bg-mode-switch-anchor[data-hidden="true"] .rm-rail {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(calc(100% + 3rem));
+}
+
+/* While a modal selection is returning to the starfield, the rail remains
+   readable/selectable but ceases to behave like an interactive control. */
+.bg-mode-switch-anchor[data-input-locked="true"] .rm-rail,
+.bg-mode-switch-anchor[data-input-locked="true"] .rm-mode-option,
+.bg-mode-switch-anchor[data-input-locked="true"] .rm-mode-option * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.rm-rail-head {
   display: flex;
-  justify-content: space-between;
-  padding: 0.28rem 0.2rem 0.45rem;
-  color: var(--dragon-comment);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-}
-
-.bg-mode-options {
-  display: grid;
-  gap: 0.22rem;
-}
-
-.bg-mode-option {
-  display: grid;
-  grid-template-columns: 2.2ch 2ch minmax(0, 1fr) auto;
-  gap: 0rem;
+  gap: 0.5em;
   align-items: center;
-  width: 100%;
-  padding: 0.52rem 0.58rem;
+  padding: 0 0.15em;
+  font-size: 0.74em;
+  letter-spacing: 0.14em;
+}
+
+.rm-rail-title {
+  color: var(--dragon-comment);
+  white-space: nowrap;
+}
+
+.rm-rail-leader {
+  flex: 1;
+  min-width: 1em;
+  height: 1px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--dragon-comment) 0 2px,
+    transparent 2px 5px
+  );
+}
+
+.rm-rail-value {
+  color: var(--dragon-yellow);
+  white-space: nowrap;
+}
+
+.rm-rail-options {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.3em;
+}
+
+.rm-mode-option {
+  display: grid;
+  gap: 0.3em;
+  justify-items: center;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 0.45em 0.5em 0.34em;
   color: var(--dragon-fg-dim);
   font: inherit;
-  text-align: left;
+  font-size: var(--rm-em);
+  line-height: 1.1;
   background: var(--dragon-bg-dim);
   border: 1px solid var(--dragon-border);
   cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
-.bg-mode-option:hover,
-.bg-mode-option:focus-visible {
+button.rm-mode-option:not(:disabled):hover,
+button.rm-mode-option:focus-visible {
   color: var(--dragon-cyan);
   background: var(--dragon-bg-highlight);
   border-color: var(--dragon-border-bright);
   outline: none;
 }
 
-.bg-mode-option[data-active="true"] {
+button.rm-tile:not(:disabled):hover,
+button.rm-tile:focus-visible {
+  transform: translateY(-0.12em);
+}
+
+button.rm-mode-option:focus-visible {
+  border-color: var(--dragon-cyan);
+}
+
+.rm-mode-option[data-active="true"] {
   color: var(--dragon-yellow);
-  background:
-    linear-gradient(90deg, rgb(227 207 101 / 0.08), transparent 72%),
-    var(--dragon-bg-alt);
+  background: var(--dragon-bg-alt);
+  border-color: var(--color-campfire);
 }
 
-.bg-mode-option-index,
-.bg-mode-option-marker {
-  color: var(--dragon-comment);
-  font-size: 0.7rem;
+.rm-mode-option:disabled,
+.rm-mode-option[aria-disabled="true"] {
+  cursor: default;
 }
 
-.bg-mode-option-sigil {
-  color: var(--dragon-orange);
-  font-size: 1rem;
-  text-align: center;
-  margin-left: 0.1rem;
-}
-
-.bg-mode-option-copy {
+.rm-tile-name {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.bg-mode-option-copy strong {
-  font-size: 0.79rem;
+  gap: 0.25em;
+  align-items: baseline;
+  font-size: 0.76em;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
-.bg-mode-option-copy small {
-  overflow: hidden;
+.rm-tile-sigil {
+  color: var(--dragon-orange);
+  font-weight: 700;
+}
+
+.rm-tile-underline {
+  width: 100%;
+  height: 0.13em;
+  background: transparent;
+}
+
+.rm-mode-option[data-active="true"] .rm-tile-underline {
+  background: var(--color-campfire);
+}
+
+/* ---------------------------------------------------------------------------
+   Mode artwork: three small tone-quantised vault-lock sigils. Their analytic
+   fields are calculated once when the source module loads, then rendered as
+   plain text, so they inherit the terminal font and cost nothing per frame.
+   ------------------------------------------------------------------------ */
+.rm-art {
+  display: block;
+  color: var(--dragon-orange);
+  /* Iosevka Term's half-width advance makes 63 columns occupy 31.5em; 33 rows
+     at this line-height occupy virtually the same height. */
+  font-family: var(--font-iosevka-term);
+  font-size: 0.2875em;
+  line-height: 0.955;
+  white-space: pre;
+}
+
+.rm-mode-option:not([data-active="true"]) .rm-art {
   color: var(--dragon-comment);
-  font-size: 0.69rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+button.rm-mode-option:not(:disabled):hover .rm-art,
+button.rm-mode-option:focus-visible .rm-art {
+  color: var(--dragon-cyan);
+}
+
+.rm-mode-option[data-active="true"] .rm-art {
+  color: var(--color-campfire);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rm-rail,
+  .rm-mode-option {
+    transition-duration: 1ms;
+  }
+
+  .bg-mode-switch-anchor:not([data-introduced]) .rm-rail {
+    opacity: 1;
+    transform: none;
+  }
+
+  .rm-mode-option:hover,
+  .rm-mode-option:focus-visible {
+    transform: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .rm-rail {
+    padding: 0.4em 0.45em 0.5em;
+  }
 }
 
 .bg-transition-overlay {

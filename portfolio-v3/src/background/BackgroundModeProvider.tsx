@@ -42,6 +42,7 @@ function createPendingSceneReady(mode: BackgroundMode): PendingSceneReady {
 }
 
 export function BackgroundModeProvider({ children }: { children: ReactNode }) {
+  const [isRenderModeInputLocked, setRenderModeInputLocked] = useState(false);
   const [state, setState] = useState<BackgroundModeState>(() => {
     return {
       phase: "idle",
@@ -159,6 +160,7 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      isRenderModeInputLocked,
       isTransitioning: state.phase !== "idle",
       notifyCleared,
       notifyCovered,
@@ -166,10 +168,18 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
       phase: state.phase,
       requestMode,
       seedPoint: state.seedPoint,
+      setRenderModeInputLocked,
       targetMode: state.targetMode,
       visualMode: state.visualMode,
     }),
-    [notifyCleared, notifyCovered, notifySceneReady, requestMode, state],
+    [
+      isRenderModeInputLocked,
+      notifyCleared,
+      notifyCovered,
+      notifySceneReady,
+      requestMode,
+      state,
+    ],
   );
 
   return (

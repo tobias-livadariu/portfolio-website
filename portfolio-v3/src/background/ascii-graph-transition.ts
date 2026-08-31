@@ -35,12 +35,17 @@ export const ASCII_GRAPH_TRANSITION = {
   facePopProgressSpan: 0.105,
   // Slight face overdraw prevents antialiased cracks between adjacent faces.
   faceOverdrawScale: 1.035,
-  // CSS-pixel distance between glyphs drawn along visited graph edges.
-  edgeGlyphSpacingPx: 15,
+  // Minimum CSS-pixel distance between glyph centers at the reference width.
+  // This exceeds the settled Iosevka ink cell so adjacent glyphs stay crisp.
+  glyphMinimumSpacingPx: 22,
   // Base glyph font size at the reference viewport width.
   glyphFontPx: 14,
   // Largest glyph-list index permitted when an edge first appears.
   initialGlyphMaximumIndex: 2,
+  // Graph vertices always use a connected glyph instead of punctuation.
+  nodeMinimumGlyphIndex: 4,
+  // Slightly emphasizes vertices without breaking the shared density ramp.
+  nodeScaleMultiplier: 1.08,
   // Above 1 biases settled glyph selection toward denser characters.
   finalGlyphDensityBias: 2.1,
   // Glyph scale when a node or edge is first explored.
@@ -60,6 +65,8 @@ export const ASCII_GRAPH_TRANSITION = {
   // Subtle graph rails behind glyphs; raise alpha/width for stronger geometry.
   edgeLineAlpha: 0.2,
   edgeLineWidthPx: 0.75,
+  // Keeps rails from showing through punctuation-shaped vertex glyphs.
+  edgeNodeClearancePx: 6,
   // Glyphs progress from sparse to dense as their node settles.
   glyphs: [".", ":", "-", "=", "+", "*", "#", "%", "@"],
   /* Weighted palette measured from the finished ASCII scene's non-black
@@ -117,6 +124,16 @@ export interface AsciiTransitionField {
   width: number;
 }
 
+export interface AsciiTransitionGlyphPlacement {
+  alpha: number;
+  color: string;
+  glyph: string;
+  scale: number;
+  source: "edge" | "node";
+  x: number;
+  y: number;
+}
+
 interface GraphEdge {
   a: number;
   b: number;
@@ -166,15 +183,18 @@ function pickColor(random: () => number) {
   return ASCII_GRAPH_TRANSITION.colors.at(-1)?.color ?? "#ffffff";
 }
 
-function pickGlyphRange(random: () => number) {
+function pickGlyphRange(random: () => number, minimumGlyphIndex = 0) {
   const maximumGlyphIndex = ASCII_GRAPH_TRANSITION.glyphs.length - 1;
-  const initialGlyphIndex = Math.floor(
-    random() *
-      (Math.min(
-        maximumGlyphIndex,
-        ASCII_GRAPH_TRANSITION.initialGlyphMaximumIndex,
-      ) +
-        1),
+  const initialGlyphIndex = Math.max(
+    Math.min(maximumGlyphIndex, minimumGlyphIndex),
+    Math.floor(
+      random() *
+        (Math.min(
+          maximumGlyphIndex,
+          ASCII_GRAPH_TRANSITION.initialGlyphMaximumIndex,
+        ) +
+          1),
+    ),
   );
   const biasedProgress =
     1 - random() ** ASCII_GRAPH_TRANSITION.finalGlyphDensityBias;
@@ -396,7 +416,10 @@ export function buildAsciiTransitionField(
       ASCII_GRAPH_TRANSITION.goalFoundProgress +
       explosionDistance ** ASCII_GRAPH_TRANSITION.explosionDistanceExponent *
         (1 - ASCII_GRAPH_TRANSITION.goalFoundProgress);
-    const glyphRange = pickGlyphRange(random);
+    const glyphRange = pickGlyphRange(
+      random,
+      ASCII_GRAPH_TRANSITION.nodeMinimumGlyphIndex,
+    );
 
     return {
       color: pickColor(random),
@@ -530,50 +553,126 @@ function getGlyphPresentation(
 
 function drawGlyph(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  color: string,
-  startProgress: number,
-  progress: number,
-  initialGlyphIndex: number,
-  targetGlyphIndex: number,
-  modulationPhase: number,
-  elapsedMs: number,
-  alpha = 1,
+  placement: AsciiTransitionGlyphPlacement,
+  glyphOffsets: Map<string, { x: number; y: number }>,
 ) {
-  const presentation = getGlyphPresentation(
-    startProgress,
-    progress,
-    initialGlyphIndex,
-    targetGlyphIndex,
-    modulationPhase,
-    elapsedMs,
-  );
+  let offset = glyphOffsets.get(placement.glyph);
+
+  if (!offset) {
+    const metrics = ctx.measureText(placement.glyph);
+    /* textAlign/textBaseline center the font's advance and em boxes, not its
+       visible pixels. Center the actual ink bounds so punctuation such as `*`,
+       `:`, and `=` sits directly on the graph coordinate. */
+    offset = {
+      x: (metrics.actualBoundingBoxLeft - metrics.actualBoundingBoxRight) / 2,
+      y:
+        (metrics.actualBoundingBoxAscent - metrics.actualBoundingBoxDescent) /
+        2,
+    };
+    glyphOffsets.set(placement.glyph, offset);
+  }
+
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = color;
-  ctx.translate(x, y);
-  ctx.scale(presentation.scale, presentation.scale);
-  ctx.fillText(presentation.glyph, 0, 0);
+  ctx.globalAlpha = placement.alpha;
+  ctx.fillStyle = placement.color;
+  ctx.translate(placement.x, placement.y);
+  const sourceScale =
+    placement.source === "node"
+      ? ASCII_GRAPH_TRANSITION.nodeScaleMultiplier
+      : 1;
+  const scale = placement.scale * sourceScale;
+  ctx.scale(scale, scale);
+  ctx.fillText(placement.glyph, offset.x, offset.y);
   ctx.restore();
 }
 
-function drawGeneratedGraph(
-  ctx: CanvasRenderingContext2D,
+function createGlyphOccupancy(minimumSpacing: number) {
+  const cellSize = Math.max(1, minimumSpacing);
+  const buckets = new Map<string, Array<{ x: number; y: number }>>();
+
+  return (x: number, y: number) => {
+    const column = Math.floor(x / cellSize);
+    const row = Math.floor(y / cellSize);
+
+    for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+      for (let columnOffset = -1; columnOffset <= 1; columnOffset += 1) {
+        const bucket = buckets.get(
+          `${column + columnOffset}:${row + rowOffset}`,
+        );
+
+        if (
+          bucket?.some(
+            (point) => Math.hypot(point.x - x, point.y - y) < minimumSpacing,
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+
+    const key = `${column}:${row}`;
+    const bucket = buckets.get(key);
+
+    if (bucket) {
+      bucket.push({ x, y });
+    } else {
+      buckets.set(key, [{ x, y }]);
+    }
+
+    return true;
+  };
+}
+
+/**
+ * Resolve the glyph layer before painting it. Nodes reserve their cells first,
+ * then stable interior edge slots fill the remaining space. This guarantees a
+ * single glyph occupant at every visual cell, including shared edge endpoints.
+ */
+export function getAsciiTransitionGlyphPlacements(
   field: AsciiTransitionField,
   progress: number,
   elapsedMs: number,
   clearing: boolean,
 ) {
   const frontierWidth = ASCII_GRAPH_TRANSITION.clearFrontierProgressWidth;
-  const fontSize = ASCII_GRAPH_TRANSITION.glyphFontPx * field.responsiveScale;
-  const glyphSpacing =
-    ASCII_GRAPH_TRANSITION.edgeGlyphSpacingPx * field.responsiveScale;
+  const minimumSpacing =
+    ASCII_GRAPH_TRANSITION.glyphMinimumSpacingPx * field.responsiveScale;
+  const tryOccupy = createGlyphOccupancy(minimumSpacing);
+  const edgePlacements: AsciiTransitionGlyphPlacement[] = [];
+  const nodePlacements: AsciiTransitionGlyphPlacement[] = [];
 
-  ctx.font = `700 ${fontSize}px "Iosevka Term Web", monospace`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineCap = "round";
+  /* Reserve visible graph nodes before considering edge decoration. The old
+     renderer drew every edge endpoint and then drew its node again, producing
+     the darkest and most obvious character stacks. */
+  for (const node of field.nodes) {
+    if (!clearing && progress < node.startProgress) {
+      continue;
+    }
+    if (clearing && node.startProgress < progress - frontierWidth) {
+      continue;
+    }
+    if (!tryOccupy(node.x, node.y)) {
+      continue;
+    }
+
+    const presentation = getGlyphPresentation(
+      node.startProgress,
+      clearing ? 1 : progress,
+      node.initialGlyphIndex,
+      node.targetGlyphIndex,
+      node.modulationPhase,
+      elapsedMs,
+    );
+
+    nodePlacements.push({
+      alpha: 0.96,
+      color: node.color,
+      ...presentation,
+      source: "node",
+      x: node.x,
+      y: node.y,
+    });
+  }
 
   for (const edge of field.edges) {
     if (!edge.isTreeEdge || (!clearing && progress < edge.startProgress)) {
@@ -591,65 +690,124 @@ function drawGeneratedGraph(
           (progress - edge.startProgress) /
             Math.max(edge.endProgress - edge.startProgress, 0.035),
         );
-    const endX = a.x + (b.x - a.x) * edgeProgress;
-    const endY = a.y + (b.y - a.y) * edgeProgress;
-    const alpha = edge.isGoalPath ? 0.68 : ASCII_GRAPH_TRANSITION.edgeLineAlpha;
+    const edgeLength = Math.hypot(b.x - a.x, b.y - a.y);
+    /* Leave a full slot at each endpoint for its node. Dividing the remaining
+       edge into fixed slots also stops characters sliding and bunching while
+       the exploration frontier advances. */
+    const glyphCount = Math.max(
+      0,
+      Math.floor(edgeLength / Math.max(minimumSpacing, 1)) - 1,
+    );
 
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(endX, endY);
-    ctx.lineWidth =
-      ASCII_GRAPH_TRANSITION.edgeLineWidthPx *
-      field.responsiveScale *
-      (edge.isGoalPath ? 1.7 : 1);
-    ctx.globalAlpha = alpha;
-    ctx.strokeStyle = edge.color;
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    for (let glyphIndex = 0; glyphIndex < glyphCount; glyphIndex += 1) {
+      const along = (glyphIndex + 1) / (glyphCount + 1);
 
-    const visibleLength = Math.hypot(endX - a.x, endY - a.y);
-    const glyphCount = Math.floor(visibleLength / Math.max(glyphSpacing, 1));
-    for (let glyphIndex = 0; glyphIndex <= glyphCount; glyphIndex += 1) {
-      const along =
-        glyphCount === 0
-          ? 0
-          : Math.min(1, glyphIndex / glyphCount) * edgeProgress;
-      drawGlyph(
-        ctx,
-        a.x + (b.x - a.x) * along,
-        a.y + (b.y - a.y) * along,
-        edge.color,
+      if (along > edgeProgress) {
+        break;
+      }
+
+      const x = a.x + (b.x - a.x) * along;
+      const y = a.y + (b.y - a.y) * along;
+
+      if (!tryOccupy(x, y)) {
+        continue;
+      }
+
+      const presentation = getGlyphPresentation(
         edge.startProgress,
         clearing ? 1 : progress,
         edge.initialGlyphIndex,
         edge.targetGlyphIndex,
-        edge.modulationPhase + glyphIndex * 0.73,
+        edge.modulationPhase + (glyphIndex + 1) * 0.73,
         elapsedMs,
-        edge.isGoalPath ? 0.95 : 0.72,
       );
+
+      edgePlacements.push({
+        alpha: edge.isGoalPath ? 0.95 : 0.72,
+        color: edge.color,
+        ...presentation,
+        source: "edge",
+        x,
+        y,
+      });
     }
   }
 
-  for (const node of field.nodes) {
-    if (!clearing && progress < node.startProgress) {
+  /* Preserve the former paint order—edge decoration below graph nodes—while
+     using the node-first reservation order above for collision priority. */
+  return [...edgePlacements, ...nodePlacements];
+}
+
+function drawGeneratedGraph(
+  ctx: CanvasRenderingContext2D,
+  field: AsciiTransitionField,
+  progress: number,
+  elapsedMs: number,
+  clearing: boolean,
+) {
+  const frontierWidth = ASCII_GRAPH_TRANSITION.clearFrontierProgressWidth;
+  const fontSize = ASCII_GRAPH_TRANSITION.glyphFontPx * field.responsiveScale;
+
+  ctx.font = `700 ${fontSize}px "Iosevka Term Web", monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineCap = "round";
+  const glyphOffsets = new Map<string, { x: number; y: number }>();
+
+  for (const edge of field.edges) {
+    if (!edge.isTreeEdge || (!clearing && progress < edge.startProgress)) {
       continue;
     }
-    if (clearing && node.startProgress < progress - frontierWidth) {
+    if (clearing && edge.endProgress < progress - frontierWidth) {
       continue;
     }
-    drawGlyph(
-      ctx,
-      node.x,
-      node.y,
-      node.color,
-      node.startProgress,
-      clearing ? 1 : progress,
-      node.initialGlyphIndex,
-      node.targetGlyphIndex,
-      node.modulationPhase,
-      elapsedMs,
-      0.96,
+
+    const a = field.nodes[edge.a];
+    const b = field.nodes[edge.b];
+    const edgeProgress = clearing
+      ? 1
+      : clamp(
+          (progress - edge.startProgress) /
+            Math.max(edge.endProgress - edge.startProgress, 0.035),
+        );
+    const alpha = edge.isGoalPath ? 0.68 : ASCII_GRAPH_TRANSITION.edgeLineAlpha;
+    const edgeLength = Math.hypot(b.x - a.x, b.y - a.y);
+    const clearanceProgress = Math.min(
+      0.5,
+      (ASCII_GRAPH_TRANSITION.edgeNodeClearancePx * field.responsiveScale) /
+        Math.max(edgeLength, 1),
     );
+    const lineStartProgress = Math.min(clearanceProgress, edgeProgress);
+    const lineEndProgress = Math.min(edgeProgress, 1 - clearanceProgress);
+
+    if (lineEndProgress > lineStartProgress) {
+      ctx.beginPath();
+      ctx.moveTo(
+        a.x + (b.x - a.x) * lineStartProgress,
+        a.y + (b.y - a.y) * lineStartProgress,
+      );
+      ctx.lineTo(
+        a.x + (b.x - a.x) * lineEndProgress,
+        a.y + (b.y - a.y) * lineEndProgress,
+      );
+      ctx.lineWidth =
+        ASCII_GRAPH_TRANSITION.edgeLineWidthPx *
+        field.responsiveScale *
+        (edge.isGoalPath ? 1.7 : 1);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = edge.color;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  for (const placement of getAsciiTransitionGlyphPlacements(
+    field,
+    progress,
+    elapsedMs,
+    clearing,
+  )) {
+    drawGlyph(ctx, placement, glyphOffsets);
   }
 }
 

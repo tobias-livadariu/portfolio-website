@@ -1,3 +1,5 @@
+import { ASCII_DENSITY_RAMP } from "../../utility/ascii-density-ramp";
+
 export type AsciiDitherMode = "atkinson" | "floyd-steinberg" | "none";
 
 export interface AsciiImageProfile {
@@ -124,7 +126,7 @@ export const STATIC_ASCII_PROFILES = {
       toneMapStrength: 0.45,
     },
     quantization: {
-      ramp: " .,:;irsXA253hMHGS#9B&@",
+      ramp: ASCII_DENSITY_RAMP,
       dither: "floyd-steinberg",
       ditherStrength: 0.38,
       serpentine: true,
@@ -172,7 +174,7 @@ export const STATIC_ASCII_PROFILES = {
       toneMapStrength: 0.52,
     },
     quantization: {
-      ramp: " .,:;irsXA253hMHGS#9B&@",
+      ramp: ASCII_DENSITY_RAMP,
       dither: "floyd-steinberg",
       ditherStrength: 0.28,
       serpentine: true,

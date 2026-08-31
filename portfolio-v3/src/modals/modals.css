@@ -48,7 +48,7 @@
 }
 
 .modal-section-tabs button,
-.modal-panel-toolbar button,
+.modal-panel-toolbar button:not(.rm-mode-option),
 .modal-action-row a {
   color: var(--dragon-yellow);
   font: inherit;
@@ -110,8 +110,16 @@
 }
 
 .modal-panel {
+  position: relative;
+  z-index: 0;
   width: min(100%, 96rem);
-  contain: layout paint;
+  contain: layout;
+}
+
+/* The panel carrying the single persistent render menu must paint over the
+   document that follows it while the dropdown crosses the section boundary. */
+.modal-panel[data-render-menu-owner="true"] {
+  z-index: 6;
 }
 
 .modal-scroll-gap {
@@ -140,6 +148,8 @@
 }
 
 .modal-panel-toolbar {
+  container-name: modal-toolbar;
+  container-type: inline-size;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
@@ -157,10 +167,226 @@
   white-space: nowrap;
 }
 
-.modal-panel-toolbar > button {
+.modal-toolbar-right {
   grid-area: 1 / 1;
   justify-self: end;
-  z-index: 1;
+  z-index: 3;
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.modal-render-menu-slot,
+.modal-render-menu-host {
+  display: flex;
+  align-items: center;
+}
+
+.modal-render-menu-host {
+  pointer-events: none;
+}
+
+/* Empty slots remain structurally present in every toolbar without adding a
+   phantom flex-gap before the quit button. */
+.modal-render-menu-slot:empty {
+  display: none;
+}
+
+/* This host is moved between the header slots. The portal target itself stays
+   stable, preserving the menu component and its open state during handoff. */
+.modal-render-menu {
+  position: relative;
+  pointer-events: auto;
+}
+
+/* The trigger retracts toward the fixed quit control before its persistent
+   host moves, then reverses this motion in the receiving header. Clipping only
+   this wrapper leaves the absolutely positioned dropdown free to overflow. */
+.modal-render-trigger-motion {
+  clip-path: inset(0);
+  transform: translateX(0);
+  transition:
+    clip-path var(--modal-render-handoff-phase-duration) linear,
+    transform var(--modal-render-handoff-phase-duration)
+      cubic-bezier(0.4, 0, 0.8, 0.35);
+}
+
+.modal-render-menu[data-motion="leaving"],
+.modal-render-menu[data-motion="entering"],
+.modal-render-menu[data-motion="revealing"] {
+  pointer-events: none;
+}
+
+.modal-render-menu[data-motion="leaving"] .modal-render-trigger-motion,
+.modal-render-menu[data-motion="entering"] .modal-render-trigger-motion {
+  clip-path: inset(0 0 0 100%);
+  transform: translateX(0.95rem);
+}
+
+.modal-render-menu[data-motion="entering"] .modal-render-trigger-motion {
+  transition-timing-function: linear, cubic-bezier(0.2, 0.7, 0.25, 1);
+}
+
+.modal-render-menu[data-motion="revealing"] .modal-render-trigger-motion {
+  transition-timing-function: linear, cubic-bezier(0.2, 0.7, 0.25, 1);
+}
+
+.modal-render-menu[data-motion="leaving"] .modal-render-panel,
+.modal-render-menu[data-motion="entering"] .modal-render-panel {
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-0.35rem) scaleY(0.9);
+  transition:
+    opacity var(--modal-render-handoff-phase-duration) ease,
+    transform var(--modal-render-handoff-phase-duration) ease,
+    visibility 0s linear var(--modal-render-handoff-phase-duration);
+}
+
+.modal-render-menu[data-motion="revealing"] .modal-render-panel {
+  transition-duration:
+    var(--modal-render-handoff-phase-duration),
+    var(--modal-render-handoff-phase-duration), 0s;
+}
+
+.modal-panel-toolbar .modal-quit-button {
+  position: relative;
+  z-index: 4;
+  background: var(--dragon-bg-dim);
+  box-shadow: 0 0 0 0.22rem var(--dragon-bg-dim);
+}
+
+/* A method call in the same dotted vocabulary as the starfield rail. The
+   chopped one-pixel frame distinguishes it as an action without introducing
+   conventional button chrome into the terminal header. */
+.modal-panel-toolbar .modal-render-trigger {
+  --modal-render-trigger-edge: var(--dragon-comment);
+
+  position: relative;
+  display: inline-flex;
+  gap: 0.2rem;
+  align-items: center;
+  min-height: 1.65rem;
+  padding: 0.22rem 0.4rem;
+  color: var(--dragon-fg-dim);
+  font: inherit;
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.modal-panel-toolbar .modal-render-trigger::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    repeating-linear-gradient(
+        90deg,
+        var(--modal-render-trigger-edge) 0 2px,
+        transparent 2px 5px
+      )
+      top / 100% 1px no-repeat,
+    repeating-linear-gradient(
+        90deg,
+        var(--modal-render-trigger-edge) 0 2px,
+        transparent 2px 5px
+      )
+      bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(
+        0deg,
+        var(--modal-render-trigger-edge) 0 2px,
+        transparent 2px 5px
+      )
+      left / 1px 100% no-repeat,
+    repeating-linear-gradient(
+        0deg,
+        var(--modal-render-trigger-edge) 0 2px,
+        transparent 2px 5px
+      )
+      right / 1px 100% no-repeat;
+}
+
+.modal-panel-toolbar .modal-render-trigger:hover,
+.modal-panel-toolbar .modal-render-trigger:focus-visible,
+.modal-panel-toolbar .modal-render-trigger[data-open="true"] {
+  --modal-render-trigger-edge: var(--dragon-cyan);
+
+  color: var(--dragon-cyan);
+  outline: none;
+}
+
+.modal-render-trigger-label {
+  letter-spacing: 0.04em;
+}
+
+.modal-render-trigger-leader {
+  color: var(--dragon-comment);
+}
+
+.modal-render-trigger-value {
+  color: var(--dragon-yellow);
+}
+
+.modal-render-trigger:hover .modal-render-trigger-value,
+.modal-render-trigger:hover .modal-render-trigger-leader,
+.modal-render-trigger:focus-visible .modal-render-trigger-value,
+.modal-render-trigger:focus-visible .modal-render-trigger-leader,
+.modal-render-trigger[data-open="true"] .modal-render-trigger-value,
+.modal-render-trigger[data-open="true"] .modal-render-trigger-leader {
+  color: var(--dragon-cyan);
+}
+
+.modal-panel-toolbar .modal-render-trigger:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.modal-render-panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  z-index: 4;
+  display: grid;
+  gap: 0.2rem;
+  width: max-content;
+  max-height: calc(100vh - 2.75rem);
+  max-height: calc(100dvh - 2.75rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.4rem;
+  pointer-events: none;
+  /* Same flat material as the panel body it floats over; only the border and
+     the drop shadow separate it. */
+  background: var(--dragon-bg);
+  border: 1px solid var(--dragon-border-bright);
+  box-shadow:
+    0 0 0 1px var(--dragon-black),
+    inset 0 0 0 1px rgb(220 215 186 / 0.04),
+    0 0.9rem 2.6rem rgb(0 0 0 / 0.62);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-0.45rem) scaleY(0.82);
+  transform-origin: 100% 0;
+  transition:
+    opacity var(--modal-render-open-duration) ease,
+    transform var(--modal-render-open-duration) cubic-bezier(0.18, 0.9, 0.24, 1),
+    visibility 0s linear var(--modal-render-open-duration);
+}
+
+.modal-render-panel[data-open="true"] {
+  pointer-events: auto;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scaleY(1);
+  transition-delay: 0s;
+}
+
+.modal-render-option:hover,
+.modal-render-option:focus-visible {
+  transform: none;
 }
 
 .modal-panel-toolbar .modal-section-tabs {
@@ -1028,11 +1254,61 @@
   }
 }
 
-@media (max-width: 760px) {
-  .modal-section-tabs {
-    justify-content: flex-start;
+/* Move the navigation onto its own row before the centered tabs can collide
+   with either toolbar edge. The render trigger has its own container-aware
+   collapse stages below, so gaining this second row does not unnecessarily
+   abbreviate it. */
+@media (max-width: 920px) {
+  .modal-panel-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    gap: 0.32rem 0.7rem;
+    min-height: 0;
+    padding-block: 0.38rem 0.45rem;
   }
 
+  .modal-file-label {
+    grid-area: 1 / 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .modal-toolbar-right {
+    grid-area: 1 / 2;
+    gap: 0.45rem;
+  }
+
+  .modal-panel-toolbar .modal-section-tabs {
+    grid-area: 2 / 1 / 3 / 3;
+    justify-self: center;
+    max-width: 100%;
+    justify-content: center;
+    overflow-x: hidden;
+  }
+}
+
+/* Prefer the full method + current value. When the toolbar itself gets tight,
+   remove the variable-width value first; only the narrowest headers fall back
+   to the compact bracketed readout. Using the panel container rather than the
+   viewport also respects the modal's max width and edge gutters. */
+@container modal-toolbar (max-width: 34rem) {
+  .modal-render-trigger-leader,
+  .modal-render-trigger-value {
+    display: none;
+  }
+}
+
+@container modal-toolbar (max-width: 28rem) {
+  .modal-render-trigger-label {
+    display: none;
+  }
+
+  .modal-render-trigger-value {
+    display: inline;
+  }
+}
+
+@media (max-width: 760px) {
   .modal-panel-body {
     padding: 0.8rem;
   }
@@ -1115,28 +1391,10 @@
 
 @media (max-width: 560px) {
   .modal-panel-toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    gap: 0.32rem 0.7rem;
-    min-height: 0;
     padding: 0.45rem 0.75rem 0.5rem;
   }
 
-  .modal-file-label {
-    grid-area: 1 / 1;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  .modal-panel-toolbar > button {
-    grid-area: 1 / 2;
-  }
-
   .modal-panel-toolbar .modal-section-tabs {
-    grid-area: 2 / 1 / 3 / 3;
-    justify-self: center;
-    max-width: 100%;
-    overflow-x: hidden;
     gap: clamp(0.2rem, 2vw, 0.5rem);
     font-size: clamp(0.8rem, 2.8vw, 0.82rem);
   }

@@ -2,7 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   ASCII_GRAPH_TRANSITION,
   buildAsciiTransitionField,
+  getAsciiTransitionGlyphPlacements,
 } from "../../src/background/ascii-graph-transition";
+import { BACKGROUND_TRANSITION } from "../../src/background/background-mode-core";
 import {
   getTwoDimensionalVisibleHeight,
   getTwoDimensionalWorldPerPixel,
@@ -15,40 +17,87 @@ import {
 } from "../../src/scene/starfield2d/starfield2d.constants";
 import { COLOR_PALETTE_STR } from "../../src/theme/colors";
 
-const MODE_LABELS = {
-  "2d": /FLAT/,
-  "3d": /DEEP/,
-  ascii: /CHAR/,
-} as const;
+type RenderMode = "2d" | "3d" | "ascii";
 
-async function chooseMode(page: Page, mode: keyof typeof MODE_LABELS) {
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
-  const panel = page.locator(".bg-mode-panel");
+/** The starfield rail shows every mode at once, so there is nothing to open. */
+async function chooseMode(page: Page, mode: RenderMode) {
+  const tile = page.locator(`.rm-tile[data-mode="${mode}"]`);
+
+  await expect(tile).toBeVisible();
+  await tile.click();
+}
+
+/** Same choice made from a modal's sticky toolbar instead. */
+async function chooseModeFromModal(page: Page, mode: RenderMode) {
+  const trigger = page.locator(".modal-render-trigger").first();
 
   await trigger.click();
-  await expect(panel).toHaveAttribute("data-open", "true");
-  await panel.evaluate(async (element) => {
-    await Promise.all(
-      element
-        .getAnimations()
-        .map((animation) => animation.finished.catch(() => undefined)),
-    );
-  });
+  const panel = page.locator('.modal-render-panel[data-open="true"]');
+  const option = panel.locator(`.modal-render-option[data-mode="${mode}"]`);
 
-  const option = page.getByRole("menuitemradio", {
-    name: MODE_LABELS[mode],
-  });
+  await expect(panel.locator(".modal-render-option")).toHaveCount(3);
+  await expect(
+    panel.locator(
+      ".modal-render-option-index, .modal-render-option-copy, .modal-render-option-marker",
+    ),
+  ).toHaveCount(0);
+  await expect(option.locator(":scope > .rm-art")).toHaveCount(1);
+  await expect(option.locator(":scope > .rm-tile-name")).toHaveCount(1);
+  await expect(option.locator(":scope > .rm-tile-underline")).toHaveCount(1);
   await expect(option).toBeVisible();
+  await option.click();
+}
 
-  const bounds = await option.boundingBox();
-  expect(bounds).not.toBeNull();
-  await page.mouse.click(
-    (bounds?.x ?? 0) + (bounds?.width ?? 0) / 2,
-    (bounds?.y ?? 0) + (bounds?.height ?? 0) / 2,
-  );
+function currentModeLabel(page: Page) {
+  return page.locator(".rm-rail-value");
+}
+
+function countConnectedGlyphClusters(text: string, glyph: string) {
+  const remaining = new Set<string>();
+
+  text.split("\n").forEach((row, y) => {
+    Array.from(row).forEach((character, x) => {
+      if (character === glyph) {
+        remaining.add(`${x},${y}`);
+      }
+    });
+  });
+
+  let clusterCount = 0;
+
+  while (remaining.size > 0) {
+    clusterCount += 1;
+    const first = remaining.values().next().value;
+
+    if (first === undefined) {
+      break;
+    }
+
+    remaining.delete(first);
+    const pending = [first];
+
+    while (pending.length > 0) {
+      const point = pending.pop();
+
+      if (point === undefined) {
+        continue;
+      }
+
+      const [x, y] = point.split(",").map(Number);
+
+      for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
+        for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
+          const neighbour = `${x + offsetX},${y + offsetY}`;
+
+          if (remaining.delete(neighbour)) {
+            pending.push(neighbour);
+          }
+        }
+      }
+    }
+  }
+
+  return clusterCount;
 }
 
 function createSeededRandom(seed: number) {
@@ -66,22 +115,457 @@ function createSeededRandom(seed: number) {
 test("render control remains inside a compact dynamic viewport", async ({
   page,
 }) => {
-  const viewport = { height: 664, width: 390 };
+  const viewport = { height: 568, width: 320 };
 
   await page.setViewportSize(viewport);
   await page.goto("/");
 
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
-  const bounds = await trigger.boundingBox();
+  const rail = page.locator(".rm-rail");
+  const bounds = await rail.boundingBox();
+  const overflow = await rail.evaluate(
+    (element) => element.scrollWidth - element.clientWidth,
+  );
 
   expect(bounds).not.toBeNull();
+  expect(overflow).toBeLessThanOrEqual(1);
   expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(
     viewport.height,
   );
-  expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeGreaterThan(0);
+  expect(bounds?.y ?? 0).toBeGreaterThan(0);
+  expect((bounds?.x ?? 0) + (bounds?.width ?? 0)).toBeLessThanOrEqual(
+    viewport.width,
+  );
+});
+
+test("starfield and modal selectors share one responsive option scale", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 920 });
+  await page.goto("/");
+
+  const railOption = page.locator('.rm-tile[data-mode="3d"]');
+  const railOptionBounds = await railOption.boundingBox();
+  const railArt = await railOption.locator(".rm-art").boundingBox();
+  const scrollRoot = page.locator(".modal-scroll-root");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ top: window.innerHeight * 2.2 }),
+  );
+
+  const activePanel = page.locator('.modal-panel[data-active="true"]');
+  const trigger = activePanel.locator(".modal-render-trigger");
+
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+  await page.waitForTimeout(250);
+
+  const modalOption = activePanel.locator(
+    '.modal-render-option[data-mode="3d"]',
+  );
+  const modalOptionBounds = await modalOption.boundingBox();
+  const modalArt = await modalOption.locator(".rm-art").boundingBox();
+  const fileBounds = await activePanel
+    .locator(".modal-file-label")
+    .boundingBox();
+  const tabsBounds = await activePanel
+    .locator(".modal-section-tabs")
+    .boundingBox();
+  const controlsBounds = await activePanel
+    .locator(".modal-toolbar-right")
+    .boundingBox();
+
+  expect(railArt).not.toBeNull();
+  expect(modalArt).not.toBeNull();
+  expect(railOptionBounds).not.toBeNull();
+  expect(modalOptionBounds).not.toBeNull();
+  expect(Math.abs((railArt?.width ?? 0) - (modalArt?.width ?? 0))).toBeLessThan(
+    0.75,
+  );
+  expect(
+    Math.abs((railArt?.height ?? 0) - (modalArt?.height ?? 0)),
+  ).toBeLessThan(0.75);
+  expect(
+    Math.abs((railOptionBounds?.width ?? 0) - (modalOptionBounds?.width ?? 0)),
+  ).toBeLessThan(0.75);
+  expect(
+    Math.abs(
+      (railOptionBounds?.height ?? 0) - (modalOptionBounds?.height ?? 0),
+    ),
+  ).toBeLessThan(0.75);
+  await expect(
+    activePanel.locator(".modal-render-trigger-label"),
+  ).toBeVisible();
+  await expect(
+    activePanel.locator(".modal-render-trigger-value"),
+  ).toBeVisible();
+  expect(tabsBounds?.y ?? 0).toBeGreaterThanOrEqual(
+    Math.max(fileBounds?.y ?? 0, controlsBounds?.y ?? 0) +
+      Math.max(fileBounds?.height ?? 0, controlsBounds?.height ?? 0),
+  );
+
+  await page.setViewportSize({ height: 720, width: 520 });
+  await expect(
+    activePanel.locator(".modal-render-trigger-label"),
+  ).toBeVisible();
+  await expect(
+    activePanel.locator(".modal-render-trigger-leader"),
+  ).toBeHidden();
+  await expect(activePanel.locator(".modal-render-trigger-value")).toBeHidden();
+
+  await page.setViewportSize({ height: 720, width: 400 });
+  await expect(activePanel.locator(".modal-render-trigger-label")).toBeHidden();
+  await expect(
+    activePanel.locator(".modal-render-trigger-value"),
+  ).toBeVisible();
+});
+
+test("closing the modal also closes its persistent render menu", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const trigger = page.locator(".modal-render-trigger");
+  const menu = page.locator(".modal-render-panel");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(page.locator(".modal-render-menu")).toHaveAttribute(
+    "data-motion",
+    "idle",
+  );
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+  await page.locator(".modal-quit-button").first().click();
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeLessThanOrEqual(1);
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(page.locator(".modal-render-menu")).toHaveAttribute(
+    "data-motion",
+    "idle",
+  );
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(menu).not.toHaveAttribute("data-open");
+});
+
+test("closing suppresses render-menu handoffs until returning home", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const panels = page.locator(".modal-panel");
+  const aboutPanel = panels.first();
+  const resumePanel = panels.nth(1);
+  const motionRoot = page.locator(".modal-render-menu");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await aboutPanel
+    .locator(".modal-section-tabs")
+    .getByRole("button", { name: "RESUME" })
+    .click();
+  await expect(resumePanel).toHaveAttribute("data-render-menu-owner", "true", {
+    timeout: 10_000,
+  });
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  await page.evaluate(() => {
+    const stack = document.querySelector(".modal-scroll-stack");
+    const motion = document.querySelector(".modal-render-menu");
+    const root = document.documentElement;
+    const readOwner = () =>
+      document
+        .querySelector<HTMLElement>(
+          '.modal-panel[data-render-menu-owner="true"]',
+        )
+        ?.getAttribute("aria-label") ?? "none";
+
+    root.dataset.renderMenuClosingOwners = readOwner();
+    new MutationObserver(() => {
+      const owner = readOwner();
+      const owners = root.dataset.renderMenuClosingOwners?.split(",") ?? [];
+
+      if (owners[owners.length - 1] !== owner) {
+        root.dataset.renderMenuClosingOwners = [...owners, owner].join(",");
+      }
+    }).observe(stack!, {
+      attributeFilter: ["data-render-menu-owner"],
+      attributes: true,
+      subtree: true,
+    });
+
+    root.dataset.renderMenuClosingMotions =
+      motion?.getAttribute("data-motion") ?? "missing";
+    new MutationObserver(() => {
+      const nextMotion = motion?.getAttribute("data-motion") ?? "missing";
+      const motions = root.dataset.renderMenuClosingMotions?.split(",") ?? [];
+
+      if (motions[motions.length - 1] !== nextMotion) {
+        root.dataset.renderMenuClosingMotions = [...motions, nextMotion].join(
+          ",",
+        );
+      }
+    }).observe(motion!, {
+      attributeFilter: ["data-motion"],
+      attributes: true,
+    });
+  });
+
+  const quitButton = resumePanel.locator(".modal-quit-button");
+
+  await quitButton.click();
+  await expect(quitButton).not.toBeFocused();
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeLessThanOrEqual(1);
+  await expect(page.locator(".modal-render-trigger")).toHaveCount(0);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.dataset.renderMenuClosingOwners,
+      ),
+    )
+    .toBe("RESUME section,none");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.dataset.renderMenuClosingMotions,
+      ),
+    )
+    .toMatch(/idle,leaving/);
+
+  /* Reaching home rearms ownership; the next downward journey may reveal the
+     trigger normally again. */
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(page.locator(".modal-render-trigger")).toBeVisible();
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+});
+
+test("reversing scroll during a reveal cannot strand the render trigger", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const panels = page.locator(".modal-panel");
+  const aboutPanel = panels.first();
+  const resumePanel = panels.nth(1);
+  const motionRoot = page.locator(".modal-render-menu");
+  const trigger = page.locator(".modal-render-trigger");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  await resumePanel.evaluate((element) =>
+    element.scrollIntoView({ behavior: "instant", block: "start" }),
+  );
+  await expect(resumePanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "revealing");
+
+  /* This reversal used to let the reveal effect cancel the newly-created
+     handoff timer, leaving the persistent trigger clipped forever. */
+  await aboutPanel.evaluate((element) =>
+    element.scrollIntoView({ behavior: "instant", block: "start" }),
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+  await expect(trigger).toBeVisible();
+});
+
+test("one open render menu follows the topmost modal header", async ({
+  page,
+}) => {
+  await page.setViewportSize({ height: 720, width: 1280 });
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  const panels = page.locator(".modal-panel");
+  const aboutPanel = panels.nth(0);
+  const resumePanel = panels.nth(1);
+  const trigger = page.locator(".modal-render-trigger");
+  const menu = page.locator(".modal-render-panel");
+  const motionRoot = page.locator(".modal-render-menu");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ top: window.innerHeight * 2.2 }),
+  );
+
+  await expect(trigger).toHaveCount(1);
+  await expect(trigger).toBeVisible();
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(resumePanel.locator(".modal-render-trigger")).toHaveCount(0);
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(menu).toHaveAttribute("data-open", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+
+  /* Move the next document under the open menu without completing the sticky
+     header handoff. The menu must remain the topmost hit target there. */
+  const resumeBounds = await resumePanel.boundingBox();
+  const scrollRootBounds = await scrollRoot.boundingBox();
+
+  expect(resumeBounds).not.toBeNull();
+  expect(scrollRootBounds).not.toBeNull();
+
+  await scrollRoot.evaluate(
+    (element, offset) => element.scrollBy({ top: offset }),
+    (resumeBounds?.y ?? 0) - (scrollRootBounds?.y ?? 0) - 320,
+  );
+  await expect(aboutPanel).toHaveAttribute("data-render-menu-owner", "true");
+
+  const overlayState = await page.evaluate(() => {
+    const owner = document.querySelector<HTMLElement>(
+      '.modal-panel[data-render-menu-owner="true"]',
+    );
+    const followingPanel = owner?.nextElementSibling;
+    const openMenu = document.querySelector<HTMLElement>(
+      '.modal-render-panel[data-open="true"]',
+    );
+
+    if (!(followingPanel instanceof HTMLElement) || !openMenu || !owner) {
+      return null;
+    }
+
+    const followingBounds = followingPanel.getBoundingClientRect();
+    const menuBounds = openMenu.getBoundingClientRect();
+    const overlapTop = Math.max(followingBounds.top, menuBounds.top);
+    const overlapBottom = Math.min(followingBounds.bottom, menuBounds.bottom);
+    const hitTarget = document.elementFromPoint(
+      menuBounds.left + 8,
+      overlapTop + Math.min(8, (overlapBottom - overlapTop) / 2),
+    );
+
+    return {
+      contain: getComputedStyle(owner).contain,
+      hasOverlap: overlapBottom > overlapTop,
+      hitMenu: openMenu.contains(hitTarget),
+      ownerZIndex: Number(getComputedStyle(owner).zIndex),
+      followingZIndex: Number(getComputedStyle(followingPanel).zIndex),
+    };
+  });
+
+  expect(overlayState).not.toBeNull();
+  expect(overlayState?.hasOverlap).toBe(true);
+  expect(overlayState?.hitMenu).toBe(true);
+  expect(overlayState?.contain).toBe("layout");
+  expect(overlayState?.ownerZIndex ?? 0).toBeGreaterThan(
+    overlayState?.followingZIndex ?? 0,
+  );
+
+  await motionRoot.evaluate((element) => {
+    element.setAttribute("data-motion-history", element.dataset.motion ?? "");
+    new MutationObserver(() => {
+      const history = element.getAttribute("data-motion-history") ?? "";
+
+      element.setAttribute(
+        "data-motion-history",
+        `${history},${element.dataset.motion ?? ""}`,
+      );
+    }).observe(element, {
+      attributeFilter: ["data-motion"],
+      attributes: true,
+    });
+  });
+
+  const motionDuringBoundaryScroll = await page.evaluate(
+    () =>
+      new Promise<string>((resolve) => {
+        const scrollRootElement = document.querySelector(".modal-scroll-root");
+        const resumeElement = document.querySelector(
+          '.modal-panel[aria-label="RESUME section"]',
+        );
+
+        if (!scrollRootElement || !(resumeElement instanceof HTMLElement)) {
+          resolve("missing");
+          return;
+        }
+
+        scrollRootElement.addEventListener(
+          "scroll",
+          () => {
+            queueMicrotask(() => {
+              resolve(
+                document
+                  .querySelector<HTMLElement>(".modal-render-menu")
+                  ?.getAttribute("data-motion") ?? "missing",
+              );
+            });
+          },
+          { once: true },
+        );
+        resumeElement.scrollIntoView({ block: "start" });
+      }),
+  );
+
+  expect(motionDuringBoundaryScroll).toBe("leaving");
+
+  await expect(resumePanel).toHaveAttribute("data-render-menu-owner", "true");
+  await expect(aboutPanel).not.toHaveAttribute("data-render-menu-owner");
+  await expect(trigger).toHaveCount(1);
+  await expect(resumePanel.locator(".modal-render-trigger")).toHaveCount(1);
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(menu).toHaveAttribute("data-open", "true");
+  await expect(motionRoot).toHaveAttribute("data-motion", "idle");
+  await expect(motionRoot).toHaveAttribute(
+    "data-motion-history",
+    /leaving.*entering.*revealing/,
+  );
+});
+
+test("every render mode is offered without opening anything", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  for (const mode of ["3d", "2d", "ascii"] as const) {
+    await expect(page.locator(`.rm-tile[data-mode="${mode}"]`)).toBeVisible();
+  }
+
+  await expect(page.locator('.rm-tile[data-mode="3d"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+});
+
+test("vault sigils preserve their one, two, three source clusters", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  for (const [mode, sourceCount] of [
+    ["3d", 1],
+    ["2d", 2],
+    ["ascii", 3],
+  ] as const) {
+    const text = await page
+      .locator(`.rm-tile[data-mode="${mode}"] .rm-art`)
+      .textContent();
+
+    /* At the high-resolution 63-by-33 field, a source occupies several cells.
+       Count connected markers so increased sampling cannot invalidate the
+       semantic one/two/three-source contract. */
+    expect(countConnectedGlyphClusters(text ?? "", "@")).toBe(sourceCount);
+  }
 });
 
 test("2D planets use the same playback distribution as volumetric modes", () => {
@@ -115,6 +599,12 @@ test("ASCII transition graph propagates from the renderer to complete faces", ()
   for (const node of field.nodes) {
     expect(node.startProgress).toBeGreaterThanOrEqual(0);
     expect(node.startProgress).toBeLessThanOrEqual(1);
+    expect(node.initialGlyphIndex).toBeGreaterThanOrEqual(
+      ASCII_GRAPH_TRANSITION.nodeMinimumGlyphIndex,
+    );
+    expect(node.targetGlyphIndex).toBeGreaterThanOrEqual(
+      ASCII_GRAPH_TRANSITION.nodeMinimumGlyphIndex,
+    );
   }
 
   for (const face of field.faces) {
@@ -126,6 +616,63 @@ test("ASCII transition graph propagates from the renderer to complete faces", ()
       ),
     );
   }
+});
+
+test("ASCII transition assigns at most one glyph to each visual cell", () => {
+  const field = buildAsciiTransitionField(
+    1_440,
+    900,
+    1_400,
+    860,
+    createSeededRandom(42),
+  );
+  const minimumSpacing =
+    ASCII_GRAPH_TRANSITION.glyphMinimumSpacingPx * field.responsiveScale;
+
+  for (const [progress, clearing] of [
+    [0.35, false],
+    [0.7, false],
+    [1, false],
+    [0.4, true],
+  ] as const) {
+    const placements = getAsciiTransitionGlyphPlacements(
+      field,
+      progress,
+      640,
+      clearing,
+    );
+
+    expect(placements.length).toBeGreaterThan(20);
+    let closestPairDistance = Number.POSITIVE_INFINITY;
+
+    for (let left = 0; left < placements.length; left += 1) {
+      for (let right = left + 1; right < placements.length; right += 1) {
+        closestPairDistance = Math.min(
+          closestPairDistance,
+          Math.hypot(
+            placements[left].x - placements[right].x,
+            placements[left].y - placements[right].y,
+          ),
+        );
+      }
+    }
+
+    expect(closestPairDistance).toBeGreaterThanOrEqual(minimumSpacing - 1e-6);
+  }
+
+  const settledPlacements = getAsciiTransitionGlyphPlacements(
+    field,
+    1,
+    1_180,
+    false,
+  );
+
+  expect(
+    settledPlacements.filter(({ source }) => source === "node"),
+  ).toHaveLength(field.nodes.length);
+  expect(
+    settledPlacements.filter(({ source }) => source === "edge").length,
+  ).toBeGreaterThan(0);
 });
 
 test("volumetric modes own independent tuning and preserve ASCII appearance", () => {
@@ -388,13 +935,10 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   });
   await page.goto("/");
 
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
+  const modeLabel = currentModeLabel(page);
   const transition = page.locator(".bg-transition-overlay");
 
-  await expect(trigger).toContainText("[3D]");
+  await expect(modeLabel).toContainText("[3D]");
   await expect
     .poll(() =>
       page.evaluate(() => localStorage.getItem("portfolio:background-mode")),
@@ -403,8 +947,14 @@ test("render menu selects every mode and refresh resets to 3D", async ({
 
   const expectModeReady = async (mode: "ascii" | "3d" | "2d") => {
     await chooseMode(page, mode);
-    await expect(trigger).toContainText(`[${mode.toUpperCase()}]`);
+    /* The tile marks the pending target straight away, but the readout names
+       the scene on screen, so it only changes once the transition is done. */
+    await expect(page.locator(`.rm-tile[data-mode="${mode}"]`)).toHaveAttribute(
+      "data-active",
+      "true",
+    );
     await expect(transition).toHaveCount(0, { timeout: 10_000 });
+    await expect(modeLabel).toContainText(`[${mode.toUpperCase()}]`);
     await expect(page.locator(".bg-mode-switch-anchor")).not.toHaveAttribute(
       "data-hidden",
       "true",
@@ -419,11 +969,11 @@ test("render menu selects every mode and refresh resets to 3D", async ({
   await expectModeReady("3d");
 
   await page.reload();
-  await expect(trigger).toContainText("[3D]");
+  await expect(modeLabel).toContainText("[3D]");
 
   await expectModeReady("2d");
   await page.reload();
-  await expect(trigger).toContainText("[3D]");
+  await expect(modeLabel).toContainText("[3D]");
 });
 
 test("OS reduced-motion preference does not replace the ASCII transition", async ({
@@ -433,10 +983,6 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
-  const trigger = page.getByRole("button", {
-    includeHidden: true,
-    name: "Choose background render mode",
-  });
   await chooseMode(page, "ascii");
 
   const transition = page.locator(
@@ -482,6 +1028,156 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
     .poll(() => transition.getAttribute("data-phase"), { timeout: 15_000 })
     .toBe("clearing");
   await expect(transition).toHaveCount(0, { timeout: 10_000 });
-  await expect(trigger).toContainText("[ASCII]");
+  await expect(currentModeLabel(page)).toContainText("[ASCII]");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("the mode readout waits for the new scene to emerge", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+
+  const modeLabel = currentModeLabel(page);
+
+  await expect(modeLabel).toContainText("[3D]");
+  await chooseMode(page, "2d");
+
+  /* Mid-transition the tile has moved but the readout has not: the 2D scene
+     is still hidden behind the cover at this point. */
+  await expect(page.locator('.rm-tile[data-mode="2d"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
+  await expect(modeLabel).toContainText("[3D]");
+
+  await expect(page.locator(".bg-transition-overlay")).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  await expect(modeLabel).toContainText("[2D]");
+});
+
+test("the modal toolbar returns to the starfield before transitioning", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
+    .toBeGreaterThan(0);
+  await expect(page.locator(".modal-render-menu")).toHaveAttribute(
+    "data-motion",
+    "idle",
+  );
+
+  await scrollRoot.evaluate((element) => {
+    const root = document.documentElement;
+
+    delete root.dataset.modalReturnLandedAt;
+    delete root.dataset.modalTransitionStartedAt;
+
+    element.addEventListener(
+      "scroll",
+      () => {
+        if (
+          element.scrollTop <= 0 &&
+          root.dataset.modalReturnLandedAt === undefined
+        ) {
+          root.dataset.modalReturnLandedAt = String(performance.now());
+        }
+      },
+      { passive: true },
+    );
+
+    new MutationObserver(() => {
+      if (
+        document.querySelector(".bg-transition-overlay") &&
+        root.dataset.modalTransitionStartedAt === undefined
+      ) {
+        root.dataset.modalTransitionStartedAt = String(performance.now());
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+
+  await chooseModeFromModal(page, "2d");
+
+  const starfieldRail = page.locator(".bg-mode-switch-anchor");
+  const starfieldTiles = starfieldRail.locator(".rm-tile");
+
+  await expect(starfieldRail).toHaveAttribute("data-input-locked", "true");
+  await expect(starfieldRail.locator(".rm-rail-options")).toHaveAttribute(
+    "aria-disabled",
+    "true",
+  );
+  await expect(starfieldTiles).toHaveCount(3);
+  await expect(starfieldRail.locator("button.rm-tile")).toHaveCount(0);
+
+  for (const tile of await starfieldTiles.all()) {
+    await expect(tile).toHaveAttribute("aria-disabled", "true");
+    await expect(tile).toHaveClass(/rm-tile-static/);
+  }
+
+  const selectedTileText = await starfieldTiles.first().evaluate((tile) => {
+    const selection = window.getSelection();
+    const range = document.createRange();
+
+    range.selectNodeContents(tile);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    const text = selection?.toString() ?? "";
+    selection?.removeAllRanges();
+
+    return text;
+  });
+  expect(selectedTileText.trim().length).toBeGreaterThan(0);
+
+  /* Even a programmatic click during the return cannot replace the mode that
+     initiated it. The static tile and shared request lock both protect this
+     interval. */
+  await starfieldRail
+    .locator('.rm-tile[data-mode="ascii"]')
+    .evaluate((tile: HTMLElement) => tile.click());
+
+  /* The unscroll must complete before the transition covers the screen; the
+     reveal would otherwise play against a modal rather than the scene. */
+  await expect
+    .poll(() => scrollRoot.evaluate((element) => element.scrollTop), {
+      timeout: 10_000,
+    })
+    .toBeLessThanOrEqual(1);
+
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          Number(document.documentElement.dataset.modalReturnLandedAt) > 0 &&
+          Number(document.documentElement.dataset.modalTransitionStartedAt) > 0,
+      ),
+    )
+    .toBe(true);
+
+  const modalReturnTiming = await page.evaluate(() => ({
+    landedAt: Number(document.documentElement.dataset.modalReturnLandedAt),
+    startedAt: Number(
+      document.documentElement.dataset.modalTransitionStartedAt,
+    ),
+  }));
+
+  expect(modalReturnTiming.landedAt).toBeGreaterThan(0);
+  expect(
+    modalReturnTiming.startedAt - modalReturnTiming.landedAt,
+  ).toBeGreaterThanOrEqual(BACKGROUND_TRANSITION.modalReturnPauseMs - 25);
+
+  await expect(page.locator(".bg-transition-overlay")).toHaveCount(0, {
+    timeout: 20_000,
+  });
+  await expect(currentModeLabel(page)).toContainText("[2D]");
+  await expect(page.locator('.rm-tile[data-mode="2d"]')).toHaveAttribute(
+    "data-active",
+    "true",
+  );
 });
