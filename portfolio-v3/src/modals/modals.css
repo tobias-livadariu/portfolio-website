@@ -1236,12 +1236,15 @@
   line-height: 1.35;
   text-align: center;
   text-transform: uppercase;
-  .modal-contact-note-copy-subspans {
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    row-gap: clamp(0.2rem, 0.2vw, 0.27rem);
-  }
+}
+
+/* Avoid native CSS nesting here: this is the same selector the nested rule
+   produced, but it also parses in browser releases predating CSS Nesting. */
+.modal-contact-note-copy .modal-contact-note-copy-subspans {
+  display: flex;
+  flex-direction: column;
+  row-gap: clamp(0.2rem, 0.2vw, 0.27rem);
+  align-items: center;
 }
 
 .modal-contact-note-copy span {

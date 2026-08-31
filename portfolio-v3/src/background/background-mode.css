@@ -26,13 +26,22 @@
    right control shrinks before its left edge can leave a narrow viewport. */
 .rm-rail,
 .modal-render-panel {
-  --rm-viewport-fit: calc((100vw - 2.5rem) / 32);
-  --rm-viewport-fit: calc((100dvw - 2.5rem) / 32);
+  /* Keep this expression to CSS Values Level 3 arithmetic. It is exactly
+     equivalent to `(100vw - 2.5rem) / 32`, but remains valid in Safari
+     versions that do not implement typed division inside calc(). */
+  --rm-viewport-fit: calc(3.125vw - 0.078125rem);
+  --rm-viewport-fit: calc(3.125dvw - 0.078125rem);
   --rm-em: clamp(
     0.56rem,
     min(0.34vw + 0.55rem, var(--rm-viewport-fit)),
     1.06rem
   );
+  /* These controls are deliberately fluid all the way down to phone widths.
+     Safari's text inflation can enlarge their glyphs without enlarging their
+     grid tracks, which compresses the sigils and labels inside each tile.
+     Pin autosizing to the authored size while retaining normal page zoom. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* Everything inside the rail is sized in `em`, so --rm-em remains the single

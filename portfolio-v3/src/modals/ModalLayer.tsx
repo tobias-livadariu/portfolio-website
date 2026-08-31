@@ -209,33 +209,29 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
       renderMenuPlacementFrameRef.current = null;
       renderMenuRevealFrameRef.current = window.requestAnimationFrame(() => {
         renderMenuRevealFrameRef.current = null;
-        renderMenuMotionRef.current = "revealing";
-        setRenderMenuMotion("revealing");
+
+        /* Commit the visible phase before starting its clock. Under a heavily
+           loaded WebKit main thread, React could otherwise batch a restarted
+           `entering` state back into the already-committed `revealing` state.
+           The ownership restart clears the old timer, and a same-value final
+           state does not rerun an effect, stranding the control half revealed. */
+        flushSync(() => {
+          renderMenuMotionRef.current = "revealing";
+          setRenderMenuMotion("revealing");
+        });
+
+        if (renderMenuIdleTimeoutRef.current !== null) {
+          window.clearTimeout(renderMenuIdleTimeoutRef.current);
+        }
+
+        renderMenuIdleTimeoutRef.current = window.setTimeout(() => {
+          renderMenuIdleTimeoutRef.current = null;
+          renderMenuMotionRef.current = "idle";
+          setRenderMenuMotion("idle");
+        }, RENDER_MENU_HANDOFF_PHASE_MS);
       });
     });
   }, []);
-
-  /* Start the reveal clock only after React has committed the visible phase.
-     This prevents a busy WebGL frame from batching `revealing` and `idle`
-     together and skipping the CSS transition entirely. */
-  useEffect(() => {
-    if (renderMenuMotion !== "revealing") {
-      return;
-    }
-
-    renderMenuIdleTimeoutRef.current = window.setTimeout(() => {
-      renderMenuIdleTimeoutRef.current = null;
-      renderMenuMotionRef.current = "idle";
-      setRenderMenuMotion("idle");
-    }, RENDER_MENU_HANDOFF_PHASE_MS);
-
-    return () => {
-      if (renderMenuIdleTimeoutRef.current !== null) {
-        window.clearTimeout(renderMenuIdleTimeoutRef.current);
-        renderMenuIdleTimeoutRef.current = null;
-      }
-    };
-  }, [renderMenuMotion]);
 
   /* Start each ownership change by retracting the current control. The host
      moves only after that motion completes, so it appears to pass behind [q]
@@ -248,14 +244,6 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
 
       renderMenuTargetRef.current = section;
       cancelRenderMenuMotion();
-
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        renderMenuSectionRef.current = section;
-        renderMenuMotionRef.current = "idle";
-        setRenderMenuSection(section);
-        setRenderMenuMotion("idle");
-        return;
-      }
 
       const currentSection = renderMenuSectionRef.current;
 
