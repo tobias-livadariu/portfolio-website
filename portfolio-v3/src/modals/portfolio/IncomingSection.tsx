@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Text3D, useTexture } from "@react-three/drei";
 import type { Group, Mesh } from "three";
@@ -7,6 +7,7 @@ import TransparentAsciiRenderer from "../../scene/ascii/TransparentAsciiRenderer
 import { CANVAS_DPR } from "../../scene/canvas.constants";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
+import useProgressiveCanvasMount from "../components/use-progressive-canvas-mount";
 import { useScenePointer } from "../components/use-scene-pointer";
 import { DRAGON_LUCY } from "../modals.constants";
 
@@ -634,10 +635,11 @@ function IncomingContent({
  * only while the strip is actually visible.
  */
 export default function IncomingSection() {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [isOnScreen, setIsOnScreen] = useState(
-    () => typeof IntersectionObserver === "undefined",
-  );
+  const {
+    elementRef: wrapperRef,
+    isNearViewport,
+    shouldMountCanvas,
+  } = useProgressiveCanvasMount<HTMLDivElement>();
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number>();
   const fallbackAspectRatio =
     INCOMING_SCENE_TUNING.fallbackLayoutAspectRatio /
@@ -648,25 +650,6 @@ export default function IncomingSection() {
         ? current
         : aspectRatio,
     );
-  }, []);
-
-  useEffect(() => {
-    const wrapper = wrapperRef.current;
-
-    if (!wrapper) {
-      return;
-    }
-
-    if (typeof IntersectionObserver === "undefined") {
-      return;
-    }
-
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsOnScreen(entry?.isIntersecting ?? false);
-    });
-
-    observer.observe(wrapper);
-    return () => observer.disconnect();
   }, []);
 
   return (
@@ -680,26 +663,28 @@ export default function IncomingSection() {
         marginTop: `${INCOMING_SCENE_TUNING.baseTopMarginRem * INCOMING_SCENE_TUNING.sectionSizeMultiplier * INCOMING_SCENE_TUNING.topWhitespaceMultiplier}rem`,
       }}
     >
-      <Canvas
-        dpr={CANVAS_DPR}
-        flat
-        frameloop={isOnScreen ? "always" : "demand"}
-        gl={{ alpha: true, antialias: true }}
-        camera={{
-          fov: INCOMING_SCENE_TUNING.cameraFieldOfViewDegrees,
-          position: [0, 0, INCOMING_SCENE_TUNING.cameraZPosition],
-        }}
-      >
-        <Suspense fallback={null}>
-          <IncomingContent
-            onLayoutAspectRatioChange={handleLayoutAspectRatioChange}
+      {shouldMountCanvas ? (
+        <Canvas
+          dpr={CANVAS_DPR}
+          flat
+          frameloop={isNearViewport ? "always" : "demand"}
+          gl={{ alpha: true, antialias: true }}
+          camera={{
+            fov: INCOMING_SCENE_TUNING.cameraFieldOfViewDegrees,
+            position: [0, 0, INCOMING_SCENE_TUNING.cameraZPosition],
+          }}
+        >
+          <Suspense fallback={null}>
+            <IncomingContent
+              onLayoutAspectRatioChange={handleLayoutAspectRatioChange}
+            />
+          </Suspense>
+          <TransparentAsciiRenderer
+            baseCellHeight={INCOMING_SCENE_TUNING.asciiGlyphCellHeightPx}
+            baseCellWidth={INCOMING_SCENE_TUNING.asciiGlyphCellWidthPx}
           />
-        </Suspense>
-        <TransparentAsciiRenderer
-          baseCellHeight={INCOMING_SCENE_TUNING.asciiGlyphCellHeightPx}
-          baseCellWidth={INCOMING_SCENE_TUNING.asciiGlyphCellWidthPx}
-        />
-      </Canvas>
+        </Canvas>
+      ) : null}
     </div>
   );
 }

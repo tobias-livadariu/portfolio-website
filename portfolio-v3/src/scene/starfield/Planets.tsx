@@ -28,6 +28,7 @@ import {
   ensurePlanetAtlasesLoading,
   subscribePlanetAtlases,
 } from "./planet-atlas-cache";
+import { useBackgroundMode } from "../../background/background-mode-core";
 
 const FULL_TURN_RADIANS = Math.PI * 2;
 
@@ -380,6 +381,7 @@ export default function Planets({
   fieldTuning: VolumetricStarfieldTuning;
   mode: VolumetricStarfieldMode;
 }) {
+  const { isInitialRevealComplete } = useBackgroundMode();
   const tuning = fieldTuning.planets;
   const planets = useMemo(
     () => getVirtualPlanets(mode, fieldTuning),
@@ -389,6 +391,13 @@ export default function Planets({
     useState<ReadonlyMap<string, PlanetAtlas>>(EMPTY_ATLAS_MAP);
 
   useEffect(() => {
+    /* Stars are sufficient to compose and reveal the first real background
+       frame. Admit oversized atlas decode/upload work only after that reveal;
+       planets already fade in progressively as each atlas is published. */
+    if (!isInitialRevealComplete) {
+      return;
+    }
+
     ensurePlanetAtlasesLoading();
 
     return subscribePlanetAtlases((atlas) => {
@@ -402,7 +411,7 @@ export default function Planets({
         return next;
       });
     });
-  }, []);
+  }, [isInitialRevealComplete]);
 
   return (
     <group>

@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import { Text3D, useTexture } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { Group, Mesh } from "three";
@@ -9,6 +9,7 @@ import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { DRAGON_LUCY } from "../modals.constants";
 import { TerminalTranscriptLine } from "./Terminal";
+import useProgressiveCanvasMount from "./use-progressive-canvas-mount";
 import { useScenePointer } from "./use-scene-pointer";
 import { useTerminalContentColumns } from "./use-terminal-content-columns";
 
@@ -1037,10 +1038,11 @@ export default function HolographicStoryScene({
       min: STORY_SCENE_TUNING.contentMinimumColumns,
       step: STORY_SCENE_TUNING.contentSnapStepColumns,
     });
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [isOnScreen, setIsOnScreen] = useState(
-    () => typeof IntersectionObserver === "undefined",
-  );
+  const {
+    elementRef: heroRef,
+    isNearViewport,
+    shouldMountCanvas,
+  } = useProgressiveCanvasMount<HTMLDivElement>();
   const measuredHeroWidth = contentWidth || Number.POSITIVE_INFINITY;
   const heroLineCount =
     measuredHeroWidth < STORY_SCENE_TUNING.heroNarrowMaxWidthPx
@@ -1052,25 +1054,6 @@ export default function HolographicStoryScene({
     () => buildStoryRows(definition.highlights, columns),
     [columns, definition.highlights],
   );
-
-  useEffect(() => {
-    const hero = heroRef.current;
-
-    if (!hero) {
-      return;
-    }
-
-    if (typeof IntersectionObserver === "undefined") {
-      return;
-    }
-
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsOnScreen(entry?.isIntersecting ?? false);
-    });
-
-    observer.observe(hero);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <div
@@ -1107,24 +1090,26 @@ export default function HolographicStoryScene({
           ))}
         </div>
         <div aria-hidden="true" className="modal-story-canvas-shell">
-          <Canvas
-            camera={{
-              fov: STORY_SCENE_TUNING.cameraFieldOfViewDegrees,
-              position: [0, 0, STORY_SCENE_TUNING.cameraZPosition],
-            }}
-            dpr={CANVAS_DPR}
-            flat
-            frameloop={isOnScreen ? "always" : "demand"}
-            gl={{ alpha: true, antialias: true }}
-          >
-            <Suspense fallback={null}>
-              <HologramContent definition={definition} />
-            </Suspense>
-            <TransparentAsciiRenderer
-              baseCellHeight={STORY_SCENE_TUNING.asciiGlyphCellHeightPx}
-              baseCellWidth={STORY_SCENE_TUNING.asciiGlyphCellWidthPx}
-            />
-          </Canvas>
+          {shouldMountCanvas ? (
+            <Canvas
+              camera={{
+                fov: STORY_SCENE_TUNING.cameraFieldOfViewDegrees,
+                position: [0, 0, STORY_SCENE_TUNING.cameraZPosition],
+              }}
+              dpr={CANVAS_DPR}
+              flat
+              frameloop={isNearViewport ? "always" : "demand"}
+              gl={{ alpha: true, antialias: true }}
+            >
+              <Suspense fallback={null}>
+                <HologramContent definition={definition} />
+              </Suspense>
+              <TransparentAsciiRenderer
+                baseCellHeight={STORY_SCENE_TUNING.asciiGlyphCellHeightPx}
+                baseCellWidth={STORY_SCENE_TUNING.asciiGlyphCellWidthPx}
+              />
+            </Canvas>
+          ) : null}
         </div>
       </div>
 

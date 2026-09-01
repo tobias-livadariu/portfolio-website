@@ -1,9 +1,10 @@
-import { memo } from "react";
+import { Suspense, lazy, memo, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { useBackgroundMode } from "../../background/background-mode-core";
 import publicPath from "../../utility/public-path";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
-import ResumePdfViewer from "./ResumePdfViewer";
+import preloadResumePdfViewer from "./preload-resume-pdf-viewer";
 import {
   RESUME_ASCII_TITLE_PIECES,
   RESUME_DIVIDER,
@@ -26,6 +27,65 @@ const RESUME_RIGHT_SPRITE = {
 
 const OPEN_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/view`;
 const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${RESUME_DRIVE_ID}`;
+const ResumePdfViewer = lazy(preloadResumePdfViewer);
+
+function ResumePdfPlaceholder() {
+  return (
+    <div
+      aria-live="polite"
+      className="modal-resume-pdf-placeholder"
+      role="status"
+    >
+      Preparing resume preview…
+    </div>
+  );
+}
+
+function ProgressiveResumePdfViewer({ src }: { src: string }) {
+  const { isInitialRevealComplete } = useBackgroundMode();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (!isInitialRevealComplete || !container) {
+      return;
+    }
+
+    if (typeof IntersectionObserver === "undefined") {
+      const timeoutId = window.setTimeout(() => setShouldRender(true), 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setShouldRender(true);
+          observer.disconnect();
+        }
+      },
+      /* One viewport of lead time normally covers the About to Resume scroll,
+         while keeping PDF parsing/rendering out of the startup critical path. */
+      { rootMargin: "100% 0px" },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isInitialRevealComplete]);
+
+  return (
+    <div className="modal-resume-pdf-deferred" ref={containerRef}>
+      {shouldRender ? (
+        <Suspense fallback={<ResumePdfPlaceholder />}>
+          <ResumePdfViewer src={src} />
+        </Suspense>
+      ) : (
+        <ResumePdfPlaceholder />
+      )}
+    </div>
+  );
+}
 
 function ResumeOpenPanel() {
   return (
@@ -39,7 +99,7 @@ function ResumeOpenPanel() {
     >
       <div className="modal-resume-shell">
         <div className="modal-resume-document">
-          <ResumePdfViewer src={publicPath("/resume.pdf")} />
+          <ProgressiveResumePdfViewer src={publicPath("/resume.pdf")} />
         </div>
       </div>
       <div className="modal-action-row">

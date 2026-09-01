@@ -1089,8 +1089,27 @@
 .modal-resume-pdf-viewer {
   position: relative;
   width: 100%;
+  aspect-ratio: 612 / 792;
   /* Restore baseline line-height (the parent zeroes it for image rendering). */
   line-height: normal;
+}
+
+.modal-resume-pdf-deferred {
+  width: 100%;
+}
+
+.modal-resume-pdf-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 612 / 792;
+  box-sizing: border-box;
+  padding: 1.1rem 0.9rem;
+  color: var(--dragon-comment);
+  background: var(--color-white);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .modal-resume-pdf-pages {

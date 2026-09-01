@@ -155,6 +155,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   const [activeSection, setActiveSection] = useState<ModalSectionKey | null>(
     null,
   );
+  const [hasMountedSections, setHasMountedSections] = useState(false);
   const [renderMenuSection, setRenderMenuSection] =
     useState<ModalSectionKey | null>(null);
   const renderMenuSectionRef = useRef<ModalSectionKey | null>(null);
@@ -321,6 +322,21 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   useEffect(() => {
     isOpenRef.current = isOpen;
   }, [isOpen]);
+
+  /* Modal documents are entirely covered and inert during startup. Let the
+     completed scene reveal reach the screen first, then build the off-screen
+     document stack on the next frame. The home spacer remains present, so
+     this does not change the visible layout or any user-reachable state. */
+  useEffect(() => {
+    if (!isInitialRevealComplete || hasMountedSections) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() =>
+      setHasMountedSections(true),
+    );
+    return () => window.cancelAnimationFrame(frame);
+  }, [hasMountedSections, isInitialRevealComplete]);
 
   /* Publish the scroller so the modal toolbar's render menu can return the
      reader to the starfield before starting a transition. */
@@ -550,7 +566,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
         window.cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [scheduleScrollSync, sections, updateSectionMetrics]);
+  }, [hasMountedSections, scheduleScrollSync, sections, updateSectionMetrics]);
 
   useEffect(() => {
     if (!navigationRequest) {
@@ -582,9 +598,21 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
         navigationRequest.section ===
         MODAL_SECTION_KEYS[MODAL_SECTION_KEYS.length - 1];
 
+      if (isLastSection) {
+        /* Firefox may stop `scrollIntoView({ block: "end" })` before the
+           scroll container's true end when the last panel is shorter than
+           the viewport. Targeting the maximum scroll offset directly keeps
+           CONTACT active and aligns navigation across engines. */
+        scrollRoot.scrollTo({
+          behavior: "smooth",
+          top: scrollRoot.scrollHeight - scrollRoot.clientHeight,
+        });
+        return;
+      }
+
       sectionRefs.current[navigationRequest.section]?.scrollIntoView({
         behavior: "smooth",
-        block: isLastSection ? "end" : "start",
+        block: "start",
         inline: "nearest",
       });
     });
@@ -732,7 +760,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
 
   return (
     <>
-      <ModalAssetPreloader />
+      <ModalAssetPreloader enabled={isInitialRevealComplete} />
       <div
         aria-busy={!isInitialRevealComplete || undefined}
         className={`modal-layer ${isOpen ? "modal-layer-open" : ""}`}
@@ -760,28 +788,30 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
           <div className="modal-home-spacer" />
           {/* The switch above must stay outside this aria-hidden subtree so it
               remains exposed to assistive tech while the modals are closed. */}
-          <div aria-hidden={!isOpen} className="modal-scroll-stack">
-            {sections.map((section, index) => {
-              const Section = SECTION_COMPONENTS[section.key];
+          {hasMountedSections ? (
+            <div aria-hidden={!isOpen} className="modal-scroll-stack">
+              {sections.map((section, index) => {
+                const Section = SECTION_COMPONENTS[section.key];
 
-              return (
-                <ModalPanel
-                  Section={Section}
-                  isActive={activeSection === section.key}
-                  isLast={index === sections.length - 1}
-                  key={section.key}
-                  ownsRenderMenu={renderMenuSection === section.key}
-                  onClose={requestClose}
-                  onOpenSection={openSection}
-                  registerRenderMenuSlot={registerRenderMenuSlot}
-                  registerRef={registerSectionRef}
-                  sectionKey={section.key}
-                  sectionLabel={section.label}
-                  sectionShortLabel={section.shortLabel}
-                />
-              );
-            })}
-          </div>
+                return (
+                  <ModalPanel
+                    Section={Section}
+                    isActive={activeSection === section.key}
+                    isLast={index === sections.length - 1}
+                    key={section.key}
+                    ownsRenderMenu={renderMenuSection === section.key}
+                    onClose={requestClose}
+                    onOpenSection={openSection}
+                    registerRenderMenuSlot={registerRenderMenuSlot}
+                    registerRef={registerSectionRef}
+                    sectionKey={section.key}
+                    sectionLabel={section.label}
+                    sectionShortLabel={section.shortLabel}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
         </div>
         {createPortal(
           <ModalRenderModeMenu

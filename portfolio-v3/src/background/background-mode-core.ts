@@ -29,6 +29,11 @@ export interface BackgroundModeContextValue {
 }
 
 export const BACKGROUND_TRANSITION = {
+  /* A lost/failed WebGL context must never leave the document permanently
+     hidden. Normal startup still reveals on the first composed background
+     frame; this is only the fail-open deadline for devices that never emit
+     that signal. */
+  startupSceneReadyTimeoutMs: 2500,
   /* Pause after a modal's smooth return reaches the starfield. This keeps the
      fullscreen wipe from visually colliding with the final upward motion. */
   modalReturnPauseMs: 120,

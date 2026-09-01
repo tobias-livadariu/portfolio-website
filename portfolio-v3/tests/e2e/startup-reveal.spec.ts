@@ -1,105 +1,104 @@
 import { expect, test } from "@playwright/test";
+import { BACKGROUND_TRANSITION } from "../../src/background/background-mode-core";
 
-test("startup stays covered and inert until the real DEEP reveal completes", async ({
+test("startup reveals a composed background without waiting for menu fonts", async ({
   page,
 }) => {
   let releaseFonts!: () => void;
+  let blockedFontRequests = 0;
   const fontsReleased = new Promise<void>((resolve) => {
     releaseFonts = resolve;
   });
 
-  /* Text3D suspends the composed scene on these resources. Holding them gives
-     the test a deterministic view of the otherwise brief startup gate. */
+  /* Text3D may continue loading after the animated background is ready. Hold
+     both resources to prove they no longer gate the first visible frame. */
   await page.route("**/fonts/**/*.typeface.json", async (route) => {
+    blockedFontRequests += 1;
     await fontsReleased;
     await route.continue();
+  });
+
+  /* Observe the production overlay from its insertion so a fast first frame
+     cannot race Playwright's post-navigation locator setup. */
+  await page.addInitScript(() => {
+    let observedOverlay: HTMLCanvasElement | null = null;
+
+    const observeOverlay = () => {
+      const element = document.querySelector<HTMLCanvasElement>(
+        '.bg-transition-overlay[data-startup="true"]',
+      );
+
+      if (!element || element === observedOverlay) {
+        return;
+      }
+
+      observedOverlay = element;
+      const recordPhase = () => {
+        const root = document.documentElement;
+
+        if (!root) {
+          return;
+        }
+
+        const phase = element.getAttribute("data-phase") ?? "missing";
+        const phases = root.dataset.startupRevealPhases?.split(",") ?? [];
+
+        if (phases[phases.length - 1] !== phase) {
+          root.dataset.startupRevealPhases = [...phases, phase].join(",");
+        }
+
+        if (phase !== "clearing") {
+          return;
+        }
+
+        const sampleAperture = () => {
+          const context = element.getContext("2d");
+
+          if (!context || !element.isConnected) {
+            return;
+          }
+
+          const bottomRightAlpha = context.getImageData(
+            Math.max(0, element.width - 2),
+            Math.max(0, element.height - 2),
+            1,
+            1,
+          ).data[3];
+          const topLeftAlpha = context.getImageData(1, 1, 1, 1).data[3];
+
+          if (bottomRightAlpha < topLeftAlpha) {
+            root.dataset.startupApertureOrigin = "bottom-right";
+            return;
+          }
+
+          requestAnimationFrame(sampleAperture);
+        };
+
+        requestAnimationFrame(sampleAperture);
+      };
+
+      recordPhase();
+      new MutationObserver(recordPhase).observe(element, {
+        attributeFilter: ["data-phase"],
+        attributes: true,
+      });
+    };
+
+    new MutationObserver(observeOverlay).observe(document, {
+      childList: true,
+      subtree: true,
+    });
   });
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   const layer = page.locator(".modal-layer");
-  const overlay = page.locator(".bg-transition-overlay");
+  const overlay = page.locator('.bg-transition-overlay[data-startup="true"]');
   const railAnchor = page.locator(".bg-mode-switch-anchor");
   const scrollRoot = page.locator(".modal-scroll-root");
 
-  await expect(overlay).toHaveAttribute("data-phase", "covered");
-  await expect(overlay).toHaveAttribute("data-startup", "true");
-  await expect(overlay).toHaveAttribute("data-target-mode", "3d");
-  await expect(layer).toHaveAttribute("inert", "");
-  await expect(layer).toHaveAttribute("aria-busy", "true");
-  await expect(railAnchor).toHaveAttribute("data-hidden", "true");
-  await expect(railAnchor.locator("button.rm-tile")).toHaveCount(0);
-
-  const coverPixel = await overlay.evaluate((element: HTMLCanvasElement) => {
-    const context = element.getContext("2d");
-
-    return context
-      ? Array.from(context.getImageData(0, 0, 1, 1).data)
-      : undefined;
-  });
-
-  expect(coverPixel).toEqual([7, 11, 20, 255]);
-
-  await page.keyboard.press("ArrowDown");
-  await page.mouse.wheel(0, 1_200);
-  await page.waitForTimeout(100);
-  expect(await scrollRoot.evaluate((element) => element.scrollTop)).toBe(0);
-
-  /* Record the production canvas itself opening at the bottom-right seed. */
-  await overlay.evaluate((element: HTMLCanvasElement) => {
-    document.documentElement.dataset.startupRevealPhases =
-      element.getAttribute("data-phase") ?? "missing";
-
-    new MutationObserver(() => {
-      const phase = element.getAttribute("data-phase") ?? "missing";
-      const phases =
-        document.documentElement.dataset.startupRevealPhases?.split(",") ?? [];
-
-      if (phases[phases.length - 1] !== phase) {
-        document.documentElement.dataset.startupRevealPhases = [
-          ...phases,
-          phase,
-        ].join(",");
-      }
-
-      if (phase !== "clearing") {
-        return;
-      }
-
-      const sampleAperture = () => {
-        const context = element.getContext("2d");
-
-        if (!context) {
-          return;
-        }
-
-        const bottomRightAlpha = context.getImageData(
-          Math.max(0, element.width - 2),
-          Math.max(0, element.height - 2),
-          1,
-          1,
-        ).data[3];
-        const topLeftAlpha = context.getImageData(1, 1, 1, 1).data[3];
-
-        if (bottomRightAlpha < topLeftAlpha) {
-          document.documentElement.dataset.startupApertureOrigin =
-            "bottom-right";
-          return;
-        }
-
-        requestAnimationFrame(sampleAperture);
-      };
-
-      requestAnimationFrame(sampleAperture);
-    }).observe(element, {
-      attributeFilter: ["data-phase"],
-      attributes: true,
-    });
-  });
-
-  releaseFonts();
-
-  await expect(overlay).toHaveCount(0, { timeout: 15_000 });
+  await expect.poll(() => blockedFontRequests).toBeGreaterThan(0);
+  await expect(overlay).toHaveCount(0, { timeout: 5_000 });
   expect(
     await page.evaluate(
       () => document.documentElement.dataset.startupRevealPhases,
@@ -115,8 +114,78 @@ test("startup stays covered and inert until the real DEEP reveal completes", asy
   await expect(railAnchor).not.toHaveAttribute("data-hidden", "true");
   await expect(railAnchor.locator("button.rm-tile")).toHaveCount(3);
 
+  releaseFonts();
+
   await page.keyboard.press("ArrowDown");
   await expect
     .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
+});
+
+test("startup fails open when WebGL cannot create a context", async ({
+  page,
+}) => {
+  test.setTimeout(15_000);
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+
+    HTMLCanvasElement.prototype.getContext = function (
+      contextId: string,
+      ...options: unknown[]
+    ) {
+      if (contextId === "webgl" || contextId === "webgl2") {
+        return null;
+      }
+
+      return getContext.call(this, contextId, ...options);
+    } as typeof HTMLCanvasElement.prototype.getContext;
+  });
+
+  const startedAt = Date.now();
+  await page.goto("/");
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, {
+    timeout: BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs + 5_000,
+  });
+
+  expect(Date.now() - startedAt).toBeLessThan(
+    BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs + 4_000,
+  );
+  await expect(page.locator(".portfolio-canvas-fallback")).toBeAttached();
+  await expect(page.locator("html")).toHaveCSS(
+    "background-color",
+    "rgb(7, 11, 20)",
+  );
+  await expect(page.locator(".modal-layer")).not.toHaveAttribute("inert", "");
+  await expect(page.locator("button.rm-tile")).toHaveCount(3);
+});
+
+test("startup does not fetch or instantiate off-screen document renderers", async ({
+  page,
+}) => {
+  const startupRequests: string[] = [];
+
+  page.on("request", (request) => startupRequests.push(request.url()));
+  await page.goto("/");
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, { timeout: 10_000 });
+
+  expect(startupRequests.some((url) => url.endsWith("/resume.pdf"))).toBe(
+    false,
+  );
+  await expect(page.locator("canvas")).toHaveCount(1);
+
+  /* The exact-size placeholder keeps the resume structurally present before
+     its renderer is admitted near the viewport. */
+  const placeholder = page.locator(".modal-resume-pdf-placeholder");
+  await expect(placeholder).toBeAttached();
+  const bounds = await placeholder.boundingBox();
+
+  expect(bounds).not.toBeNull();
+  expect((bounds?.width ?? 0) / (bounds?.height ?? 1)).toBeCloseTo(
+    612 / 792,
+    2,
+  );
 });
