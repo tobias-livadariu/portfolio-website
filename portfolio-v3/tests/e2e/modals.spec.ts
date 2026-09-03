@@ -372,9 +372,15 @@ test("modal document opens from scroll and supports section navigation", async (
   ).toBeVisible();
   const firstStoryHero = activePanel.locator(".modal-story-hero").first();
   await firstStoryHero.scrollIntoViewIfNeeded();
-  await expect(firstStoryHero.locator("canvas")).toBeVisible({
+  await expect(
+    page.locator('[data-testid="modal-shared-scene-layer"] canvas'),
+  ).toBeVisible({
     timeout: 20_000,
   });
+  await expect(firstStoryHero.locator("canvas")).toHaveCount(0);
+  await expect(
+    firstStoryHero.locator('.modal-r3f-scene-poster[data-scene-ready="true"]'),
+  ).toBeAttached({ timeout: 20_000 });
 
   await activePanel.getByRole("button", { name: "CONTACT ME" }).click();
   await expect(activePanel).toContainText("File: contact.modal");

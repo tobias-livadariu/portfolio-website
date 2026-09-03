@@ -1,15 +1,15 @@
 import { Suspense, useCallback, useRef, useState } from "react";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Text3D, useTexture } from "@react-three/drei";
+import type { RefObject } from "react";
+import { useFrame } from "@react-three/fiber";
+import { PerspectiveCamera, Text3D, useTexture, View } from "@react-three/drei";
 import type { Group, Mesh } from "three";
 import { MathUtils, Vector3 } from "three";
 import TransparentAsciiRenderer from "../../scene/ascii/TransparentAsciiRenderer";
-import { CANVAS_DPR } from "../../scene/canvas.constants";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
-import useProgressiveCanvasMount from "../components/use-progressive-canvas-mount";
 import { useScenePointer } from "../components/use-scene-pointer";
 import { DRAGON_LUCY } from "../modals.constants";
+import { isModalScenePosterCapture } from "./modal-scene-poster-capture";
 
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.webp");
 
@@ -49,7 +49,7 @@ const INCOMING_SCENE_TUNING = {
   // Reticle width relative to the INCOMING title width.
   decoratorWidthRelativeToTitle: 0.3,
   // Initial aspect ratio used before the measured stack becomes available.
-  fallbackLayoutAspectRatio: 1.35,
+  fallbackLayoutAspectRatio: 1.43,
   // Vertical pixel size of one output glyph in the ASCII renderer.
   asciiGlyphCellHeightPx: 10,
   // Horizontal pixel size of one output glyph in the ASCII renderer.
@@ -450,8 +450,10 @@ function placeStack(layout: StackLayout, verticalOffset: number) {
 
 function IncomingContent({
   onLayoutAspectRatioChange,
+  trackRef,
 }: {
   onLayoutAspectRatioChange: (aspectRatio: number) => void;
+  trackRef: RefObject<HTMLElement | null>;
 }) {
   const groupRef = useRef<Group>(null);
   const decoratorRef = useRef<Group>(null);
@@ -463,18 +465,43 @@ function IncomingContent({
   const seasonRef = useRef<Mesh>(null);
   const decoratorBaseY = useRef(0);
   const layoutSignatureRef = useRef("");
-  const { gl, viewport } = useThree();
-  const pointer = useScenePointer(gl.domElement, {
+  const pointer = useScenePointer(trackRef, {
     clampX: INCOMING_SCENE_TUNING.pointerClampX,
     clampY: INCOMING_SCENE_TUNING.pointerClampY,
   });
 
   useFrame((state, delta) => {
     const group = groupRef.current;
+    const trackRect = trackRef.current?.getBoundingClientRect();
 
-    if (!group) {
+    if (!group || !trackRect || trackRect.width <= 0 || trackRect.height <= 0) {
       return;
     }
+
+    const perspectiveCamera = state.camera as typeof state.camera & {
+      aspect?: number;
+      isPerspectiveCamera?: boolean;
+    };
+    const nextAspect = trackRect.width / trackRect.height;
+
+    if (
+      perspectiveCamera.isPerspectiveCamera &&
+      perspectiveCamera.aspect !== nextAspect
+    ) {
+      perspectiveCamera.aspect = nextAspect;
+      perspectiveCamera.updateProjectionMatrix();
+    }
+
+    const viewport = state.viewport.getCurrentViewport(
+      state.camera,
+      [0, 0, 0],
+      {
+        height: trackRect.height,
+        left: 0,
+        top: 0,
+        width: trackRect.width,
+      },
+    );
 
     const layoutSignature = [
       viewport.width,
@@ -560,6 +587,22 @@ function IncomingContent({
       }
     }
 
+    if (isModalScenePosterCapture()) {
+      group.position.y = 0;
+      group.rotation.set(0, 0, 0);
+      if (decoratorRef.current) {
+        decoratorRef.current.position.y = decoratorBaseY.current;
+        decoratorRef.current.rotation.set(0, 0, 0);
+      }
+      if (outerSquareRef.current && innerSquareRef.current) {
+        outerSquareRef.current.rotation.z = MathUtils.degToRad(
+          INCOMING_SCENE_TUNING.outerSquareInitialRotationDegrees,
+        );
+        innerSquareRef.current.rotation.z = 0;
+      }
+      return;
+    }
+
     const damping = 1 - Math.exp(-delta * INCOMING_SCENE_TUNING.motionDamping);
     const time = state.clock.elapsedTime;
     const idle =
@@ -635,15 +678,11 @@ function IncomingContent({
  * only while the strip is actually visible.
  */
 export default function IncomingSection() {
-  const {
-    elementRef: wrapperRef,
-    isNearViewport,
-    shouldMountCanvas,
-  } = useProgressiveCanvasMount<HTMLDivElement>();
+  const contentRef = useRef<Group>(null);
+  const viewRef = useRef<HTMLElement>(null);
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number>();
-  const fallbackAspectRatio =
-    INCOMING_SCENE_TUNING.fallbackLayoutAspectRatio /
-    INCOMING_SCENE_TUNING.sectionSizeMultiplier;
+  const [isSceneReady, setIsSceneReady] = useState(false);
+  const fallbackAspectRatio = INCOMING_SCENE_TUNING.fallbackLayoutAspectRatio;
   const handleLayoutAspectRatioChange = useCallback((aspectRatio: number) => {
     setLayoutAspectRatio((current) =>
       current !== undefined && Math.abs(current - aspectRatio) < 0.0001
@@ -656,35 +695,48 @@ export default function IncomingSection() {
     <div
       className="modal-incoming"
       aria-label="Incoming: Finta, Fall 2026"
-      ref={wrapperRef}
       style={{
         aspectRatio: layoutAspectRatio ?? fallbackAspectRatio,
         marginBottom: `${INCOMING_SCENE_TUNING.baseBottomMarginRem * INCOMING_SCENE_TUNING.sectionSizeMultiplier * INCOMING_SCENE_TUNING.bottomWhitespaceMultiplier}rem`,
         marginTop: `${INCOMING_SCENE_TUNING.baseTopMarginRem * INCOMING_SCENE_TUNING.sectionSizeMultiplier * INCOMING_SCENE_TUNING.topWhitespaceMultiplier}rem`,
       }}
     >
-      {shouldMountCanvas ? (
-        <Canvas
-          dpr={CANVAS_DPR}
-          flat
-          frameloop={isNearViewport ? "always" : "demand"}
-          gl={{ alpha: true, antialias: true }}
-          camera={{
-            fov: INCOMING_SCENE_TUNING.cameraFieldOfViewDegrees,
-            position: [0, 0, INCOMING_SCENE_TUNING.cameraZPosition],
-          }}
-        >
-          <Suspense fallback={null}>
+      <img
+        alt=""
+        aria-hidden="true"
+        className="modal-r3f-scene-poster"
+        data-scene-ready={isSceneReady ? "true" : undefined}
+        src={publicPath("/posters/modal-incoming.svg")}
+      />
+      <View
+        className="modal-shared-scene-view"
+        frames={Infinity}
+        index={2}
+        ref={viewRef}
+        visible={false}
+      >
+        <PerspectiveCamera
+          makeDefault
+          fov={INCOMING_SCENE_TUNING.cameraFieldOfViewDegrees}
+          position={[0, 0, INCOMING_SCENE_TUNING.cameraZPosition]}
+        />
+        <Suspense fallback={null}>
+          <group ref={contentRef} visible={false}>
             <IncomingContent
               onLayoutAspectRatioChange={handleLayoutAspectRatioChange}
+              trackRef={viewRef}
             />
-          </Suspense>
-          <TransparentAsciiRenderer
-            baseCellHeight={INCOMING_SCENE_TUNING.asciiGlyphCellHeightPx}
-            baseCellWidth={INCOMING_SCENE_TUNING.asciiGlyphCellWidthPx}
-          />
-        </Canvas>
-      ) : null}
+          </group>
+        </Suspense>
+        <TransparentAsciiRenderer
+          baseCellHeight={INCOMING_SCENE_TUNING.asciiGlyphCellHeightPx}
+          baseCellWidth={INCOMING_SCENE_TUNING.asciiGlyphCellWidthPx}
+          contentRef={contentRef}
+          onReady={() => setIsSceneReady(true)}
+          renderPriority={3}
+          trackRef={viewRef}
+        />
+      </View>
     </div>
   );
 }

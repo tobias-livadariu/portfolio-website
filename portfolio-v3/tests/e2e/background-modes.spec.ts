@@ -553,7 +553,9 @@ test("one open render menu follows the topmost modal header", async ({
   expect(overlayState).not.toBeNull();
   expect(overlayState?.hasOverlap).toBe(true);
   expect(overlayState?.hitMenu).toBe(true);
-  expect(overlayState?.contain).toBe("layout");
+  // Size containment preserves the panel's horizontal layout without turning it
+  // into a containing block for the viewport-fixed shared WebGL canvas.
+  expect(overlayState?.contain).toBe("inline-size");
   expect(overlayState?.ownerZIndex ?? 0).toBeGreaterThan(
     overlayState?.followingZIndex ?? 0,
   );

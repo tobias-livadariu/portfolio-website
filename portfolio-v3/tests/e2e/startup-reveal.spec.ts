@@ -177,11 +177,11 @@ test("startup does not fetch or instantiate off-screen document renderers", asyn
   );
   await expect(page.locator("canvas")).toHaveCount(1);
 
-  /* The exact-size placeholder keeps the resume structurally present before
-     its renderer is admitted near the viewport. */
-  const placeholder = page.locator(".modal-resume-pdf-placeholder");
-  await expect(placeholder).toBeAttached();
-  const bounds = await placeholder.boundingBox();
+  /* The generated SVG keeps the complete document structurally and visually
+     present before opening a modal admits PDF.js. */
+  const poster = page.locator(".modal-resume-svg-poster");
+  await expect(poster).toBeAttached();
+  const bounds = await poster.boundingBox();
 
   expect(bounds).not.toBeNull();
   expect((bounds?.width ?? 0) / (bounds?.height ?? 1)).toBeCloseTo(

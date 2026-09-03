@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { MODAL_ASSETS } from "../modals.constants";
 import publicPath from "../../utility/public-path";
-import preloadResumePdfViewer from "../resume/preload-resume-pdf-viewer";
 
 function preloadImage(path: string) {
   const image = new Image();
@@ -28,8 +27,6 @@ export default function ModalAssetPreloader({ enabled }: { enabled: boolean }) {
           preloadImage(asset);
         }
       }
-
-      void preloadResumePdfViewer();
     };
 
     if (typeof window.requestIdleCallback === "function") {

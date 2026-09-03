@@ -307,3 +307,52 @@ test("compact modal render control always animates between headers", async ({
     )
     .toMatch(/^idle,leaving,entering,revealing,idle$/);
 });
+
+test("phone portfolio scenes share one viewport canvas without stretching", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto("/");
+  await waitForStartupReveal(page);
+
+  const scrollRoot = page.locator(".modal-scroll-root");
+  await scrollRoot.evaluate((element) =>
+    element.scrollTo({ behavior: "instant", top: window.innerHeight * 2.2 }),
+  );
+
+  const portfolioPanel = page.locator(
+    '.modal-panel[aria-label="PORTFOLIO section"]',
+  );
+  const sceneHosts = portfolioPanel.locator(
+    ".modal-incoming, .modal-story-canvas-shell",
+  );
+  const sharedCanvas = page.locator(
+    '[data-testid="modal-shared-scene-layer"] canvas',
+  );
+
+  await expect(sharedCanvas).toHaveCount(1);
+  await expect(sceneHosts.locator("canvas")).toHaveCount(0);
+
+  for (const host of await sceneHosts.all()) {
+    await host.evaluate((element) => {
+      const root = element.closest(".modal-scroll-root");
+      if (root instanceof HTMLElement) {
+        root.scrollTop += element.getBoundingClientRect().top - 64;
+        root.dispatchEvent(new Event("scroll"));
+      }
+    });
+    await expect(
+      host.locator('.modal-r3f-scene-poster[data-scene-ready="true"]'),
+    ).toBeAttached({ timeout: 20_000 });
+  }
+
+  const geometry = await sharedCanvas.evaluate((canvas) => ({
+    rect: canvas.getBoundingClientRect().toJSON(),
+    viewportHeight: window.innerHeight,
+    viewportWidth: window.innerWidth,
+  }));
+  expect(geometry.rect.left).toBe(0);
+  expect(geometry.rect.top).toBe(0);
+  expect(geometry.rect.width).toBe(geometry.viewportWidth);
+  expect(geometry.rect.height).toBe(geometry.viewportHeight);
+});
