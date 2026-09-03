@@ -1,28 +1,18 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import { View } from "@react-three/drei";
-import { Color } from "three";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { CANVAS_DPR } from "../../scene/canvas.constants";
 import { useModalController } from "../modal-context-core";
 
-function SharedCanvasClear() {
-  const clearColor = useMemo(() => new Color(), []);
-
-  useFrame(({ gl, size }) => {
-    const previousClearAlpha = gl.getClearAlpha();
-    gl.getClearColor(clearColor);
-    gl.setRenderTarget(null);
-    gl.setScissorTest(false);
-    gl.setViewport(0, 0, size.width, size.height);
-    gl.setClearColor(0x000000, 0);
-    gl.clear(true, true, true);
-    gl.setClearColor(clearColor, previousClearAlpha);
-  }, 1);
-
-  return null;
-}
-
-/** One WebGL renderer shared by every portalled R3F scene in this modal. */
+/**
+ * One WebGL renderer shared by every portalled R3F scene in this modal.
+ *
+ * Nothing is presented from this canvas directly: it is a viewport-sized
+ * scratch surface that each scene draws into and then copies out of, into its
+ * own in-flow canvas. Keeping it out of the visual layer is what lets the
+ * scenes scroll with the modal instead of being repositioned against the
+ * document once per render — see `TransparentAsciiRenderer`.
+ */
 export default function ModalSceneCanvas() {
   const { isOpen } = useModalController();
   const [hasOpened, setHasOpened] = useState(isOpen);
@@ -55,12 +45,10 @@ export default function ModalSceneCanvas() {
           gl.autoClear = false;
           gl.setClearColor(0x000000, 0);
         }}
-        // R3F defaults this wrapper to `pointer-events: auto`. The scenes use
-        // passive window-level pointer tracking, so the fixed compositor must
-        // remain transparent to modal controls and native wheel scrolling.
+        // R3F defaults this wrapper to `pointer-events: auto`, which would
+        // re-enable hit testing inside the non-interactive scratch layer.
         style={{ pointerEvents: "none" }}
       >
-        <SharedCanvasClear />
         <View.Port />
       </Canvas>
     </div>

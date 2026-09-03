@@ -372,12 +372,17 @@ test("modal document opens from scroll and supports section navigation", async (
   ).toBeVisible();
   const firstStoryHero = activePanel.locator(".modal-story-hero").first();
   await firstStoryHero.scrollIntoViewIfNeeded();
+  /* The shared renderer is an offscreen scratch surface: it is attached and
+     sized, but never painted. Each hero presents through its own in-flow
+     canvas so the compositor scrolls the scene with the modal. */
+  const sharedRenderer = page.locator(
+    '[data-testid="modal-shared-scene-layer"] canvas',
+  );
+  await expect(sharedRenderer).toBeAttached({ timeout: 20_000 });
+  await expect(sharedRenderer).toHaveCSS("visibility", "hidden");
   await expect(
-    page.locator('[data-testid="modal-shared-scene-layer"] canvas'),
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-  await expect(firstStoryHero.locator("canvas")).toHaveCount(0);
+    firstStoryHero.locator("canvas.modal-shared-scene-view"),
+  ).toHaveCount(1);
   await expect(
     firstStoryHero.locator('.modal-r3f-scene-poster[data-scene-ready="true"]'),
   ).toBeAttached({ timeout: 20_000 });

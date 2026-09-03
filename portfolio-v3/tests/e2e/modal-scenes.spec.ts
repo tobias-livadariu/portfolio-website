@@ -122,7 +122,15 @@ test("modal scenes use one shared WebGL context and keep posters until complete 
 
   await page.goto("/");
   await waitForStartupReveal(page);
-  await expect(page.locator("canvas")).toHaveCount(1);
+  /* The section canvases exist with the modal markup, but they are inert
+     until the shared renderer mounts, so only the background holds a context. */
+  await expect(
+    page.locator('[data-testid="modal-shared-scene-layer"]'),
+  ).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-webgl-canvas-count",
+    "1",
+  );
 
   const activePanel = await openPortfolio(page);
   const sharedCanvas = page.locator(
@@ -138,7 +146,12 @@ test("modal scenes use one shared WebGL context and keep posters until complete 
   await expect(
     page.locator('[data-testid="modal-shared-scene-layer"] > div'),
   ).toHaveCSS("pointer-events", "none");
-  await expect(sceneHosts.locator("canvas")).toHaveCount(0);
+  /* Each section presents through its own in-flow canvas so the compositor
+     scrolls the scene with the modal. They are 2D canvases fed by the one
+     shared WebGL context, which is what `data-webgl-canvas-count` guards. */
+  await expect(
+    sceneHosts.locator("canvas.modal-shared-scene-view"),
+  ).toHaveCount(3);
   await expect(posters).toHaveCount(3);
   for (const poster of await posters.all()) {
     await expect(poster).toBeVisible();
@@ -343,12 +356,19 @@ test.describe("dense-display shared modal compositor", () => {
           const canvasRect = canvas.getBoundingClientRect();
           const targetRect = target.getBoundingClientRect();
           const renderScale = canvas.width / canvasRect.width;
-          const expected = [
-            Math.round((targetRect.left - canvasRect.left) * renderScale),
-            Math.round((canvasRect.bottom - targetRect.bottom) * renderScale),
-            Math.round(targetRect.width * renderScale),
-            Math.round(targetRect.height * renderScale),
-          ];
+          const presentCanvas = target.querySelector<HTMLCanvasElement>(
+            "canvas.modal-shared-scene-view",
+          );
+
+          if (!presentCanvas) {
+            throw new Error("The section is not presenting through a canvas.");
+          }
+
+          /* A section is drawn into the origin of the shared renderer and then
+             copied out, so its bounds must not depend on where the section
+             currently sits in the document. That independence is what keeps
+             the scene glued to the modal while it scrolls. */
+          const expected = [0, 0, presentCanvas.width, presentCanvas.height];
           const calls = callWindow.__modalWebGlBoundsCalls ?? [];
           const hasMatchingCall = (kind: "scissor" | "viewport") =>
             calls.some(
@@ -359,10 +379,24 @@ test.describe("dense-display shared modal compositor", () => {
                 ),
             );
 
+          /* The section canvas carries the device pixels exactly once. It is
+             allowed to be smaller than the section's full density only when
+             the section does not fit inside the shared renderer. */
+          const fitScale = Math.min(
+            1,
+            canvas.width / (targetRect.width * renderScale),
+            canvas.height / (targetRect.height * renderScale),
+          );
+
           return {
             expected,
             hasMatchingScissor: hasMatchingCall("scissor"),
             hasMatchingViewport: hasMatchingCall("viewport"),
+            presentBacking: [presentCanvas.width, presentCanvas.height],
+            presentExpected: [
+              Math.floor(targetRect.width * fitScale * renderScale),
+              Math.floor(targetRect.height * fitScale * renderScale),
+            ],
             renderScale,
           };
         },
@@ -384,6 +418,14 @@ test.describe("dense-display shared modal compositor", () => {
       expect(compositorBounds.renderScale).toBe(1.5);
       expect(compositorBounds.hasMatchingViewport).toBe(true);
       expect(compositorBounds.hasMatchingScissor).toBe(true);
+      expect(compositorBounds.presentBacking[0]).toBeCloseTo(
+        compositorBounds.presentExpected[0],
+        -0.5,
+      );
+      expect(compositorBounds.presentBacking[1]).toBeCloseTo(
+        compositorBounds.presentExpected[1],
+        -0.5,
+      );
 
       const clip = await scene.target.boundingBox();
       expect(clip).not.toBeNull();

@@ -331,7 +331,11 @@ test("phone portfolio scenes share one viewport canvas without stretching", asyn
   );
 
   await expect(sharedCanvas).toHaveCount(1);
-  await expect(sceneHosts.locator("canvas")).toHaveCount(0);
+  /* One WebGL renderer, plus one in-flow presentation canvas per section so
+     each scene is scrolled by the compositor along with the modal. */
+  await expect(
+    sceneHosts.locator("canvas.modal-shared-scene-view"),
+  ).toHaveCount(3);
 
   for (const host of await sceneHosts.all()) {
     await host.evaluate((element) => {

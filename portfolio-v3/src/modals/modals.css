@@ -671,12 +671,15 @@
   min-width: 0;
 }
 
-/* The three portfolio views are portalled into this one fixed renderer. Each
-   view is composited only inside its tracked DOM rectangle. */
+/* The three portfolio views are portalled into this one renderer. It is a
+   viewport-sized scratch surface, never composited into the page: each scene
+   copies its finished rectangle into its own canvas below. `visibility` keeps
+   the element measurable — R3F sizes the drawing buffer from it — while
+   costing nothing to paint. */
 .modal-shared-scene-layer {
   position: fixed;
   inset: 0;
-  z-index: 1;
+  visibility: hidden;
   pointer-events: none;
 }
 
@@ -694,7 +697,10 @@
   height: 100%;
 }
 
+/* An ordinary in-flow canvas, so the compositor scrolls each scene with the
+   modal exactly as it scrolls the panel behind it. */
 .modal-shared-scene-view {
+  display: block;
   pointer-events: none;
 }
 

@@ -1147,6 +1147,7 @@ export default function HolographicStoryScene({
             )}
           />
           <View
+            as="canvas"
             className="modal-shared-scene-view"
             frames={Infinity}
             index={viewIndex}

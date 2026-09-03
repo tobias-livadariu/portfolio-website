@@ -122,8 +122,19 @@ function createAsciiMaterial(glyphTexture: CanvasTexture) {
 }
 
 /**
- * Renders one portalled scene into its own target, then composites the ASCII
- * result into the tracked DOM rectangle on the one shared modal canvas.
+ * Renders one portalled scene into its own target, composites the ASCII result
+ * into the corner of the one shared modal renderer, then copies that rectangle
+ * into the section's own presentation canvas.
+ *
+ * The copy is what keeps the scene glued to the modal. A single viewport-sized
+ * WebGL canvas has to be positioned against the document on the main thread
+ * every frame, so a composited scroll moves the modal before the renderer can
+ * follow and the scene visibly trails the panel it belongs to. An ordinary
+ * in-flow canvas per section is translated by the compositor together with the
+ * rest of the modal, so it cannot drift no matter how far behind the render
+ * loop falls. This is the "one renderer, many canvases" arrangement from the
+ * three.js manual: one WebGL context is still shared by every scene, and only
+ * the finished pixels are handed to each section.
  */
 export default function TransparentAsciiRenderer({
   baseCellHeight = 10,
@@ -171,74 +182,79 @@ export default function TransparentAsciiRenderer({
 
   useFrame(() => {
     const content = contentRef.current;
-    const track = trackRef.current;
+    const present = trackRef.current;
 
-    if (!content || !track) {
+    if (!content || !(present instanceof HTMLCanvasElement)) {
       return;
     }
 
-    const canvasRect = gl.domElement.getBoundingClientRect();
-    const trackRect = track.getBoundingClientRect();
+    const rendererCanvas = gl.domElement;
+    const presentRect = present.getBoundingClientRect();
 
+    /* Nothing is composited for a section the reader has scrolled away from.
+       The shared renderer is viewport-sized, so its own rectangle is the
+       cheapest stand-in for "still on screen". */
     if (
-      canvasRect.width <= 0 ||
-      canvasRect.height <= 0 ||
-      trackRect.width <= 0 ||
-      trackRect.height <= 0 ||
-      trackRect.right <= canvasRect.left ||
-      trackRect.left >= canvasRect.right ||
-      trackRect.bottom <= canvasRect.top ||
-      trackRect.top >= canvasRect.bottom
+      presentRect.width <= 0 ||
+      presentRect.height <= 0 ||
+      presentRect.bottom <= 0 ||
+      presentRect.top >= window.innerHeight ||
+      presentRect.right <= 0 ||
+      presentRect.left >= window.innerWidth
     ) {
       content.visible = false;
       return;
     }
 
-    // WebGLRenderer's viewport and scissor APIs take logical/CSS pixels and
-    // multiply them by its pixel ratio internally. The render target and
-    // fragment shader, however, operate in physical pixels. Keeping these
-    // coordinate spaces separate prevents DPR from being applied twice on
-    // Retina and other dense displays.
-    const destinationLeft = trackRect.left - canvasRect.left;
-    const destinationBottom = canvasRect.bottom - trackRect.bottom;
-    const destinationWidth = Math.max(1, trackRect.width);
-    const destinationHeight = Math.max(1, trackRect.height);
-    const targetWidth = Math.max(1, Math.round(destinationWidth * pixelRatio));
-    const targetHeight = Math.max(
+    /* WebGLRenderer's viewport and scissor APIs take logical/CSS pixels and
+       multiply them by its pixel ratio internally, flooring the result. The
+       render target, the fragment shader, and the canvas backing stores all
+       work in physical pixels. Deriving the physical size the same way the
+       renderer does keeps the copy below aligned to the pixels just drawn. */
+    const cssWidth = Math.max(1, presentRect.width);
+    const cssHeight = Math.max(1, presentRect.height);
+
+    /* The copy reads back out of the shared renderer, so a section has to be
+       drawn inside that buffer. A section can legitimately be taller than the
+       viewport — a tall hero on a short window — so oversized sections are
+       rendered at a reduced density and stretched back by their canvas rather
+       than being dropped. */
+    const fitScale = Math.min(
       1,
-      Math.round(destinationHeight * pixelRatio),
+      rendererCanvas.width / Math.max(1, cssWidth * pixelRatio),
+      rendererCanvas.height / Math.max(1, cssHeight * pixelRatio),
     );
-    const clipLeft = Math.max(0, destinationLeft);
-    const clipBottom = Math.max(0, destinationBottom);
-    const clipRight = Math.min(
-      canvasRect.width,
-      destinationLeft + destinationWidth,
+    const renderCssWidth = cssWidth * fitScale;
+    const renderCssHeight = cssHeight * fitScale;
+    const physicalWidth = Math.max(1, Math.floor(renderCssWidth * pixelRatio));
+    const physicalHeight = Math.max(
+      1,
+      Math.floor(renderCssHeight * pixelRatio),
     );
-    const clipTop = Math.min(
-      canvasRect.height,
-      destinationBottom + destinationHeight,
-    );
-
-    if (clipRight <= clipLeft || clipTop <= clipBottom) {
-      content.visible = false;
-      return;
-    }
 
     if (
-      resources.target.width !== targetWidth ||
-      resources.target.height !== targetHeight
+      resources.target.width !== physicalWidth ||
+      resources.target.height !== physicalHeight
     ) {
-      resources.target.setSize(targetWidth, targetHeight);
+      resources.target.setSize(physicalWidth, physicalHeight);
     }
-    resources.material.uniforms.resolution.value.set(targetWidth, targetHeight);
+    resources.material.uniforms.resolution.value.set(
+      physicalWidth,
+      physicalHeight,
+    );
+    /* Glyph cells are sized in render pixels, so a section rendered below its
+       full density needs proportionally smaller cells to keep the same
+       apparent glyph size once its canvas stretches the result back out. At
+       full density this is exactly the measured size. */
     resources.material.uniforms.cellSize.value.set(
-      glyphSize.width,
-      glyphSize.height,
+      glyphSize.width * fitScale,
+      glyphSize.height * fitScale,
     );
-    resources.material.uniforms.viewportOrigin.value.set(
-      Math.round(destinationLeft * pixelRatio),
-      Math.round(destinationBottom * pixelRatio),
-    );
+
+    /* Every scene is composited into the same corner of the shared renderer,
+       so the glyph grid is anchored to the section itself. It no longer shifts
+       phase by a pixel as the section's document position changes. */
+    resources.material.uniforms.viewportOrigin.value.set(0, 0);
 
     const previousTarget = gl.getRenderTarget();
     const previousScissorTest = gl.getScissorTest();
@@ -256,18 +272,8 @@ export default function TransparentAsciiRenderer({
     content.visible = false;
 
     gl.setRenderTarget(previousTarget);
-    gl.setViewport(
-      destinationLeft,
-      destinationBottom,
-      destinationWidth,
-      destinationHeight,
-    );
-    gl.setScissor(
-      clipLeft,
-      clipBottom,
-      clipRight - clipLeft,
-      clipTop - clipBottom,
-    );
+    gl.setViewport(0, 0, renderCssWidth, renderCssHeight);
+    gl.setScissor(0, 0, renderCssWidth, renderCssHeight);
     gl.setScissorTest(true);
     gl.setClearColor(0x000000, 0);
     gl.clear(true, true, true);
@@ -277,6 +283,34 @@ export default function TransparentAsciiRenderer({
     gl.setScissor(resources.previousScissor);
     gl.setScissorTest(previousScissorTest);
     gl.setClearColor(resources.clearColor, previousClearAlpha);
+
+    /* Hand the finished rectangle to the section. The read happens inside the
+       same animation frame as the draw, so the drawing buffer is still intact
+       and `preserveDrawingBuffer` is not needed. `copy` replaces the previous
+       frame outright, which keeps the transparent cells transparent. */
+    const context = present.getContext("2d");
+
+    if (!context) {
+      return;
+    }
+
+    if (present.width !== physicalWidth || present.height !== physicalHeight) {
+      present.width = physicalWidth;
+      present.height = physicalHeight;
+    }
+
+    context.globalCompositeOperation = "copy";
+    context.drawImage(
+      rendererCanvas,
+      0,
+      rendererCanvas.height - physicalHeight,
+      physicalWidth,
+      physicalHeight,
+      0,
+      0,
+      physicalWidth,
+      physicalHeight,
+    );
 
     if (!hasReportedReadyRef.current) {
       hasReportedReadyRef.current = true;

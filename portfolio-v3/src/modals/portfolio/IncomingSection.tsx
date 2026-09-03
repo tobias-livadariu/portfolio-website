@@ -709,6 +709,7 @@ export default function IncomingSection() {
         src={publicPath("/posters/modal-incoming.svg")}
       />
       <View
+        as="canvas"
         className="modal-shared-scene-view"
         frames={Infinity}
         index={2}

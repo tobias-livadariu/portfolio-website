@@ -175,7 +175,13 @@ test("startup does not fetch or instantiate off-screen document renderers", asyn
   expect(startupRequests.some((url) => url.endsWith("/resume.pdf"))).toBe(
     false,
   );
-  await expect(page.locator("canvas")).toHaveCount(1);
+  /* Only the background holds a rendering context before a modal is opened.
+     The modal section canvases exist in the markup but stay inert until the
+     shared renderer mounts. */
+  await expect(page.locator(".portfolio-canvas-layer canvas")).toHaveCount(1);
+  await expect(
+    page.locator('[data-testid="modal-shared-scene-layer"]'),
+  ).toHaveCount(0);
 
   /* The generated SVG keeps the complete document structurally and visually
      present before opening a modal admits PDF.js. */
