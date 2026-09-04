@@ -52,6 +52,25 @@ changing scene art or layout:
 npm run modal-posters -- http://127.0.0.1:5173/portfolio/
 ```
 
+## Repack the planet sprite sheets
+
+`public/rotating-planet-spritesheets/` is built from the lossless strips in
+`assets/planet-sources/`. After changing a strip, rebuild the packed grids and
+their atlas JSON with:
+
+```sh
+npm run planet-spritesheets
+```
+
+Frames are relocated, never resampled, and the script fails if any sheet would
+exceed `MAXIMUM_SHEET_DIMENSION_PX`. Both rules exist for the same reason: a
+sheet past a device's `MAX_TEXTURE_SIZE` is downscaled by three.js on the main
+thread at first upload, which costs a hitch _and_ shrinks that planet type's
+texels while `sourceSize` keeps drawing it at full size — so it ends up with
+visibly chunkier pixels than the planets beside it. `FRAME_SCALE` is the one
+supported way to trade sharpness for texture memory, and it has to move every
+planet type together.
+
 ## Project map
 
 - `src/background/` owns render-mode state, the mode switch, and the diamond
