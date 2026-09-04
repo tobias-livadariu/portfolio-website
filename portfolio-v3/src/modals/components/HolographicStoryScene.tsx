@@ -9,6 +9,12 @@ import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { DRAGON_LUCY } from "../modals.constants";
 import { isModalScenePosterCapture } from "../portfolio/modal-scene-poster-capture";
+import {
+  createSceneClock,
+  getSceneDamping,
+  getSceneTime,
+  type SceneClock,
+} from "./scene-clock";
 import { TerminalTranscriptLine } from "./Terminal";
 import { useScenePointer } from "./use-scene-pointer";
 import { useTerminalContentColumns } from "./use-terminal-content-columns";
@@ -780,9 +786,11 @@ function TelemetryRail({ color }: { color: string }) {
 
 function HologramContent({
   definition,
+  sceneClock,
   trackRef,
 }: {
   definition: HolographicStoryDefinition;
+  sceneClock: SceneClock;
   trackRef: RefObject<HTMLElement | null>;
 }) {
   const titleGroupRef = useRef<Group>(null);
@@ -932,19 +940,17 @@ function HologramContent({
 
     const { logoY, subtitleY, titleY } = basePositions.current;
 
-    if (isModalScenePosterCapture()) {
-      titleGroup.position.y = titleY;
-      titleGroup.rotation.set(0, 0, 0);
-      subtitleGroup.position.y = subtitleY;
-      subtitleGroup.rotation.set(0, 0, 0);
-      logoGroup.position.y = logoY;
-      logoGroup.rotation.set(0, 0, 0);
-      railGroup.rotation.set(0, 0, 0);
-      return;
-    }
-
-    const time = state.clock.elapsedTime + definition.motionPhase;
-    const damping = 1 - Math.exp(-delta * STORY_SCENE_TUNING.motionDamping);
+    /* `motionPhase` keeps the two story scenes from swinging in lockstep. It
+       is an offset into each scene's own timeline, so both still begin on the
+       frame they are first drawn. */
+    const time =
+      getSceneTime(sceneClock, state.clock.elapsedTime) +
+      definition.motionPhase;
+    const damping = getSceneDamping(
+      sceneClock,
+      delta,
+      STORY_SCENE_TUNING.motionDamping,
+    );
     const idleTwist = MathUtils.degToRad(
       STORY_SCENE_TUNING.titleIdleTwistDegrees,
     );
@@ -1087,6 +1093,12 @@ export default function HolographicStoryScene({
   const contentRef = useRef<Group>(null);
   const viewRef = useRef<HTMLElement>(null);
   const [isSceneReady, setIsSceneReady] = useState(false);
+  /* Frozen for poster captures, so the thumbnail is the scene's own first
+     frame rather than a synthetic pose it never actually holds. */
+  const sceneClock = useMemo(
+    () => createSceneClock(isModalScenePosterCapture()),
+    [],
+  );
   const isShopifyScene = definition.theme === "mint";
   const viewIndex = isShopifyScene ? 4 : 6;
   const measuredHeroWidth = contentWidth || Number.POSITIVE_INFINITY;
@@ -1161,7 +1173,11 @@ export default function HolographicStoryScene({
             />
             <Suspense fallback={null}>
               <group ref={contentRef} visible={false}>
-                <HologramContent definition={definition} trackRef={viewRef} />
+                <HologramContent
+                  definition={definition}
+                  sceneClock={sceneClock}
+                  trackRef={viewRef}
+                />
               </group>
             </Suspense>
             <TransparentAsciiRenderer
@@ -1170,6 +1186,7 @@ export default function HolographicStoryScene({
               contentRef={contentRef}
               onReady={() => setIsSceneReady(true)}
               renderPriority={viewIndex + 1}
+              sceneClock={sceneClock}
               trackRef={viewRef}
             />
           </View>

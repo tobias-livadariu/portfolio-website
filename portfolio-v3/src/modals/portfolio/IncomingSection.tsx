@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useRef, useState } from "react";
+import { Suspense, useCallback, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useFrame } from "@react-three/fiber";
 import { PerspectiveCamera, Text3D, useTexture, View } from "@react-three/drei";
@@ -10,6 +10,12 @@ import publicPath from "../../utility/public-path";
 import { useScenePointer } from "../components/use-scene-pointer";
 import { DRAGON_LUCY } from "../modals.constants";
 import { isModalScenePosterCapture } from "./modal-scene-poster-capture";
+import {
+  createSceneClock,
+  getSceneDamping,
+  getSceneTime,
+  type SceneClock,
+} from "../components/scene-clock";
 
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.webp");
 
@@ -450,9 +456,11 @@ function placeStack(layout: StackLayout, verticalOffset: number) {
 
 function IncomingContent({
   onLayoutAspectRatioChange,
+  sceneClock,
   trackRef,
 }: {
   onLayoutAspectRatioChange: (aspectRatio: number) => void;
+  sceneClock: SceneClock;
   trackRef: RefObject<HTMLElement | null>;
 }) {
   const groupRef = useRef<Group>(null);
@@ -587,24 +595,12 @@ function IncomingContent({
       }
     }
 
-    if (isModalScenePosterCapture()) {
-      group.position.y = 0;
-      group.rotation.set(0, 0, 0);
-      if (decoratorRef.current) {
-        decoratorRef.current.position.y = decoratorBaseY.current;
-        decoratorRef.current.rotation.set(0, 0, 0);
-      }
-      if (outerSquareRef.current && innerSquareRef.current) {
-        outerSquareRef.current.rotation.z = MathUtils.degToRad(
-          INCOMING_SCENE_TUNING.outerSquareInitialRotationDegrees,
-        );
-        innerSquareRef.current.rotation.z = 0;
-      }
-      return;
-    }
-
-    const damping = 1 - Math.exp(-delta * INCOMING_SCENE_TUNING.motionDamping);
-    const time = state.clock.elapsedTime;
+    const damping = getSceneDamping(
+      sceneClock,
+      delta,
+      INCOMING_SCENE_TUNING.motionDamping,
+    );
+    const time = getSceneTime(sceneClock, state.clock.elapsedTime);
     const idle =
       Math.sin(time * INCOMING_SCENE_TUNING.idleTwistSpeed) *
       MathUtils.degToRad(INCOMING_SCENE_TUNING.idleTwistDegrees);
@@ -680,6 +676,12 @@ function IncomingContent({
 export default function IncomingSection() {
   const contentRef = useRef<Group>(null);
   const viewRef = useRef<HTMLElement>(null);
+  /* Frozen for poster captures, so the thumbnail is the scene's own first
+     frame rather than a synthetic pose it never actually holds. */
+  const sceneClock = useMemo(
+    () => createSceneClock(isModalScenePosterCapture()),
+    [],
+  );
   const [layoutAspectRatio, setLayoutAspectRatio] = useState<number>();
   const [isSceneReady, setIsSceneReady] = useState(false);
   const fallbackAspectRatio = INCOMING_SCENE_TUNING.fallbackLayoutAspectRatio;
@@ -725,6 +727,7 @@ export default function IncomingSection() {
           <group ref={contentRef} visible={false}>
             <IncomingContent
               onLayoutAspectRatioChange={handleLayoutAspectRatioChange}
+              sceneClock={sceneClock}
               trackRef={viewRef}
             />
           </group>
@@ -735,6 +738,7 @@ export default function IncomingSection() {
           contentRef={contentRef}
           onReady={() => setIsSceneReady(true)}
           renderPriority={3}
+          sceneClock={sceneClock}
           trackRef={viewRef}
         />
       </View>

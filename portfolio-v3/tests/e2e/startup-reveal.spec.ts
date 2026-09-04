@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { BACKGROUND_TRANSITION } from "../../src/background/background-mode-core";
 
-test("startup reveals a composed background without waiting for menu fonts", async ({
+test("startup holds the cover until the background and the 3D menu have both painted", async ({
   page,
 }) => {
   let releaseFonts!: () => void;
@@ -10,8 +10,9 @@ test("startup reveals a composed background without waiting for menu fonts", asy
     releaseFonts = resolve;
   });
 
-  /* Text3D may continue loading after the animated background is ready. Hold
-     both resources to prove they no longer gate the first visible frame. */
+  /* The menu suspends on its Text3D typeface while stars are already drawing.
+     Holding the typeface proves the cover waits for the menu too: releasing on
+     the background alone let the menu pop in over an exposed starfield. */
   await page.route("**/fonts/**/*.typeface.json", async (route) => {
     blockedFontRequests += 1;
     await fontsReleased;
@@ -98,6 +99,16 @@ test("startup reveals a composed background without waiting for menu fonts", asy
   const scrollRoot = page.locator(".modal-scroll-root");
 
   await expect.poll(() => blockedFontRequests).toBeGreaterThan(0);
+
+  /* Comfortably inside the fail-open deadline, so a cover still standing here
+     is the menu holding it rather than the safety valve not having fired. */
+  await page.waitForTimeout(
+    BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs / 2,
+  );
+  await expect(overlay).toHaveCount(1);
+
+  releaseFonts();
+
   await expect(overlay).toHaveCount(0, { timeout: 5_000 });
   expect(
     await page.evaluate(
@@ -114,12 +125,29 @@ test("startup reveals a composed background without waiting for menu fonts", asy
   await expect(railAnchor).not.toHaveAttribute("data-hidden", "true");
   await expect(railAnchor.locator("button.rm-tile")).toHaveCount(3);
 
-  releaseFonts();
-
   await page.keyboard.press("ArrowDown");
   await expect
     .poll(() => scrollRoot.evaluate((element) => element.scrollTop))
     .toBeGreaterThan(0);
+});
+
+test("startup fails open when the menu typeface never arrives", async ({
+  page,
+}) => {
+  /* Waiting on the 3D UI must not become a way to hang the page behind a
+     resource that never resolves. */
+  await page.route("**/fonts/**/*.typeface.json", () => {
+    /* Never continued, never aborted. */
+  });
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, {
+    timeout: BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs + 5_000,
+  });
+  await expect(page.locator(".modal-layer")).not.toHaveAttribute("inert", "");
 });
 
 test("startup fails open when WebGL cannot create a context", async ({

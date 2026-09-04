@@ -14,6 +14,10 @@ import {
 } from "three";
 import { FullScreenQuad } from "three/examples/jsm/postprocessing/Pass.js";
 import { usePortfolioAsciiGlyphSize } from "../hooks/usePortfolioAsciiGlyphSize";
+import {
+  startSceneClock,
+  type SceneClock,
+} from "../../modals/components/scene-clock";
 
 const ASCII_GLYPHS = " .:-=+*#%@";
 const GLYPH_WIDTH = 12;
@@ -25,6 +29,8 @@ interface Props {
   contentRef: RefObject<Group | null>;
   onReady?: () => void;
   renderPriority: number;
+  /** Started on the frame this scene is first composited, if provided. */
+  sceneClock?: SceneClock;
   trackRef: RefObject<HTMLElement | null>;
 }
 
@@ -142,6 +148,7 @@ export default function TransparentAsciiRenderer({
   contentRef,
   onReady,
   renderPriority,
+  sceneClock,
   trackRef,
 }: Props) {
   const { camera, gl, scene, size } = useThree();
@@ -180,7 +187,7 @@ export default function TransparentAsciiRenderer({
     };
   }, [resources]);
 
-  useFrame(() => {
+  useFrame((state) => {
     const content = contentRef.current;
     const present = trackRef.current;
 
@@ -270,6 +277,13 @@ export default function TransparentAsciiRenderer({
     content.visible = true;
     gl.render(scene, camera);
     content.visible = false;
+
+    /* The scene's own motion begins here, on the first frame it is drawn. The
+       content's own useFrame runs at a lower priority and has already posed it
+       for time zero, so this frame shows exactly that pose. */
+    if (sceneClock) {
+      startSceneClock(sceneClock, state.clock.elapsedTime);
+    }
 
     gl.setRenderTarget(previousTarget);
     gl.setViewport(0, 0, renderCssWidth, renderCssHeight);

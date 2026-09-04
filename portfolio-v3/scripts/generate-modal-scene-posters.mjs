@@ -3,6 +3,17 @@
 import { chromium } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { CANVAS_DPR } from "../src/scene/canvas.constants.ts";
+
+/* Posters are stretched to whatever size their section happens to be, so they
+   have to be captured at least as densely as they will be drawn. Capturing at
+   1x produced a poster that a retina section magnified about 2.5x, smearing
+   each glyph until the whole thumbnail read visibly darker than the live scene
+   it stands in for. At 2x the captured glyph grid matches the one the scene
+   renders at, and the remaining upscale is small. Matching the renderer's own
+   pixel-ratio cap is the right density: capturing denser than the live scene
+   is ever drawn only inflates the file. */
+const CAPTURE_DEVICE_SCALE_FACTOR = CANVAS_DPR[1];
 
 const baseUrl = process.argv[2] ?? "http://127.0.0.1:5173/portfolio/";
 const outputDirectory = resolve(process.argv[3] ?? "public/posters");
@@ -63,7 +74,7 @@ async function main() {
 
   try {
     const page = await browser.newPage({
-      deviceScaleFactor: 1,
+      deviceScaleFactor: CAPTURE_DEVICE_SCALE_FACTOR,
       viewport: { height: 900, width: 1280 },
     });
     const url = new URL(baseUrl);

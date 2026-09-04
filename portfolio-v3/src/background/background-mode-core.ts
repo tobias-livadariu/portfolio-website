@@ -6,6 +6,14 @@ export type BackgroundMode = (typeof BACKGROUND_MODES)[number];
 
 export type TransitionPhase = "idle" | "covering" | "covered" | "clearing";
 
+/* Surfaces the startup cover waits for before it recedes. The background and
+   the 3D UI compose on separate schedules — the menu suspends on its typeface
+   while stars are already drawing — so releasing on the first background frame
+   alone lets the menu pop in over an exposed starfield. */
+export const STARTUP_SURFACES = ["background", "ui"] as const;
+
+export type StartupSurface = (typeof STARTUP_SURFACES)[number];
+
 /* Viewport coordinates in CSS pixels; the active destination transition grows
    outward from this point (the center of the render-mode toggle). */
 export interface SeedPoint {
@@ -20,6 +28,7 @@ export interface BackgroundModeContextValue {
   notifyCleared: () => void;
   notifyCovered: () => void;
   notifySceneReady: (mode: BackgroundMode) => void;
+  notifyStartupSurfaceReady: (surface: StartupSurface) => void;
   phase: TransitionPhase;
   requestMode: (mode: BackgroundMode, seed: SeedPoint) => void;
   seedPoint: SeedPoint | null;

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { RefObject } from "react";
+import { isModalScenePosterCapture } from "../portfolio/modal-scene-poster-capture";
 
 export interface ScenePointerState {
   isActive: boolean;
@@ -37,6 +38,14 @@ export function useScenePointer(
   const activePressedPointerId = useRef<number | null>(null);
 
   useEffect(() => {
+    /* Poster captures must depict the pose a scene holds on its own first
+       frame, which is the resting one. Leaving the pointer live would bake
+       whatever the capture browser's cursor happened to be doing into the
+       thumbnail every scene hands over from. */
+    if (isModalScenePosterCapture()) {
+      return;
+    }
+
     const resetPointer = () => {
       pointer.current = { ...RESTING_POINTER };
     };

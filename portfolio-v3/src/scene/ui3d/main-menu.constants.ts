@@ -158,6 +158,9 @@ export const UI_HALO_MODE_TUNING = {
 // This keeps the glyph edge owned by the real Text3D render instead of by a
 // thresholded mask cutout.
 export const UI_HALO = {
+  /* Frame priority of the halo composite. Anything that has to observe the
+     painted UI — the startup cover's readiness signal — must run behind it. */
+  renderPriority: 1,
   rootName: "ui-halo-root",
   skipUserDataKey: "skipUiHalo",
   // Optional per-renderable scale for the source radius. Separator dots use it

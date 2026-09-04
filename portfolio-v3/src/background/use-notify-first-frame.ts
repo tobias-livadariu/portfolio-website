@@ -2,11 +2,17 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useBackgroundMode, type BackgroundMode } from "./background-mode-core";
 
-/* Signals scene readiness only after a real frame has been composed, so the
-   transition overlay never reveals an empty canvas. The extra rAF lets the
-   frame the tick belongs to actually present first. */
+/**
+ * Signals that the background has composed a frame.
+ *
+ * A mode transition uncovers its target the moment this resolves, so that path
+ * keeps waiting an extra animation frame for the tick's own frame to present
+ * and never reveals an empty canvas. Startup is gated differently — its cover
+ * opens as an animation rather than a cut — so it is told immediately. See
+ * `useNotifyStartupSurface`.
+ */
 export default function useNotifyFirstFrame(mode: BackgroundMode) {
-  const { notifySceneReady } = useBackgroundMode();
+  const { notifySceneReady, notifyStartupSurfaceReady } = useBackgroundMode();
   const notifiedModeRef = useRef<BackgroundMode | null>(null);
 
   useFrame(() => {
@@ -15,6 +21,9 @@ export default function useNotifyFirstFrame(mode: BackgroundMode) {
     }
 
     notifiedModeRef.current = mode;
+    /* Only the background's half of the cover's release condition; the 3D UI
+       reports the other half. */
+    notifyStartupSurfaceReady("background");
     requestAnimationFrame(() => notifySceneReady(mode));
   });
 }
