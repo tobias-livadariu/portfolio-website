@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "modal-posters": "node scripts/generate-modal-scene-posters.mjs",
+    "planet-spritesheets": "node scripts/repack-planet-spritesheets.mjs",
     "test:e2e": "playwright test",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
