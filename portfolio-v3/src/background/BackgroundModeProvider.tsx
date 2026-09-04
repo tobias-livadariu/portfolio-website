@@ -65,18 +65,35 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
     stateRef.current = state;
   }, [state]);
 
-  /* Render modes are session-only and every load starts from canonical 3D.
-     Warm the 2D chunk and shared atlases so its first transition is ready. */
+  /* Render modes are session-only and every load starts from canonical 3D. */
   useEffect(() => {
     try {
       localStorage.removeItem("portfolio:background-mode");
     } catch {
       /* Removing the legacy persisted preference is best-effort. */
     }
-
-    void preloadStarfield2D();
-    ensurePlanetAtlasesLoading();
   }, []);
+
+  /* The 2D implementation is not needed to compose the initial 3D frame.
+     Warm its small chunk after the cover has cleared so parsing it cannot
+     compete with startup on a slow main thread. A direct 2D request still
+     starts this same cached import immediately in requestMode below. */
+  useEffect(() => {
+    if (!isInitialRevealComplete) {
+      return;
+    }
+
+    const preload = () => void preloadStarfield2D();
+
+    if (typeof window.requestIdleCallback === "function") {
+      const callbackId = window.requestIdleCallback(preload, { timeout: 1000 });
+
+      return () => window.cancelIdleCallback(callbackId);
+    }
+
+    const timeoutId = window.setTimeout(preload, 200);
+    return () => window.clearTimeout(timeoutId);
+  }, [isInitialRevealComplete]);
 
   const requestMode = useCallback((target: BackgroundMode, seed: SeedPoint) => {
     if (
@@ -185,6 +202,34 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
       pendingSceneReadyRef.current = null;
     }
   }, []);
+
+  /* Scene readiness is the fast path. This deadline is deliberately
+     independent of WebGL: context creation/loss can prevent useFrame from
+     ever running on weaker devices, but the DOM portfolio must remain usable. */
+  useEffect(() => {
+    if (isInitialRevealComplete || initialRevealStartedRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (
+        initialRevealCompleteRef.current ||
+        initialRevealStartedRef.current ||
+        stateRef.current.phase !== "covered"
+      ) {
+        return;
+      }
+
+      initialRevealStartedRef.current = true;
+      setState((previous) =>
+        previous.phase === "covered"
+          ? { ...previous, phase: "clearing" }
+          : previous,
+      );
+    }, BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isInitialRevealComplete]);
 
   const value = useMemo(
     () => ({

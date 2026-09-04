@@ -7,9 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "modal-posters": "node scripts/generate-modal-scene-posters.mjs",
+    "planet-spritesheets": "node scripts/repack-planet-spritesheets.mjs",
     "test:e2e": "playwright test",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
+    "resume:svg": "node scripts/convert-resume-pdf-to-svg.mjs",
     "preview": "vite preview",
     "fonts:ttfconvert": "node scripts/convert-ttf-fonts.mjs"
   },

@@ -17,12 +17,13 @@ import "pdfjs-dist/web/pdf_viewer.css";
 GlobalWorkerOptions.workerSrc = PdfWorkerUrl;
 
 interface Props {
+  onReady: () => void;
   src: string;
 }
 
 type Status = "loading" | "ready" | "error";
 
-function ResumePdfViewer({ src }: Props) {
+function ResumePdfViewer({ onReady, src }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<Status>("loading");
 
@@ -169,6 +170,7 @@ function ResumePdfViewer({ src }: Props) {
         lastRenderedWidth = targetWidth;
         if (!cancelled) {
           setStatus("ready");
+          onReady();
         }
       } catch (err) {
         if (!cancelled) {
@@ -209,14 +211,11 @@ function ResumePdfViewer({ src }: Props) {
       window.removeEventListener("resize", handleResize);
       void loadingTask?.destroy();
     };
-  }, [src]);
+  }, [onReady, src]);
 
   return (
     <div className="modal-resume-pdf-viewer">
       <div className="modal-resume-pdf-pages" ref={containerRef} />
-      {status === "loading" && (
-        <div className="modal-resume-pdf-status">Rendering resume…</div>
-      )}
       {status === "error" && (
         <div className="modal-resume-pdf-status modal-resume-pdf-status-error">
           Could not render resume PDF.

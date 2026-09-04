@@ -3,6 +3,7 @@ import AsciiDivider from "../components/AsciiDivider";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
 import IncomingSection from "./IncomingSection";
+import ModalSceneCanvas from "./ModalSceneCanvas";
 import {
   holographicStoryOutput,
   lsOutputRows,
@@ -139,6 +140,7 @@ const personalContext = {
 function PortfolioModal() {
   return (
     <article className="modal-section-content">
+      <ModalSceneCanvas />
       <ModalHeader
         dividerBlock={PORTFOLIO_DIVIDER}
         leftSprite={PORTFOLIO_LEFT_SPRITE}

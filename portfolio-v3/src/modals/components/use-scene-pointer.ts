@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { RefObject } from "react";
 
 export interface ScenePointerState {
   isActive: boolean;
@@ -29,7 +30,7 @@ const RESTING_POINTER: ScenePointerState = {
  * selectable and scrollable on top of them.
  */
 export function useScenePointer(
-  canvas: HTMLCanvasElement,
+  targetRef: RefObject<HTMLElement | null>,
   { clampX, clampY }: ScenePointerOptions,
 ) {
   const pointer = useRef<ScenePointerState>({ ...RESTING_POINTER });
@@ -41,7 +42,13 @@ export function useScenePointer(
     };
 
     const coordinatesFor = (event: PointerEvent): ScenePointerState | null => {
-      const rect = canvas.getBoundingClientRect();
+      const target = targetRef.current;
+
+      if (!target) {
+        return null;
+      }
+
+      const rect = target.getBoundingClientRect();
 
       if (rect.width <= 0 || rect.height <= 0) {
         return null;
@@ -142,7 +149,7 @@ export function useScenePointer(
       window.removeEventListener("blur", resetPointer);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [canvas, clampX, clampY]);
+  }, [clampX, clampY, targetRef]);
 
   return pointer;
 }

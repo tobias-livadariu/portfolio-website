@@ -553,7 +553,9 @@ test("one open render menu follows the topmost modal header", async ({
   expect(overlayState).not.toBeNull();
   expect(overlayState?.hasOverlap).toBe(true);
   expect(overlayState?.hitMenu).toBe(true);
-  expect(overlayState?.contain).toBe("layout");
+  // Size containment preserves the panel's horizontal layout without turning it
+  // into a containing block for the viewport-fixed shared WebGL canvas.
+  expect(overlayState?.contain).toBe("inline-size");
   expect(overlayState?.ownerZIndex ?? 0).toBeGreaterThan(
     overlayState?.followingZIndex ?? 0,
   );
@@ -1077,7 +1079,28 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
   await page.goto("/");
   await waitForStartupReveal(page);
 
+  const rail = page.locator(".rm-rail");
+  const longestRailTransitionMs = await rail.evaluate((element) => {
+    const durations = getComputedStyle(element).transitionDuration.split(",");
+
+    return Math.max(
+      ...durations.map((duration) =>
+        duration.trim().endsWith("ms")
+          ? Number.parseFloat(duration)
+          : Number.parseFloat(duration) * 1000,
+      ),
+    );
+  });
+
+  /* OS preference must not remove the authored rail retraction on iOS or any
+     other platform; the same transition contract applies everywhere. */
+  expect(longestRailTransitionMs).toBeGreaterThanOrEqual(400);
+
   await chooseMode(page, "ascii");
+  await expect(page.locator(".bg-mode-switch-anchor")).toHaveAttribute(
+    "data-hidden",
+    "true",
+  );
 
   const transition = page.locator(
     '.bg-transition-overlay[data-target-mode="ascii"]',

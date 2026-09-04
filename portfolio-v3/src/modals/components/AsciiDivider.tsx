@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { observeWithRaf } from "./observeWithRaf";
 
 interface Props {
@@ -16,8 +16,6 @@ function AsciiDivider({ block, minGapCh = 2, minSideMarginCh = 1 }: Props) {
     repeats: 1,
     sideMarginPx: 0,
   });
-  const dividerText = useMemo(() => block.join("\n"), [block]);
-
   const updateLayout = useCallback(() => {
     const container = containerRef.current;
     const measure = measureRef.current;
@@ -81,11 +79,19 @@ function AsciiDivider({ block, minGapCh = 2, minSideMarginCh = 1 }: Props) {
         0000000000
       </span>
       <pre className="modal-ascii-divider-measure" ref={measureRef}>
-        {dividerText}
+        {block.map((line, lineIndex) => (
+          <span className="modal-ascii-divider-line" key={lineIndex}>
+            {line}
+          </span>
+        ))}
       </pre>
       {Array.from({ length: layout.repeats }, (_, index) => (
         <pre className="modal-ascii-divider-unit" key={index}>
-          {dividerText}
+          {block.map((line, lineIndex) => (
+            <span className="modal-ascii-divider-line" key={lineIndex}>
+              {line}
+            </span>
+          ))}
         </pre>
       ))}
     </div>

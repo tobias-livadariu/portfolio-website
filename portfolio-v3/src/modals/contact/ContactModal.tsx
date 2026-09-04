@@ -80,7 +80,11 @@ function ContactOpenPanel() {
         className="modal-contact-note-panel"
       >
         <pre className="modal-contact-note-bracket" aria-hidden="true">
-          {CONTACT_NOTE_BRACKET.join("\n")}
+          {CONTACT_NOTE_BRACKET.map((line, lineIndex) => (
+            <span className="modal-contact-note-bracket-line" key={lineIndex}>
+              {line}
+            </span>
+          ))}
         </pre>
         <div className="modal-contact-note-copy">
           <span>I am easiest to reach by email.</span>
@@ -94,7 +98,11 @@ function ContactOpenPanel() {
           className="modal-contact-note-bracket modal-contact-note-bracket-right"
           aria-hidden="true"
         >
-          {CONTACT_NOTE_BRACKET.join("\n")}
+          {CONTACT_NOTE_BRACKET.map((line, lineIndex) => (
+            <span className="modal-contact-note-bracket-line" key={lineIndex}>
+              {line}
+            </span>
+          ))}
         </pre>
       </div>
     </div>

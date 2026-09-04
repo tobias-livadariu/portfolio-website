@@ -31,6 +31,9 @@ export default function PortfolioCanvas() {
   return (
     <Canvas
       dpr={CANVAS_DPR}
+      fallback={
+        <div aria-hidden="true" className="portfolio-canvas-fallback" />
+      }
       flat
       frameloop="always"
       camera={{
@@ -45,8 +48,15 @@ export default function PortfolioCanvas() {
       <PointerCameraShift />
       <PrimaryLighting />
       <BackgroundScene />
-      <MainMenu />
-      <UiHaloPass />
+      {/* Text3D font loading is independent of the animated background. Keep
+          it behind its own boundary so stars can compose and release the
+          startup cover while menu fonts continue loading progressively. The
+          halo/composer belongs to that UI and mounts with it, avoiding a full
+          post-processing shader compile on the first background-only frame. */}
+      <Suspense fallback={null}>
+        <MainMenu />
+        <UiHaloPass />
+      </Suspense>
     </Canvas>
   );
 }

@@ -13,6 +13,110 @@ async function wheelGesture(page: Page) {
   }
 }
 
+async function readModalAsciiRowGeometry(page: Page) {
+  return page.evaluate(() => {
+    const readGroups = (containerSelector: string, rowSelector: string) => {
+      return Array.from(document.querySelectorAll(containerSelector)).map(
+        (container) => {
+          const rows = Array.from(container.querySelectorAll(rowSelector));
+          const lineHeight = Number.parseFloat(
+            getComputedStyle(container).lineHeight,
+          );
+
+          return {
+            containerHeight: container.getBoundingClientRect().height,
+            lineHeight,
+            rowDisplays: rows.map((row) => getComputedStyle(row).display),
+            rowHeights: rows.map((row) => row.getBoundingClientRect().height),
+            rowCount: rows.length,
+          };
+        },
+      );
+    };
+
+    return {
+      brackets: readGroups(
+        ".modal-contact-note-bracket",
+        ".modal-contact-note-bracket-line",
+      ),
+      dividers: Array.from(
+        document.querySelectorAll(".modal-ascii-divider"),
+      ).map((divider) => {
+        const unit = divider.querySelector(".modal-ascii-divider-unit");
+        const rows = unit
+          ? Array.from(unit.querySelectorAll(".modal-ascii-divider-line"))
+          : [];
+        const lineHeight = unit
+          ? Number.parseFloat(getComputedStyle(unit).lineHeight)
+          : 0;
+
+        return {
+          containerHeight: unit?.getBoundingClientRect().height ?? 0,
+          lineHeight,
+          rowDisplays: rows.map((row) => getComputedStyle(row).display),
+          rowHeights: rows.map((row) => row.getBoundingClientRect().height),
+          rowCount: rows.length,
+        };
+      }),
+      titles: readGroups(".modal-ascii-title-piece", ".modal-ascii-title-line"),
+    };
+  });
+}
+
+function expectExplicitAsciiRows(
+  groups: Awaited<ReturnType<typeof readModalAsciiRowGeometry>>[keyof Awaited<
+    ReturnType<typeof readModalAsciiRowGeometry>
+  >],
+  expectedCounts: number[],
+) {
+  expect(groups.map(({ rowCount }) => rowCount)).toEqual(expectedCounts);
+
+  for (const group of groups) {
+    expect(group.rowDisplays.every((display) => display === "block")).toBe(
+      true,
+    );
+    expect(group.lineHeight).toBeGreaterThan(0);
+    expect(group.containerHeight).toBeCloseTo(
+      group.rowHeights.reduce((sum, height) => sum + height, 0),
+      2,
+    );
+
+    for (const rowHeight of group.rowHeights) {
+      expect(rowHeight).toBeGreaterThan(0);
+      expect(
+        Math.abs(rowHeight - group.lineHeight) / group.lineHeight,
+      ).toBeLessThan(0.02);
+    }
+  }
+}
+
+test("modal ASCII decorations preserve explicit rows across responsive widths", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await waitForStartupReveal(page);
+  await page.evaluate(() =>
+    document.fonts.load('400 16px "Iosevka Term Web"', "05irsXAMH#9B&@"),
+  );
+
+  for (const viewport of [
+    { height: 844, width: 390 },
+    { height: 900, width: 1440 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("resize"));
+      window.dispatchEvent(new Event("orientationchange"));
+    });
+
+    const geometry = await readModalAsciiRowGeometry(page);
+
+    expectExplicitAsciiRows(geometry.titles, [7, 7, 7, 7, 10, 10, 10, 8, 8]);
+    expectExplicitAsciiRows(geometry.dividers, [3, 3, 2, 2, 2, 2, 2, 2, 1, 1]);
+    expectExplicitAsciiRows(geometry.brackets, [9, 9]);
+  }
+});
+
 test("one wheel stream survives the closed-to-open modal handoff", async ({
   browserName,
   page,
@@ -268,9 +372,20 @@ test("modal document opens from scroll and supports section navigation", async (
   ).toBeVisible();
   const firstStoryHero = activePanel.locator(".modal-story-hero").first();
   await firstStoryHero.scrollIntoViewIfNeeded();
-  await expect(firstStoryHero.locator("canvas")).toBeVisible({
-    timeout: 20_000,
-  });
+  /* The shared renderer is an offscreen scratch surface: it is attached and
+     sized, but never painted. Each hero presents through its own in-flow
+     canvas so the compositor scrolls the scene with the modal. */
+  const sharedRenderer = page.locator(
+    '[data-testid="modal-shared-scene-layer"] canvas',
+  );
+  await expect(sharedRenderer).toBeAttached({ timeout: 20_000 });
+  await expect(sharedRenderer).toHaveCSS("visibility", "hidden");
+  await expect(
+    firstStoryHero.locator("canvas.modal-shared-scene-view"),
+  ).toHaveCount(1);
+  await expect(
+    firstStoryHero.locator('.modal-r3f-scene-poster[data-scene-ready="true"]'),
+  ).toBeAttached({ timeout: 20_000 });
 
   await activePanel.getByRole("button", { name: "CONTACT ME" }).click();
   await expect(activePanel).toContainText("File: contact.modal");

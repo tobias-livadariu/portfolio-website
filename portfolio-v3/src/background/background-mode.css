@@ -256,23 +256,6 @@ button.rm-mode-option:focus-visible .rm-art {
   color: var(--color-campfire);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .rm-rail,
-  .rm-mode-option {
-    transition-duration: 1ms;
-  }
-
-  .bg-mode-switch-anchor:not([data-introduced]) .rm-rail {
-    opacity: 1;
-    transform: none;
-  }
-
-  .rm-mode-option:hover,
-  .rm-mode-option:focus-visible {
-    transform: none;
-  }
-}
-
 @media (max-width: 560px) {
   .rm-rail {
     padding: 0.4em 0.45em 0.5em;

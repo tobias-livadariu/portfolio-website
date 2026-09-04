@@ -8,16 +8,43 @@ function preloadImage(path: string) {
   image.src = publicPath(path);
 }
 
-export default function ModalAssetPreloader() {
+export default function ModalAssetPreloader({ enabled }: { enabled: boolean }) {
   useEffect(() => {
-    for (const asset of MODAL_ASSETS) {
-      if (asset.endsWith(".json")) {
-        void fetch(publicPath(asset));
-      } else {
-        preloadImage(asset);
-      }
+    if (!enabled) {
+      return;
     }
-  }, []);
+
+    let isDisposed = false;
+    const preload = () => {
+      if (isDisposed) {
+        return;
+      }
+
+      for (const asset of MODAL_ASSETS) {
+        if (asset.endsWith(".json")) {
+          void fetch(publicPath(asset));
+        } else {
+          preloadImage(asset);
+        }
+      }
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      const callbackId = window.requestIdleCallback(preload, { timeout: 1000 });
+
+      return () => {
+        isDisposed = true;
+        window.cancelIdleCallback(callbackId);
+      };
+    }
+
+    const timeoutId = window.setTimeout(preload, 200);
+
+    return () => {
+      isDisposed = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [enabled]);
 
   return null;
 }

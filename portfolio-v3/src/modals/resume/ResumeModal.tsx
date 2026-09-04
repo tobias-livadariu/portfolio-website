@@ -1,9 +1,10 @@
-import { memo } from "react";
+import { Suspense, lazy, memo, useCallback, useState } from "react";
 import type { CSSProperties } from "react";
 import publicPath from "../../utility/public-path";
 import ModalHeader from "../components/ModalHeader";
 import Terminal from "../components/Terminal";
-import ResumePdfViewer from "./ResumePdfViewer";
+import { useModalController } from "../modal-context-core";
+import preloadResumePdfViewer from "./preload-resume-pdf-viewer";
 import {
   RESUME_ASCII_TITLE_PIECES,
   RESUME_DIVIDER,
@@ -26,6 +27,30 @@ const RESUME_RIGHT_SPRITE = {
 
 const OPEN_SRC = `https://drive.google.com/file/d/${RESUME_DRIVE_ID}/view`;
 const DOWNLOAD_SRC = `https://drive.google.com/uc?export=download&id=${RESUME_DRIVE_ID}`;
+const ResumePdfViewer = lazy(preloadResumePdfViewer);
+
+function ProgressiveResumePdfViewer({ src }: { src: string }) {
+  const { isOpen } = useModalController();
+  const [isPdfReady, setIsPdfReady] = useState(false);
+  const handlePdfReady = useCallback(() => setIsPdfReady(true), []);
+
+  return (
+    <div className="modal-resume-pdf-deferred">
+      <img
+        alt=""
+        aria-hidden="true"
+        className="modal-resume-svg-poster"
+        data-pdf-ready={isPdfReady ? "true" : undefined}
+        src={publicPath("/resume.svg")}
+      />
+      {isOpen ? (
+        <Suspense fallback={null}>
+          <ResumePdfViewer onReady={handlePdfReady} src={src} />
+        </Suspense>
+      ) : null}
+    </div>
+  );
+}
 
 function ResumeOpenPanel() {
   return (
@@ -39,7 +64,7 @@ function ResumeOpenPanel() {
     >
       <div className="modal-resume-shell">
         <div className="modal-resume-document">
-          <ResumePdfViewer src={publicPath("/resume.pdf")} />
+          <ProgressiveResumePdfViewer src={publicPath("/resume.pdf")} />
         </div>
       </div>
       <div className="modal-action-row">

@@ -1,13 +1,14 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Text3D, useTexture } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Suspense, useMemo, useRef, useState } from "react";
+import type { RefObject } from "react";
+import { PerspectiveCamera, Text3D, useTexture, View } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh } from "three";
 import { MathUtils, Vector3 } from "three";
 import TransparentAsciiRenderer from "../../scene/ascii/TransparentAsciiRenderer";
-import { CANVAS_DPR } from "../../scene/canvas.constants";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { DRAGON_LUCY } from "../modals.constants";
+import { isModalScenePosterCapture } from "../portfolio/modal-scene-poster-capture";
 import { TerminalTranscriptLine } from "./Terminal";
 import { useScenePointer } from "./use-scene-pointer";
 import { useTerminalContentColumns } from "./use-terminal-content-columns";
@@ -779,8 +780,10 @@ function TelemetryRail({ color }: { color: string }) {
 
 function HologramContent({
   definition,
+  trackRef,
 }: {
   definition: HolographicStoryDefinition;
+  trackRef: RefObject<HTMLElement | null>;
 }) {
   const titleGroupRef = useRef<Group>(null);
   const subtitleGroupRef = useRef<Group>(null);
@@ -792,9 +795,8 @@ function HologramContent({
   const logoRef = useRef<Mesh>(null);
   const basePositions = useRef({ logoY: 0, subtitleY: 0, titleY: 0 });
   const layoutSignatureRef = useRef("");
-  const { gl, viewport } = useThree();
   const palette = PALETTES[definition.theme];
-  const pointer = useScenePointer(gl.domElement, {
+  const pointer = useScenePointer(trackRef, {
     clampX: STORY_SCENE_TUNING.pointerClampX,
     clampY: STORY_SCENE_TUNING.pointerClampY,
   });
@@ -804,10 +806,44 @@ function HologramContent({
     const subtitleGroup = subtitleGroupRef.current;
     const logoGroup = logoGroupRef.current;
     const railGroup = railGroupRef.current;
+    const trackRect = trackRef.current?.getBoundingClientRect();
 
-    if (!titleGroup || !subtitleGroup || !logoGroup || !railGroup) {
+    if (
+      !titleGroup ||
+      !subtitleGroup ||
+      !logoGroup ||
+      !railGroup ||
+      !trackRect ||
+      trackRect.width <= 0 ||
+      trackRect.height <= 0
+    ) {
       return;
     }
+
+    const perspectiveCamera = state.camera as typeof state.camera & {
+      aspect?: number;
+      isPerspectiveCamera?: boolean;
+    };
+    const nextAspect = trackRect.width / trackRect.height;
+
+    if (
+      perspectiveCamera.isPerspectiveCamera &&
+      perspectiveCamera.aspect !== nextAspect
+    ) {
+      perspectiveCamera.aspect = nextAspect;
+      perspectiveCamera.updateProjectionMatrix();
+    }
+
+    const viewport = state.viewport.getCurrentViewport(
+      state.camera,
+      [0, 0, 0],
+      {
+        height: trackRect.height,
+        left: 0,
+        top: 0,
+        width: trackRect.width,
+      },
+    );
 
     const layoutSignature = [
       viewport.width,
@@ -895,6 +931,17 @@ function HologramContent({
     }
 
     const { logoY, subtitleY, titleY } = basePositions.current;
+
+    if (isModalScenePosterCapture()) {
+      titleGroup.position.y = titleY;
+      titleGroup.rotation.set(0, 0, 0);
+      subtitleGroup.position.y = subtitleY;
+      subtitleGroup.rotation.set(0, 0, 0);
+      logoGroup.position.y = logoY;
+      logoGroup.rotation.set(0, 0, 0);
+      railGroup.rotation.set(0, 0, 0);
+      return;
+    }
 
     const time = state.clock.elapsedTime + definition.motionPhase;
     const damping = 1 - Math.exp(-delta * STORY_SCENE_TUNING.motionDamping);
@@ -1037,10 +1084,11 @@ export default function HolographicStoryScene({
       min: STORY_SCENE_TUNING.contentMinimumColumns,
       step: STORY_SCENE_TUNING.contentSnapStepColumns,
     });
-  const heroRef = useRef<HTMLDivElement>(null);
-  const [isOnScreen, setIsOnScreen] = useState(
-    () => typeof IntersectionObserver === "undefined",
-  );
+  const contentRef = useRef<Group>(null);
+  const viewRef = useRef<HTMLElement>(null);
+  const [isSceneReady, setIsSceneReady] = useState(false);
+  const isShopifyScene = definition.theme === "mint";
+  const viewIndex = isShopifyScene ? 4 : 6;
   const measuredHeroWidth = contentWidth || Number.POSITIVE_INFINITY;
   const heroLineCount =
     measuredHeroWidth < STORY_SCENE_TUNING.heroNarrowMaxWidthPx
@@ -1052,25 +1100,6 @@ export default function HolographicStoryScene({
     () => buildStoryRows(definition.highlights, columns),
     [columns, definition.highlights],
   );
-
-  useEffect(() => {
-    const hero = heroRef.current;
-
-    if (!hero) {
-      return;
-    }
-
-    if (typeof IntersectionObserver === "undefined") {
-      return;
-    }
-
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsOnScreen(entry?.isIntersecting ?? false);
-    });
-
-    observer.observe(hero);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <div
@@ -1094,7 +1123,7 @@ export default function HolographicStoryScene({
         </ul>
       </section>
 
-      <div className="modal-story-hero" ref={heroRef}>
+      <div className="modal-story-hero">
         <div aria-hidden="true">
           {Array.from({ length: heroLineCount }, (_, index) => (
             <TerminalTranscriptLine
@@ -1107,24 +1136,43 @@ export default function HolographicStoryScene({
           ))}
         </div>
         <div aria-hidden="true" className="modal-story-canvas-shell">
-          <Canvas
-            camera={{
-              fov: STORY_SCENE_TUNING.cameraFieldOfViewDegrees,
-              position: [0, 0, STORY_SCENE_TUNING.cameraZPosition],
-            }}
-            dpr={CANVAS_DPR}
-            flat
-            frameloop={isOnScreen ? "always" : "demand"}
-            gl={{ alpha: true, antialias: true }}
+          <img
+            alt=""
+            className="modal-r3f-scene-poster"
+            data-scene-ready={isSceneReady ? "true" : undefined}
+            src={publicPath(
+              isShopifyScene
+                ? "/posters/modal-shopify.svg"
+                : "/posters/modal-ideanotion.svg",
+            )}
+          />
+          <View
+            as="canvas"
+            className="modal-shared-scene-view"
+            frames={Infinity}
+            index={viewIndex}
+            ref={viewRef}
+            visible={false}
           >
+            <PerspectiveCamera
+              makeDefault
+              fov={STORY_SCENE_TUNING.cameraFieldOfViewDegrees}
+              position={[0, 0, STORY_SCENE_TUNING.cameraZPosition]}
+            />
             <Suspense fallback={null}>
-              <HologramContent definition={definition} />
+              <group ref={contentRef} visible={false}>
+                <HologramContent definition={definition} trackRef={viewRef} />
+              </group>
             </Suspense>
             <TransparentAsciiRenderer
               baseCellHeight={STORY_SCENE_TUNING.asciiGlyphCellHeightPx}
               baseCellWidth={STORY_SCENE_TUNING.asciiGlyphCellWidthPx}
+              contentRef={contentRef}
+              onReady={() => setIsSceneReady(true)}
+              renderPriority={viewIndex + 1}
+              trackRef={viewRef}
             />
-          </Canvas>
+          </View>
         </div>
       </div>
 
