@@ -45,8 +45,11 @@ npm run resume:svg -- path/to/resume.pdf public/resume.svg
 ```
 
 The three modal scene posters are neutral-pointer captures of the real shared
-renderer. With the development server running, refresh them after intentionally
-changing scene art or layout:
+renderer, so they go stale whenever that renderer changes — not just when the
+art does. A poster that no longer matches shows up as a thumbnail that reads
+darker or blurrier than the scene it stands in for. With the development server
+running, refresh them after changing scene art, layout, or the ASCII render
+path:
 
 ```sh
 npm run modal-posters -- http://127.0.0.1:5173/portfolio/
