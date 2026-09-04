@@ -583,7 +583,7 @@ export default function UiHaloPass() {
     }
 
     composer.render(delta);
-  }, 1);
+  }, UI_HALO.renderPriority);
 
   return null;
 }

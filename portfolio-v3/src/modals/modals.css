@@ -3,6 +3,8 @@
   --modal-backdrop-opacity: 0;
   --modal-home-offset: 14vh;
   --modal-section-gap: 18vh;
+  /* How long a loading poster takes to hand over to the real content. */
+  --modal-poster-fade-duration: 260ms;
 
   position: fixed;
   inset: 0;
@@ -711,8 +713,23 @@
   pointer-events: none;
 }
 
+/* The live scene is already painted underneath by the time this flips, so the
+   poster is faded rather than cut. A cut is visible even between near-identical
+   images: the poster is a neutral-pose capture stretched from a smaller
+   render, and the scene beneath it is at whatever point its idle animation has
+   reached, so the substitution reads as a jump. Crossfading spends that
+   difference over a couple of frames instead of on one. `visibility` follows at
+   the end so the finished poster stops being hit-testable. */
+.modal-r3f-scene-poster {
+  opacity: 1;
+  transition:
+    opacity var(--modal-poster-fade-duration) ease-out,
+    visibility 0s linear var(--modal-poster-fade-duration);
+}
+
 .modal-r3f-scene-poster[data-scene-ready="true"] {
   visibility: hidden;
+  opacity: 0;
 }
 
 /* INCOMING @ Finta — a transparent ASCII-filtered three.js strip. No border
@@ -1147,8 +1164,16 @@
   height: auto;
 }
 
+.modal-resume-svg-poster {
+  opacity: 1;
+  transition:
+    opacity var(--modal-poster-fade-duration) ease-out,
+    visibility 0s linear var(--modal-poster-fade-duration);
+}
+
 .modal-resume-svg-poster[data-pdf-ready="true"] {
   visibility: hidden;
+  opacity: 0;
 }
 
 .modal-resume-pdf-pages {

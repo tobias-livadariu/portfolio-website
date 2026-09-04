@@ -9,6 +9,7 @@ import SceneCamera from "./camera/SceneCamera";
 import Starfield from "./starfield/Starfield";
 import UiHaloPass from "./ui3d/UiHaloPass";
 import MainMenu from "./ui3d/MainMenu";
+import StartupUiSignal from "./ui3d/StartupUiSignal";
 import { preloadStarfield2D } from "./starfield2d/preload-starfield2d";
 
 const Starfield2D = lazy(preloadStarfield2D);
@@ -48,14 +49,17 @@ export default function PortfolioCanvas() {
       <PointerCameraShift />
       <PrimaryLighting />
       <BackgroundScene />
-      {/* Text3D font loading is independent of the animated background. Keep
-          it behind its own boundary so stars can compose and release the
-          startup cover while menu fonts continue loading progressively. The
-          halo/composer belongs to that UI and mounts with it, avoiding a full
-          post-processing shader compile on the first background-only frame. */}
+      {/* Text3D font loading is independent of the animated background, so the
+          menu keeps its own boundary and the stars are free to compose while
+          the typeface is still arriving. The halo/composer belongs to that UI
+          and mounts with it, avoiding a full post-processing shader compile on
+          the first background-only frame. The startup cover waits for both
+          halves, so a menu that is still suspended holds the reveal rather
+          than popping in over an already-exposed starfield. */}
       <Suspense fallback={null}>
         <MainMenu />
         <UiHaloPass />
+        <StartupUiSignal />
       </Suspense>
     </Canvas>
   );

@@ -8,8 +8,10 @@ import { preloadStarfield2D } from "../scene/starfield2d/preload-starfield2d";
 import {
   BACKGROUND_TRANSITION,
   BackgroundModeContext,
+  STARTUP_SURFACES,
   type BackgroundMode,
   type SeedPoint,
+  type StartupSurface,
   type TransitionPhase,
 } from "./background-mode-core";
 
@@ -57,6 +59,7 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
   });
   const stateRef = useRef(state);
   const pendingSceneReadyRef = useRef<PendingSceneReady | null>(null);
+  const readyStartupSurfacesRef = useRef(new Set<StartupSurface>());
   const coveredGenerationRef = useRef(0);
   const initialRevealStartedRef = useRef(false);
   const initialRevealCompleteRef = useRef(false);
@@ -177,21 +180,47 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const notifySceneReady = useCallback((mode: BackgroundMode) => {
-    if (!initialRevealCompleteRef.current) {
-      if (
-        mode === "3d" &&
-        !initialRevealStartedRef.current &&
-        stateRef.current.phase === "covered"
-      ) {
-        initialRevealStartedRef.current = true;
-        setState((previous) =>
-          previous.phase === "covered"
-            ? { ...previous, phase: "clearing" }
-            : previous,
-        );
+  const beginInitialReveal = useCallback(() => {
+    if (
+      initialRevealCompleteRef.current ||
+      initialRevealStartedRef.current ||
+      stateRef.current.phase !== "covered"
+    ) {
+      return;
+    }
+
+    initialRevealStartedRef.current = true;
+    setState((previous) =>
+      previous.phase === "covered"
+        ? { ...previous, phase: "clearing" }
+        : previous,
+    );
+  }, []);
+
+  /* The cover recedes as soon as every startup surface has composed a frame,
+     and not before: the reveal is only honest once the thing it uncovers is
+     actually on screen. */
+  const notifyStartupSurfaceReady = useCallback(
+    (surface: StartupSurface) => {
+      if (initialRevealCompleteRef.current || initialRevealStartedRef.current) {
+        return;
       }
 
+      readyStartupSurfacesRef.current.add(surface);
+
+      if (
+        STARTUP_SURFACES.every((required) =>
+          readyStartupSurfacesRef.current.has(required),
+        )
+      ) {
+        beginInitialReveal();
+      }
+    },
+    [beginInitialReveal],
+  );
+
+  const notifySceneReady = useCallback((mode: BackgroundMode) => {
+    if (!initialRevealCompleteRef.current) {
       return;
     }
 
@@ -211,25 +240,13 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      if (
-        initialRevealCompleteRef.current ||
-        initialRevealStartedRef.current ||
-        stateRef.current.phase !== "covered"
-      ) {
-        return;
-      }
-
-      initialRevealStartedRef.current = true;
-      setState((previous) =>
-        previous.phase === "covered"
-          ? { ...previous, phase: "clearing" }
-          : previous,
-      );
-    }, BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs);
+    const timeoutId = window.setTimeout(
+      beginInitialReveal,
+      BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs,
+    );
 
     return () => window.clearTimeout(timeoutId);
-  }, [isInitialRevealComplete]);
+  }, [beginInitialReveal, isInitialRevealComplete]);
 
   const value = useMemo(
     () => ({
@@ -239,6 +256,7 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
       notifyCleared,
       notifyCovered,
       notifySceneReady,
+      notifyStartupSurfaceReady,
       phase: state.phase,
       requestMode,
       seedPoint: state.seedPoint,
@@ -252,6 +270,7 @@ export function BackgroundModeProvider({ children }: { children: ReactNode }) {
       notifyCleared,
       notifyCovered,
       notifySceneReady,
+      notifyStartupSurfaceReady,
       requestMode,
       state,
     ],
