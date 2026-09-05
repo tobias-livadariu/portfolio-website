@@ -453,6 +453,9 @@ export type PlanetType = (typeof PLANET_TYPES)[number];
 
 // Atlas inventory is shared because both volumetric modes render the same art.
 export const PLANET_ATLASES = {
+  /* How many variants of each planet type exist in `public/`. This is the
+     ceiling; how many a given visitor actually downloads is set by their
+     device tier in `scene/device-tier.ts`. */
   variantsPerType: 5,
   assetBasePath: "rotating-planet-spritesheets",
   imageExtension: "webp",
@@ -461,4 +464,10 @@ export const PLANET_ATLASES = {
 export const PLANET_ATLAS_LOADING = {
   // At most this many image atlases may be fetched and decoded at once.
   maximumConcurrentLoads: 2,
+  /* Attempts per atlas before it is given up on. A dropped connection during
+     startup used to cost the planets for the whole session: the load was
+     latched after one pass and nothing ever asked again. */
+  maximumAttempts: 3,
+  // Backoff before the first retry. Doubles on each further attempt.
+  retryBackoffMs: 400,
 } as const;

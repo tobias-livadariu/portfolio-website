@@ -5,6 +5,7 @@ import { PerspectiveCamera, Text3D, useTexture, View } from "@react-three/drei";
 import type { Group, Mesh } from "three";
 import { MathUtils, Vector3 } from "three";
 import TransparentAsciiRenderer from "../../scene/ascii/TransparentAsciiRenderer";
+import SceneErrorBoundary from "../../scene/SceneErrorBoundary";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { useScenePointer } from "../components/use-scene-pointer";
@@ -723,15 +724,20 @@ export default function IncomingSection() {
           fov={INCOMING_SCENE_TUNING.cameraFieldOfViewDegrees}
           position={[0, 0, INCOMING_SCENE_TUNING.cameraZPosition]}
         />
-        <Suspense fallback={null}>
-          <group ref={contentRef} visible={false}>
-            <IncomingContent
-              onLayoutAspectRatioChange={handleLayoutAspectRatioChange}
-              sceneClock={sceneClock}
-              trackRef={viewRef}
-            />
-          </group>
-        </Suspense>
+        {/* The three modal scenes share one canvas and therefore one R3F error
+            boundary. Without a boundary of its own, a failed logo texture here
+            would blank the story scenes too. */}
+        <SceneErrorBoundary label="INCOMING scene">
+          <Suspense fallback={null}>
+            <group ref={contentRef} visible={false}>
+              <IncomingContent
+                onLayoutAspectRatioChange={handleLayoutAspectRatioChange}
+                sceneClock={sceneClock}
+                trackRef={viewRef}
+              />
+            </group>
+          </Suspense>
+        </SceneErrorBoundary>
         <TransparentAsciiRenderer
           baseCellHeight={INCOMING_SCENE_TUNING.asciiGlyphCellHeightPx}
           baseCellWidth={INCOMING_SCENE_TUNING.asciiGlyphCellWidthPx}

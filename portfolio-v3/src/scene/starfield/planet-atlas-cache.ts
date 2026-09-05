@@ -17,6 +17,14 @@ const firstAtlasReady = new Promise<void>((resolve) => {
   resolveFirstAtlas = resolve;
 });
 
+/**
+ * Starts the atlas load, once.
+ *
+ * The latch is released again if a whole pass produced nothing, so a startup
+ * that ran without a network — every atlas exhausting its retries — can be
+ * picked up by a later caller instead of leaving the field permanently empty.
+ * A pass that loaded even one atlas stays latched: the rest already retried.
+ */
 export function ensurePlanetAtlasesLoading() {
   if (loadingStarted) {
     return;
@@ -31,7 +39,15 @@ export function ensurePlanetAtlasesLoading() {
     for (const listener of listeners) {
       listener(atlas);
     }
-  });
+  })
+    .catch((error) => {
+      console.warn("Planet atlas loading stopped early:", error);
+    })
+    .finally(() => {
+      if (loadedAtlases.size === 0) {
+        loadingStarted = false;
+      }
+    });
 }
 
 export function getLoadedPlanetAtlases(): ReadonlyMap<string, PlanetAtlas> {

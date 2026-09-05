@@ -223,3 +223,76 @@ test("startup does not fetch or instantiate off-screen document renderers", asyn
     2,
   );
 });
+
+test("a failed scene region is dropped without taking the rest of the canvas", async ({
+  page,
+}) => {
+  /* Everything inside a `<Canvas>` shares one React Three Fiber error boundary,
+     so a single rejected asset used to blank the whole scene. Blocking the
+     menu typeface must now cost the menu and nothing else. */
+  await page.route("**/fonts/**/*.typeface.json", (route) => route.abort());
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, {
+    timeout: BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs + 10_000,
+  });
+
+  await expect(page.locator(".portfolio-canvas-layer canvas")).toBeVisible();
+  await expect(page.locator(".modal-layer")).not.toHaveAttribute("inert", "");
+  await expect(page.locator(".bg-mode-switch-anchor")).not.toHaveAttribute(
+    "data-hidden",
+    "true",
+  );
+});
+
+test("planet atlases are retried rather than lost for the session", async ({
+  page,
+}) => {
+  let failuresServed = 0;
+
+  /* Fail every atlas once, then serve it. A single dropped request during
+     startup used to cost the planets permanently: the loader latched after one
+     pass and nothing ever asked again. */
+  await page.route(
+    "**/rotating-planet-spritesheets/**/*.webp",
+    async (route) => {
+      const url = route.request().url();
+
+      if (!route.request().headers()["x-retried"] && failuresServed < 12) {
+        failuresServed += 1;
+        await route.abort();
+        return;
+      }
+
+      await route.continue({ url });
+    },
+  );
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(
+    page.locator('.bg-transition-overlay[data-startup="true"]'),
+  ).toHaveCount(0, {
+    timeout: BACKGROUND_TRANSITION.startupSceneReadyTimeoutMs + 10_000,
+  });
+
+  /* The retry has to actually reach the network again for the same sheets. */
+  await expect
+    .poll(() => failuresServed, { timeout: 20_000 })
+    .toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(
+          () =>
+            performance
+              .getEntriesByType("resource")
+              .filter((entry) =>
+                /rotating-planet-spritesheets\/.*\.webp$/.test(entry.name),
+              ).length,
+        ),
+      { timeout: 30_000 },
+    )
+    .toBeGreaterThan(failuresServed);
+});

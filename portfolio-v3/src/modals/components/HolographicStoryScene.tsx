@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import type { Group, Mesh } from "three";
 import { MathUtils, Vector3 } from "three";
 import TransparentAsciiRenderer from "../../scene/ascii/TransparentAsciiRenderer";
+import SceneErrorBoundary from "../../scene/SceneErrorBoundary";
 import { THREE_FONTS } from "../../theme/fonts";
 import publicPath from "../../utility/public-path";
 import { DRAGON_LUCY } from "../modals.constants";
@@ -1171,15 +1172,19 @@ export default function HolographicStoryScene({
               fov={STORY_SCENE_TUNING.cameraFieldOfViewDegrees}
               position={[0, 0, STORY_SCENE_TUNING.cameraZPosition]}
             />
-            <Suspense fallback={null}>
-              <group ref={contentRef} visible={false}>
-                <HologramContent
-                  definition={definition}
-                  sceneClock={sceneClock}
-                  trackRef={viewRef}
-                />
-              </group>
-            </Suspense>
+            {/* Isolated for the same reason as the INCOMING scene: all three
+                share one canvas, so one failed asset must not blank the rest. */}
+            <SceneErrorBoundary label={`${definition.company} story scene`}>
+              <Suspense fallback={null}>
+                <group ref={contentRef} visible={false}>
+                  <HologramContent
+                    definition={definition}
+                    sceneClock={sceneClock}
+                    trackRef={viewRef}
+                  />
+                </group>
+              </Suspense>
+            </SceneErrorBoundary>
             <TransparentAsciiRenderer
               baseCellHeight={STORY_SCENE_TUNING.asciiGlyphCellHeightPx}
               baseCellWidth={STORY_SCENE_TUNING.asciiGlyphCellWidthPx}

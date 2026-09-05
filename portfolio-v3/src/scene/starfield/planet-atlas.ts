@@ -6,6 +6,7 @@ import {
   Texture,
 } from "three";
 import publicPath from "../../utility/public-path";
+import { getPlanetVariantsPerType } from "../device-tier";
 import {
   PLANET_ATLASES,
   PLANET_ATLAS_LOADING,
@@ -63,9 +64,14 @@ export function getPlanetAtlasKey(type: PlanetType, variant: number) {
   return `${type}-${variant}`;
 }
 
+/* The variant budget is set by the device tier, so a constrained client
+   downloads and keeps fewer sheets resident. Every sheet it does load is the
+   full-fidelity one; only the number of distinct looks shrinks. */
 export function getPlanetAtlasKeys() {
+  const variants = getPlanetVariantsPerType();
+
   return PLANET_TYPES.flatMap((type) =>
-    Array.from({ length: PLANET_ATLASES.variantsPerType }, (_, index) =>
+    Array.from({ length: variants }, (_, index) =>
       getPlanetAtlasKey(type, index + 1),
     ),
   );
@@ -184,6 +190,70 @@ async function loadAtlas(
   };
 }
 
+function wait(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+
+    const timeoutId = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timeoutId);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
+/* A single failed fetch should cost one atlas for a moment, not the planets for
+   the session. Startup is exactly when the network is busiest, so the first
+   attempt is the one most likely to be dropped. */
+async function loadAtlasWithRetries(
+  type: PlanetType,
+  variant: number,
+  bitmapLoader: ImageBitmapLoader,
+  signal?: AbortSignal,
+): Promise<PlanetAtlas | null> {
+  const key = getPlanetAtlasKey(type, variant);
+
+  for (
+    let attempt = 1;
+    attempt <= PLANET_ATLAS_LOADING.maximumAttempts;
+    attempt += 1
+  ) {
+    if (signal?.aborted) {
+      return null;
+    }
+
+    try {
+      return await loadAtlas(type, variant, bitmapLoader, signal);
+    } catch (error) {
+      if (signal?.aborted) {
+        return null;
+      }
+
+      if (attempt === PLANET_ATLAS_LOADING.maximumAttempts) {
+        console.warn(
+          `Failed to load planet atlas ${key} after ${attempt} attempts:`,
+          error,
+        );
+        return null;
+      }
+
+      await wait(
+        PLANET_ATLAS_LOADING.retryBackoffMs * 2 ** (attempt - 1),
+        signal,
+      );
+    }
+  }
+
+  return null;
+}
+
 interface AtlasDescriptor {
   type: PlanetType;
   variant: number;
@@ -194,7 +264,7 @@ interface AtlasDescriptor {
    makes the progressively revealed field visually diverse sooner. */
 function getAtlasLoadOrder(): AtlasDescriptor[] {
   return Array.from(
-    { length: PLANET_ATLASES.variantsPerType },
+    { length: getPlanetVariantsPerType() },
     (_, variantIndex) => variantIndex + 1,
   ).flatMap((variant) => PLANET_TYPES.map((type) => ({ type, variant })));
 }
@@ -246,14 +316,11 @@ export async function loadPlanetAtlases(
       }
 
       const { type, variant } = descriptor;
-      const atlas = await loadAtlas(type, variant, bitmapLoader, signal).catch(
-        (error) => {
-          if (!signal?.aborted) {
-            const key = getPlanetAtlasKey(type, variant);
-            console.warn(`Failed to load planet atlas ${key}:`, error);
-          }
-          return null;
-        },
+      const atlas = await loadAtlasWithRetries(
+        type,
+        variant,
+        bitmapLoader,
+        signal,
       );
 
       if (signal?.aborted) {

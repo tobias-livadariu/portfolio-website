@@ -112,3 +112,23 @@ The tunable values are generally grouped near the top of their constants or
 component file. Before adding a new control, check whether that render mode
 already has a separate 2D, 3D, or ASCII profile; those profiles are kept apart
 where matching one mode would make another look worse.
+
+## Planet fidelity on constrained devices
+
+Every sprite sheet is served at full fidelity, so the number of _variants_ a
+visitor downloads is what scales with their hardware rather than the sharpness
+of any individual planet. `src/scene/device-tier.ts` reads `deviceMemory`,
+`hardwareConcurrency` and the Network Information hints, takes the worst
+verdict of the three, and sizes the atlas budget from it:
+
+| tier   | variants | sheets | download | resident textures |
+| ------ | -------- | ------ | -------- | ----------------- |
+| high   | 5        | 60     | 2.91 MB  | 260 MB            |
+| medium | 3        | 36     | 1.77 MB  | 156 MB            |
+| low    | 2        | 24     | 1.18 MB  | 104 MB            |
+
+Fewer variants costs visual variety, never sharpness — a chunky planet beside a
+crisp one is the exact inconsistency the sheet packing already avoids. Adjust
+`DEVICE_TIER_TUNING` to move the thresholds or the budgets; the budget is
+clamped to `PLANET_ATLASES.variantsPerType`, which is how many variants exist
+in `public/`.

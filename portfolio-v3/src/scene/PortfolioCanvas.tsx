@@ -1,6 +1,11 @@
 import { Suspense, lazy } from "react";
+import type { ReactNode } from "react";
 import { Canvas } from "@react-three/fiber";
-import { useBackgroundMode } from "../background/background-mode-core";
+import {
+  useBackgroundMode,
+  type StartupSurface,
+} from "../background/background-mode-core";
+import SceneErrorBoundary from "./SceneErrorBoundary";
 import { PrimaryLighting } from "./lighting/PrimaryLighting";
 import { COLOR_PALETTE_STR } from "../theme/colors";
 import { CAMERA_PROPS, CANVAS_DPR } from "./canvas.constants";
@@ -13,6 +18,32 @@ import StartupUiSignal from "./ui3d/StartupUiSignal";
 import { preloadStarfield2D } from "./starfield2d/preload-starfield2d";
 
 const Starfield2D = lazy(preloadStarfield2D);
+
+/**
+ * One independently-failing region of the scene. A region that dies still has
+ * to report its startup surface, or the cover sits on screen waiting for a
+ * frame that will never be drawn until the fail-open deadline rescues it.
+ */
+function StartupRegion({
+  children,
+  label,
+  surface,
+}: {
+  children: ReactNode;
+  label: string;
+  surface: StartupSurface;
+}) {
+  const { notifyStartupSurfaceReady } = useBackgroundMode();
+
+  return (
+    <SceneErrorBoundary
+      label={label}
+      onFailure={() => notifyStartupSurfaceReady(surface)}
+    >
+      {children}
+    </SceneErrorBoundary>
+  );
+}
 
 function BackgroundScene() {
   const { visualMode } = useBackgroundMode();
@@ -48,7 +79,14 @@ export default function PortfolioCanvas() {
       <SceneCamera />
       <PointerCameraShift />
       <PrimaryLighting />
-      <BackgroundScene />
+      {/* The background and the 3D UI fail independently. Without their own
+          boundaries a single rejected fetch in either — a planet atlas, the
+          menu typeface — would throw past R3F's one canvas-wide boundary and
+          take the entire scene down, leaving the document with no starfield
+          and no menu at all. */}
+      <StartupRegion label="background" surface="background">
+        <BackgroundScene />
+      </StartupRegion>
       {/* Text3D font loading is independent of the animated background, so the
           menu keeps its own boundary and the stars are free to compose while
           the typeface is still arriving. The halo/composer belongs to that UI
@@ -56,11 +94,13 @@ export default function PortfolioCanvas() {
           the first background-only frame. The startup cover waits for both
           halves, so a menu that is still suspended holds the reveal rather
           than popping in over an already-exposed starfield. */}
-      <Suspense fallback={null}>
-        <MainMenu />
-        <UiHaloPass />
-        <StartupUiSignal />
-      </Suspense>
+      <StartupRegion label="3D UI" surface="ui">
+        <Suspense fallback={null}>
+          <MainMenu />
+          <UiHaloPass />
+          <StartupUiSignal />
+        </Suspense>
+      </StartupRegion>
     </Canvas>
   );
 }
