@@ -732,7 +732,7 @@
   opacity: 0;
 }
 
-/* INCOMING @ Finta — a transparent ASCII-filtered three.js strip. No border
+/* CURRENTLY @ Finta — a transparent ASCII-filtered three.js strip. No border
    or background of its own so the glyphs float directly on the modal. */
 .modal-incoming {
   position: relative;

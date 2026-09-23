@@ -1172,7 +1172,7 @@ export default function HolographicStoryScene({
               fov={STORY_SCENE_TUNING.cameraFieldOfViewDegrees}
               position={[0, 0, STORY_SCENE_TUNING.cameraZPosition]}
             />
-            {/* Isolated for the same reason as the INCOMING scene: all three
+            {/* Isolated for the same reason as the CURRENTLY scene: all three
                 share one canvas, so one failed asset must not blank the rest. */}
             <SceneErrorBoundary label={`${definition.company} story scene`}>
               <Suspense fallback={null}>

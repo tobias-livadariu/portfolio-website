@@ -20,7 +20,7 @@ import {
 
 const FINTA_LOGO_PATH = publicPath("/logos/finta-modified-rmbg.webp");
 
-/* Complete art-direction panel for INCOMING @ Finta. Geometry that is useful
+/* Complete art-direction panel for CURRENTLY @ Finta. Geometry that is useful
    to tweak is named here instead of being hidden inside the JSX. */
 const INCOMING_SCENE_TUNING = {
   // Base CSS margin below the canvas before whitespace multipliers are applied.
@@ -53,10 +53,10 @@ const INCOMING_SCENE_TUNING = {
   decoratorTwistDegrees: 7,
   // Angular frequency of reticle twisting.
   decoratorTwistSpeed: 0.47,
-  // Reticle width relative to the INCOMING title width.
+  // Reticle width relative to the CURRENTLY title width.
   decoratorWidthRelativeToTitle: 0.3,
   // Initial aspect ratio used before the measured stack becomes available.
-  fallbackLayoutAspectRatio: 1.43,
+  fallbackLayoutAspectRatio: 1.475,
   // Vertical pixel size of one output glyph in the ASCII renderer.
   asciiGlyphCellHeightPx: 10,
   // Horizontal pixel size of one output glyph in the ASCII renderer.
@@ -73,7 +73,7 @@ const INCOMING_SCENE_TUNING = {
   logoDepth: 0.18,
   // Reserved vertical height around the logo relative to title width.
   logoStageHeightRelativeToTitle: 0.48,
-  // Finta logo width relative to the INCOMING title width.
+  // Finta logo width relative to the CURRENTLY title width.
   logoWidthRelativeToTitle: 0.3,
   // Vertical floating distance of the complete composition.
   mainFloatAmount: 0.06,
@@ -93,7 +93,7 @@ const INCOMING_SCENE_TUNING = {
   pointerClampY: 1.6,
   // X-axis pointer tilt relative to the maximum Y-axis twist.
   pointerPitchRatio: 0.5,
-  // Glyph scale of (F26) relative to the INCOMING title glyph scale.
+  // Glyph scale of (F26) relative to the CURRENTLY title glyph scale.
   seasonTextSizeRelativeToTitle: 0.8,
   // Master multiplier for the whole scene, including its calculated height.
   sectionSizeMultiplier: 0.78,
@@ -107,11 +107,11 @@ const INCOMING_SCENE_TUNING = {
   squareOpacity: 0.6,
   // Equal-and-opposite rotation speed of the two squares, in degrees/second.
   squareSpinDegreesPerSecond: 3.6,
-  // Vertical gap between INCOMING, @, logo, and (F26), relative to title width.
+  // Vertical gap between CURRENTLY, @, logo, and (F26), relative to title width.
   stackGapRelativeToTitle: 0.032,
   // Extrusion-depth curve subdivision count used by the Text3D meshes.
   textCurveSegments: 2,
-  // Front-to-back extrusion depth of INCOMING, @, and (F26).
+  // Front-to-back extrusion depth of CURRENTLY, @, and (F26).
   textExtrusionDepth: 0.14,
   // Natural unscaled font size passed into Text3D.
   textNaturalSize: 1,
@@ -151,7 +151,7 @@ const INCOMING_SCENE_TUNING = {
   reticleCyanDepth: -0.05,
   // Natural layout width used as the reference for relative measurements.
   titleLayoutWidth: 1,
-  // Width of INCOMING as a fraction of the canvas viewport.
+  // Width of CURRENTLY as a fraction of the canvas viewport.
   titleViewportWidth: 0.9,
   // Multiplier for top internal whitespace and the top CSS margin.
   topWhitespaceMultiplier: 0,
@@ -654,7 +654,7 @@ function IncomingContent({
       <SquareField innerRef={innerSquareRef} outerRef={outerSquareRef} />
       <FintaDecorators groupRef={decoratorRef} />
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={titleRef}>
-        INCOMING
+        CURRENTLY
       </IncomingText>
       <IncomingText color={DRAGON_LUCY.cyan} meshRef={atRef}>
         @
@@ -668,7 +668,7 @@ function IncomingContent({
 }
 
 /**
- * "INCOMING @ FINTA (F26)" — a three.js canvas with a transparent ASCII
+ * "CURRENTLY @ FINTA (F26)" — a three.js canvas with a transparent ASCII
  * filter, so only the glyphs render, floating over the modal. The whole
  * group tilts subtly toward the cursor. Off-screen rendering runs on demand
  * so layout can initialize with the page, then continuous animation starts
@@ -697,7 +697,7 @@ export default function IncomingSection() {
   return (
     <div
       className="modal-incoming"
-      aria-label="Incoming: Finta, Fall 2026"
+      aria-label="Currently: Finta, Fall 2026"
       style={{
         aspectRatio: layoutAspectRatio ?? fallbackAspectRatio,
         marginBottom: `${INCOMING_SCENE_TUNING.baseBottomMarginRem * INCOMING_SCENE_TUNING.sectionSizeMultiplier * INCOMING_SCENE_TUNING.bottomWhitespaceMultiplier}rem`,
@@ -727,7 +727,7 @@ export default function IncomingSection() {
         {/* The three modal scenes share one canvas and therefore one R3F error
             boundary. Without a boundary of its own, a failed logo texture here
             would blank the story scenes too. */}
-        <SceneErrorBoundary label="INCOMING scene">
+        <SceneErrorBoundary label="CURRENTLY scene">
           <Suspense fallback={null}>
             <group ref={contentRef} visible={false}>
               <IncomingContent
