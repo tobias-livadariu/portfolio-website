@@ -4,6 +4,21 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicons/icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- The startup cover waits for the 3D menu, which suspends on these two
+         typefaces; without a hint they are only discovered after the main
+         bundle has downloaded and run. -->
+    <link
+      rel="preload"
+      as="fetch"
+      crossorigin
+      href="/fonts/press-start-2p/press-start-2p.typeface.json"
+    />
+    <link
+      rel="preload"
+      as="fetch"
+      crossorigin
+      href="/fonts/pixel-emulator/pixel-emulator.typeface.json"
+    />
     <title>Tobias Livadariu</title>
   </head>
   <body>

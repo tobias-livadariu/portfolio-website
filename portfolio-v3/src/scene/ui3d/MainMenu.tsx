@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { useThree } from "@react-three/fiber";
+import { useFont } from "@react-three/drei";
 import type { Group } from "three";
 import useTopLeftPosition from "../hooks/useTopLeftPosition";
 import {
@@ -20,6 +21,14 @@ import Title from "./Title.tsx";
 import HorizontalDottedLine from "./HorizontalDottedLine.tsx";
 import Nav from "./Nav.tsx";
 import { useBackgroundMode } from "../../background/background-mode-core";
+import { THREE_FONTS } from "../../theme/fonts";
+
+/* The title and the nav suspend on different typefaces, and Text3D only asks
+   for a font when it renders, so the second request used to wait for the
+   first to resolve. Starting both as soon as this module evaluates lets them
+   download together; index.html preloads them even earlier. */
+useFont.preload(THREE_FONTS.pressStart2p);
+useFont.preload(THREE_FONTS.pixelEmulator);
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));

@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Color, DynamicDrawUsage, InstancedMesh, Object3D } from "three";
+import { Color, DynamicDrawUsage, InstancedMesh } from "three";
 import { CAMERA_PROPS } from "../canvas.constants";
 import {
   MAX_VOLUMETRIC_STAR_BUCKET_COUNT,
@@ -229,7 +229,6 @@ export default function Stars({
     () => tuning.colors.map((value) => new Color(value)),
     [tuning],
   );
-  const dummy = useMemo(() => new Object3D(), []);
   const { camera, size } = useThree();
   const frameLayout = useMemo(
     () => createStarFrameLayout(stars, camera, size, fieldTuning),
@@ -268,13 +267,48 @@ export default function Stars({
       }
 
       const instanceIndex = bucketCounts[star.bucketIndex]++;
-      dummy.position.set(x, y, star.z);
-      dummy.rotation.set(0, 0, angle);
-      dummy.scale.setScalar(star.size * tuning.visualScale);
-      dummy.updateMatrix();
 
-      mesh.setMatrixAt(instanceIndex, dummy.matrix);
-      mesh.setColorAt(instanceIndex, colorObjects[star.colorIndex]);
+      /* The arithmetic Matrix4.compose() performs for a Z-only quaternion and
+         a uniform scale, written straight into the instance buffer. Routing
+         every star through an Object3D (Euler -> Quaternion -> Matrix4 ->
+         copy) cost several object updates per star per frame. */
+      const quaternionZ = Math.sin(angle / 2);
+      const quaternionZ2 = quaternionZ + quaternionZ;
+      const zz = quaternionZ * quaternionZ2;
+      const wz = Math.cos(angle / 2) * quaternionZ2;
+      const scale = star.size * tuning.visualScale;
+      const matrix = mesh.instanceMatrix.array;
+      const matrixOffset = instanceIndex * 16;
+
+      matrix[matrixOffset] = (1 - zz) * scale;
+      matrix[matrixOffset + 1] = wz * scale;
+      matrix[matrixOffset + 2] = 0;
+      matrix[matrixOffset + 3] = 0;
+      matrix[matrixOffset + 4] = -wz * scale;
+      matrix[matrixOffset + 5] = (1 - zz) * scale;
+      matrix[matrixOffset + 6] = 0;
+      matrix[matrixOffset + 7] = 0;
+      matrix[matrixOffset + 8] = 0;
+      matrix[matrixOffset + 9] = 0;
+      matrix[matrixOffset + 10] = scale;
+      matrix[matrixOffset + 11] = 0;
+      matrix[matrixOffset + 12] = x;
+      matrix[matrixOffset + 13] = y;
+      matrix[matrixOffset + 14] = star.z;
+      matrix[matrixOffset + 15] = 1;
+
+      if (!mesh.instanceColor) {
+        // setColorAt() lazily allocates the attribute (and the shader variant).
+        mesh.setColorAt(instanceIndex, colorObjects[star.colorIndex]);
+      } else {
+        const color = colorObjects[star.colorIndex];
+        const colors = mesh.instanceColor.array;
+        const colorOffset = instanceIndex * 3;
+
+        colors[colorOffset] = color.r;
+        colors[colorOffset + 1] = color.g;
+        colors[colorOffset + 2] = color.b;
+      }
     }
 
     for (let i = 0; i < meshRefs.current.length; i++) {

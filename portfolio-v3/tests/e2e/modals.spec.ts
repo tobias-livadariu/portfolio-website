@@ -195,7 +195,7 @@ test("modal document opens from scroll and supports section navigation", async (
   await expect
     .poll(() =>
       page
-        .locator(".modal-layer")
+        .locator(".modal-backdrop")
         .evaluate((element) =>
           Number(
             getComputedStyle(element).getPropertyValue(

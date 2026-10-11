@@ -148,6 +148,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
   const { close, isOpen, navigationRequest, openSection, setIsOpen } =
     useModalController();
   const layerRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
   const scrollRootRef = useRef<HTMLDivElement>(null);
   const isOpenRef = useRef(isOpen);
   const currentSectionRef = useRef<ModalSectionKey | null>(null);
@@ -442,11 +443,11 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
 
   const syncScrollState = useCallback(() => {
     const scrollRoot = scrollRootRef.current;
-    const layer = layerRef.current;
+    const backdrop = backdropRef.current;
 
     animationFrameRef.current = null;
 
-    if (!scrollRoot || !layer) {
+    if (!scrollRoot || !backdrop) {
       return;
     }
 
@@ -454,7 +455,11 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
     const revealProgress = Math.min(1, scrollRoot.scrollTop / revealDistance);
     const opacity = revealProgress * MODAL_SCROLL.maxBackdropOpacity;
 
-    layer.style.setProperty("--modal-backdrop-opacity", opacity.toFixed(3));
+    /* Write the opacity on the backdrop, its only consumer. Custom properties
+       inherit, so setting it on the layer invalidated the style of the whole
+       document every scroll frame, and the scrollTop reads below then forced
+       that recalculation synchronously. */
+    backdrop.style.setProperty("--modal-backdrop-opacity", opacity.toFixed(3));
     syncRenderMenuOwnership();
 
     if (scrollRoot.scrollTop <= 1) {
@@ -783,7 +788,11 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
               events can then remain browser-native for the entire gesture,
               even while their hit target changes as the modal opens. */}
           <div className="portfolio-canvas-layer">{background}</div>
-          <div aria-hidden="true" className="modal-backdrop" />
+          <div
+            aria-hidden="true"
+            className="modal-backdrop"
+            ref={backdropRef}
+          />
           <BackgroundModeSwitch />
           <div className="modal-home-spacer" />
           {/* The switch above must stay outside this aria-hidden subtree so it
