@@ -164,6 +164,20 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
       },
       // Prevents stars from clustering at the center of an orbit well.
       minOrbitRadiusRatio: 0.34,
+      /* Smooth brightness shimmer. A twinkling star follows two slow sine
+         waves whose periods never line up, so its brightness drifts
+         continuously and never visibly repeats. Nothing steps: the change
+         from one frame to the next is a fraction of a percent. */
+      twinkle: {
+        // Share of stars that twinkle at all. 0 disables the effect.
+        starFraction: 0.5,
+        /* Length of the slower wave, sampled per star. The quicker wave runs
+           the golden ratio faster. */
+        periodSeconds: { min: 3, max: 7 },
+        /* Largest swing either side of a star's own brightness, sampled per
+           star: 0.3 drifts between 70% and 130%. */
+        amplitude: { min: 0.15, max: 0.38 },
+      },
     },
     planets: {
       // Deterministic planet seed; used only when the profile flag above is true.
@@ -221,6 +235,84 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         maximumAngularSpeedRadiansPerSecond: 0.024,
         wellMassInfluence: 1,
         coherentDirectionProbability: 0.9,
+      },
+      /* Every planet follows a Kepler ellipse with its well at one focus, timed
+         by Kepler's equation so it sweeps equal areas in equal times: quicker
+         near the well, slower at the far end of its orbit. */
+      orbitShape: {
+        // Half-normal spread of orbital eccentricity. 0 restores circles.
+        eccentricityStdDev: 0.18,
+        maximumEccentricity: 0.45,
+        /* Small bodies ride long comet-like ellipses, as real asteroids and
+           comets do, rather than the near-circles planets settle into. */
+        cometTypes: ["astroid"] satisfies readonly PlanetType[],
+        cometEccentricity: { min: 0.5, max: 0.75 },
+        /* Tilt of each orbital plane out of the screen plane. This is what
+           carries a planet toward and away from the camera along its path.
+           0 restores flat, constant-depth orbits. */
+        inclinationStdDevDegrees: 45,
+        maximumInclinationDegrees: 65,
+        /* 0 aims each orbit's line of nodes in a random direction. 1 aims it
+           from the well at the screen centre, which spends the whole depth
+           change on the stretch of orbit a visitor can actually see. */
+        nodeAlignment: 0.6,
+        /* Turns the ellipse itself makes per orbit (apsidal precession), so
+           no path ever exactly repeats. */
+        apsidalPrecessionPerOrbit: { min: 0.03, max: 0.09 },
+        /* A tilted orbit is flattened until it stays inside these depths.
+           `nearestZ` matches the depth band, so the largest planet on screen
+           is no larger than it was with constant-depth orbits. */
+        depthLimits: { nearestZ: 2.75, farthestZ: -13 },
+      },
+      /* Distance haze. Between these depths a planet blends from its source
+         colours toward `farTint`, so near bodies stay vivid and far ones
+         recede into the background they are drifting through. */
+      depthShading: {
+        startZ: -1,
+        endZ: -11,
+        farTint: "#8791b8",
+      },
+      /* Small bodies captured by a large one: moons around a ringed giant,
+         planets around a star, debris around a black hole. Kept rare: every
+         system is a tight cluster, and too many of them make the whole field
+         read as bunched. */
+      satellites: {
+        /* Which bodies can hold a system, and how far each one's solid body
+           reaches as a fraction of half its sprite width (measured from the
+           art: a star's disc, a giant inside its rings, a black hole inside
+           its wisps). Orbits are sized to stay outside that body, so a moon
+           is never hidden behind its own host. */
+        hostBodyRadius: {
+          star: 0.56,
+          "gas-giant-2": 0.36,
+          "black-hole": 0.45,
+        } satisfies Partial<Record<PlanetType, number>>,
+        satelliteTypes: [
+          "astroid",
+          "ice-world",
+          "islands",
+          "lava-world",
+          "no-atmosphere",
+          "terran-dry",
+          "terran-wet",
+        ] satisfies readonly PlanetType[],
+        // Share of eligible hosts that hold a system at all.
+        systemProbability: 0.1,
+        maximumSatellitesPerHost: 2,
+        // Shrinks a captured body so it reads as smaller than its host.
+        sizeMultiplier: 0.6,
+        /* Gap left between the host's body and the innermost moon's edge at
+           its closest approach on screen, in host radii. */
+        innerClearanceInHostRadii: { min: 0.08, max: 0.35 },
+        /* Added per further moon. Wider than a moon, so two moons of one
+           system never cover each other either. */
+        orbitSpacingInHostRadii: { min: 0.55, max: 0.75 },
+        /* Period of an orbit one host radius out. Wider orbits slow down by
+           Kepler's third law, period ∝ radius^1.5. */
+        referencePeriodSeconds: { min: 16, max: 34 },
+        /* Tilt of a system's plane away from face-on. Steeper tilts need a
+           wider orbit to clear the host, so this stays moderate. */
+        tiltDegrees: { min: 25, max: 42 },
       },
       // Animated atlas playback speed distribution in frames per second.
       frameRate: {
@@ -358,6 +450,20 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         coherentDirectionProbability: 0.86,
       },
       minOrbitRadiusRatio: 0.34,
+      /* Smooth brightness shimmer. A twinkling star follows two slow sine
+         waves whose periods never line up, so its brightness drifts
+         continuously and never visibly repeats. Nothing steps: the change
+         from one frame to the next is a fraction of a percent. */
+      twinkle: {
+        // Share of stars that twinkle at all. 0 disables the effect.
+        starFraction: 0.5,
+        /* Length of the slower wave, sampled per star. The quicker wave runs
+           the golden ratio faster. */
+        periodSeconds: { min: 3, max: 7 },
+        /* Largest swing either side of a star's own brightness, sampled per
+           star: 0.3 drifts between 70% and 130%. */
+        amplitude: { min: 0.15, max: 0.38 },
+      },
     },
     planets: {
       seed: 73091,
@@ -402,6 +508,85 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         maximumAngularSpeedRadiansPerSecond: 0.024,
         wellMassInfluence: 1,
         coherentDirectionProbability: 0.9,
+      },
+      // Same orbital model as 3D, kept as an independent copy like the rest.
+      orbitShape: {
+        // Half-normal spread of orbital eccentricity. 0 restores circles.
+        eccentricityStdDev: 0.18,
+        maximumEccentricity: 0.45,
+        /* Small bodies ride long comet-like ellipses, as real asteroids and
+           comets do, rather than the near-circles planets settle into. */
+        cometTypes: ["astroid"] satisfies readonly PlanetType[],
+        cometEccentricity: { min: 0.5, max: 0.75 },
+        /* Tilt of each orbital plane out of the screen plane. This is what
+           carries a planet toward and away from the camera along its path.
+           0 restores flat, constant-depth orbits. */
+        inclinationStdDevDegrees: 45,
+        maximumInclinationDegrees: 65,
+        /* 0 aims each orbit's line of nodes in a random direction. 1 aims it
+           from the well at the screen centre, which spends the whole depth
+           change on the stretch of orbit a visitor can actually see. */
+        nodeAlignment: 0.6,
+        /* Turns the ellipse itself makes per orbit (apsidal precession), so
+           no path ever exactly repeats. */
+        apsidalPrecessionPerOrbit: { min: 0.03, max: 0.09 },
+        /* A tilted orbit is flattened until it stays inside these depths.
+           `nearestZ` matches the depth band, so the largest planet on screen
+           is no larger than it was with constant-depth orbits. */
+        depthLimits: { nearestZ: -1.35, farthestZ: -14 },
+      },
+      /* Distance haze. Between these depths a planet blends from its source
+         colours toward `farTint`, so near bodies stay vivid and far ones
+         recede into the background they are drifting through. */
+      depthShading: {
+        startZ: -3,
+        endZ: -12,
+        /* White leaves colours untouched. ASCII planets are already dimmed
+           by `tint` and `maxOpacity`, and the glyph filter turns any further
+           darkening into missing characters instead of distance. */
+        farTint: "#ffffff",
+      },
+      /* Small bodies captured by a large one: moons around a ringed giant,
+         planets around a star, debris around a black hole. Kept rare: every
+         system is a tight cluster, and too many of them make the whole field
+         read as bunched. */
+      satellites: {
+        /* Which bodies can hold a system, and how far each one's solid body
+           reaches as a fraction of half its sprite width (measured from the
+           art: a star's disc, a giant inside its rings, a black hole inside
+           its wisps). Orbits are sized to stay outside that body, so a moon
+           is never hidden behind its own host. */
+        hostBodyRadius: {
+          star: 0.56,
+          "gas-giant-2": 0.36,
+          "black-hole": 0.45,
+        } satisfies Partial<Record<PlanetType, number>>,
+        satelliteTypes: [
+          "astroid",
+          "ice-world",
+          "islands",
+          "lava-world",
+          "no-atmosphere",
+          "terran-dry",
+          "terran-wet",
+        ] satisfies readonly PlanetType[],
+        // Share of eligible hosts that hold a system at all.
+        systemProbability: 0.1,
+        maximumSatellitesPerHost: 2,
+        // Shrinks a captured body so it reads as smaller than its host.
+        sizeMultiplier: 0.6,
+        /* Gap left between the host's body and the innermost moon's edge at
+           its closest approach on screen, in host radii. */
+        innerClearanceInHostRadii: { min: 0.08, max: 0.35 },
+        /* Added per further moon. Wider than a moon, so two moons of one
+           system never cover each other either. */
+        orbitSpacingInHostRadii: { min: 0.55, max: 0.75 },
+        /* Period of an orbit one host radius out. Wider orbits slow down by
+           Kepler's third law, period ∝ radius^1.5. */
+        referencePeriodSeconds: { min: 16, max: 34 },
+        /* Tilt of a system's plane away from face-on. Steeper tilts need a
+           wider orbit to clear the host, so this stays moderate. */
+        tiltDegrees: { min: 25, max: 42 },
       },
       frameRate: {
         mean: 5,

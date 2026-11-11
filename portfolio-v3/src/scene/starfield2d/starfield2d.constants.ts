@@ -37,6 +37,19 @@ export const STARS_2D = {
   ],
   // Local z offset (in px-space units) keeping stars behind planets.
   zOffset: -2,
+  /* Smooth brightness shimmer matching the volumetric modes. A twinkling
+     star follows two slow sine waves whose periods never line up, so its
+     brightness drifts continuously and never steps between frames. */
+  twinkle: {
+    // Share of stars that twinkle at all. 0 disables the effect.
+    starFraction: 0.5,
+    /* Length of the slower wave, sampled per star. The quicker wave runs the
+       golden ratio faster. */
+    periodSeconds: { min: 3, max: 7 },
+    /* Largest swing either side of a star's own colour, sampled per star.
+       The top of a bright star's swing clips at white. */
+    amplitude: { min: 0.15, max: 0.38 },
+  },
 } as const;
 
 export const PLANETS_2D = {

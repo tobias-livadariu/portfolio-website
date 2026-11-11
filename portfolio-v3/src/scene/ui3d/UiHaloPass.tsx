@@ -1,15 +1,25 @@
 import { useLayoutEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import type { Camera, Material, Object3D, Scene, WebGLRenderer } from "three";
+import type {
+  BufferGeometry,
+  Camera,
+  InstancedMesh,
+  Material,
+  Object3D,
+  Scene,
+  WebGLRenderer,
+} from "three";
 import {
   Color,
   DoubleSide,
   LinearFilter,
+  Matrix4,
   MeshBasicMaterial,
   RGBAFormat,
   ShaderMaterial,
   Uniform,
   Vector2,
+  Vector4,
   WebGLRenderTarget,
 } from "three";
 import {
@@ -45,6 +55,8 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
       backgroundColor: new Uniform(new Color(UI_HALO.backgroundColor)),
       expandedMaskEnd: new Uniform(INITIAL_HALO_TUNING.expandedMaskEnd),
       expandedMaskStart: new Uniform(UI_HALO.expandedMaskStart),
+      // Screen rectangle, in UV space, outside which no halo can exist.
+      haloBounds: new Uniform(new Vector4(0, 0, 1, 1)),
       haloColor: new Uniform(new Color(UI_HALO.color)),
       inputTexture: new Uniform(null),
       maskTexture: new Uniform(maskTexture),
@@ -70,6 +82,7 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
       uniform sampler2D maskTexture;
       uniform float expandedMaskEnd;
       uniform float expandedMaskStart;
+      uniform vec4 haloBounds;
       uniform float opacity;
       uniform float outputAlpha;
       uniform float radiusPx;
@@ -79,6 +92,20 @@ function createHaloMaterial(maskTexture: WebGLRenderTarget["texture"]) {
       void main() {
         vec4 sceneColor = texture2D(inputTexture, vUv);
         sceneColor.rgb = mix(backgroundColor, sceneColor.rgb, sceneColor.a);
+
+        /* No masked pixel lies within the halo radius of anything outside
+           these bounds, so the search below would return an empty halo and
+           this exact colour. Leaving early skips it for most of the screen. */
+        if (
+          vUv.x < haloBounds.x ||
+          vUv.y < haloBounds.y ||
+          vUv.x > haloBounds.z ||
+          vUv.y > haloBounds.w
+        ) {
+          gl_FragColor = vec4(sceneColor.rgb, outputAlpha);
+          return;
+        }
+
         float center = texture2D(maskTexture, vUv).r;
         float neighbor = 0.0;
 
@@ -324,6 +351,9 @@ class UiHaloCompositePass extends Pass {
   private readonly snapshotPool = new SnapshotPool();
   private readonly renderables: RenderableObject[] = [];
   private readonly targetSet = new Set<Object3D>();
+  private readonly clipMatrix = new Matrix4();
+  private readonly viewProjectionMatrix = new Matrix4();
+  private readonly boundsCorner = new Vector4();
   private currentRadiusPx: number = INITIAL_HALO_TUNING.radiusPx;
 
   constructor(
@@ -412,6 +442,7 @@ class UiHaloCompositePass extends Pass {
     }
 
     this.haloMaterial.uniforms.inputTexture.value = readBuffer.texture;
+    this.updateHaloBounds();
 
     if (this.renderToScreen) {
       renderer.setRenderTarget(null);
@@ -429,6 +460,95 @@ class UiHaloCompositePass extends Pass {
 
     this.quad.render(renderer);
     this.renderUiOverlay(renderer, this.targetSet);
+  }
+
+  /* Projects every masked object's bounding box to the screen and stores the
+     enclosing rectangle, padded by the halo radius, for the shader. Anything
+     this cannot bound exactly falls back to the whole screen, which is the
+     previous behaviour and always correct. */
+  private updateHaloBounds() {
+    const bounds = this.haloMaterial.uniforms.haloBounds.value as Vector4;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    this.viewProjectionMatrix.multiplyMatrices(
+      this.renderCamera.projectionMatrix,
+      this.renderCamera.matrixWorldInverse,
+    );
+
+    for (let i = 0; i < this.selectedObjects.length; i++) {
+      const object = this.selectedObjects[i] as Object3D & {
+        geometry?: BufferGeometry;
+      };
+      const geometry = object.geometry;
+
+      // An instanced mesh's geometry box does not cover its instances.
+      if (!geometry || (object as InstancedMesh).isInstancedMesh) {
+        bounds.set(0, 0, 1, 1);
+        return;
+      }
+
+      if (!geometry.boundingBox) {
+        geometry.computeBoundingBox();
+      }
+
+      const box = geometry.boundingBox;
+
+      if (!box) {
+        bounds.set(0, 0, 1, 1);
+        return;
+      }
+
+      this.clipMatrix.multiplyMatrices(
+        this.viewProjectionMatrix,
+        object.matrixWorld,
+      );
+
+      for (let corner = 0; corner < 8; corner++) {
+        const clip = this.boundsCorner
+          .set(
+            corner & 1 ? box.max.x : box.min.x,
+            corner & 2 ? box.max.y : box.min.y,
+            corner & 4 ? box.max.z : box.min.z,
+            1,
+          )
+          .applyMatrix4(this.clipMatrix);
+
+        // Behind the camera, or not a number: no finite rectangle exists.
+        if (!(clip.w > 0)) {
+          bounds.set(0, 0, 1, 1);
+          return;
+        }
+
+        const x = clip.x / clip.w;
+        const y = clip.y / clip.w;
+
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+
+    if (minX > maxX) {
+      // Nothing is masked, so nothing can have a halo.
+      bounds.set(1, 1, 0, 0);
+      return;
+    }
+
+    const texelSize = this.haloMaterial.uniforms.texelSize.value as Vector2;
+    const paddingTexels =
+      (this.haloMaterial.uniforms.radiusPx.value as number) +
+      UI_HALO.boundsPaddingPx;
+
+    bounds.set(
+      minX * 0.5 + 0.5 - paddingTexels * texelSize.x,
+      minY * 0.5 + 0.5 - paddingTexels * texelSize.y,
+      maxX * 0.5 + 0.5 + paddingTexels * texelSize.x,
+      maxY * 0.5 + 0.5 + paddingTexels * texelSize.y,
+    );
   }
 
   private getMaskMaterial = (object: Object3D) => {

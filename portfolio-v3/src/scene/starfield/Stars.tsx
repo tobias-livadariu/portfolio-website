@@ -1,6 +1,11 @@
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Color, DynamicDrawUsage, InstancedMesh } from "three";
+import {
+  Color,
+  DynamicDrawUsage,
+  InstancedMesh,
+  type WebGLProgramParametersWithUniforms,
+} from "three";
 import { CAMERA_PROPS } from "../canvas.constants";
 import {
   MAX_VOLUMETRIC_STAR_BUCKET_COUNT,
@@ -15,6 +20,7 @@ import {
   getCinematicOrbitalAngularSpeed,
   getFieldRadius,
   getOrbitCenter,
+  getTwinkleMultiplier,
   getVisibleBoundsAtZForPosition,
   lerp,
   mulberry32,
@@ -36,7 +42,50 @@ interface VirtualStar {
   orbitRadiusRatio: number;
   orbitWellIndex: number;
   size: number;
+  // Largest swing either side of the star's own brightness.
+  twinkleAmplitude: number;
+  /* Cycles per second of the slower twinkle wave; 0 for a star that holds a
+     steady brightness. */
+  twinkleFrequency: number;
+  // Starting points of the two twinkle waves, each from 0 to 1.
+  twinklePhase: number;
+  twinkleSecondaryPhase: number;
   z: number;
+}
+
+/* Twinkle timing draws from its own generator, salted from the layout seed,
+   so adding it leaves every star's position, size, and colour as they were. */
+const TWINKLE_SEED_SALT = 0x85ebca6b;
+// Per-instance brightness multiplier read by the patched star shader.
+const TWINKLE_ATTRIBUTE = "instanceTwinkle";
+
+/* Scales a star's finished colour by its twinkle value. The stock material
+   can only tint the lit part of a star per instance, not its glow, so the
+   multiplier is applied to the two together at the very end. */
+function addTwinkleToStarShader(shader: WebGLProgramParametersWithUniforms) {
+  shader.vertexShader = shader.vertexShader
+    .replace(
+      "#include <common>",
+      `#include <common>
+attribute float ${TWINKLE_ATTRIBUTE};
+varying float vTwinkle;`,
+    )
+    .replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+vTwinkle = ${TWINKLE_ATTRIBUTE};`,
+    );
+  shader.fragmentShader = shader.fragmentShader
+    .replace(
+      "#include <common>",
+      `#include <common>
+varying float vTwinkle;`,
+    )
+    .replace(
+      "#include <opaque_fragment>",
+      `outgoingLight *= vTwinkle;
+#include <opaque_fragment>`,
+    );
 }
 
 interface StarFrameLayout {
@@ -128,8 +177,24 @@ function createVirtualStars(
     ? tuning.seed
     : STAR_SESSION_SEEDS[mode];
   const random = mulberry32(seed);
+  const twinkleRandom = mulberry32((seed ^ TWINKLE_SEED_SALT) >>> 0);
 
   return Array.from({ length: tuning.virtualCount }, () => {
+    // All five are drawn for every star so the sequence never depends on
+    // which stars happen to twinkle.
+    const twinkles = twinkleRandom() < tuning.twinkle.starFraction;
+    const twinklePeriodSeconds = lerp(
+      tuning.twinkle.periodSeconds.min,
+      tuning.twinkle.periodSeconds.max,
+      twinkleRandom(),
+    );
+    const twinklePhase = twinkleRandom();
+    const twinkleSecondaryPhase = twinkleRandom();
+    const twinkleAmplitude = lerp(
+      tuning.twinkle.amplitude.min,
+      tuning.twinkle.amplitude.max,
+      twinkleRandom(),
+    );
     const depthProgress = sampleNormal(
       random,
       tuning.depthDistribution.mean,
@@ -186,6 +251,10 @@ function createVirtualStars(
         tuning.size.min,
         tuning.size.max,
       ),
+      twinkleAmplitude,
+      twinkleFrequency: twinkles ? 1 / twinklePeriodSeconds : 0,
+      twinklePhase,
+      twinkleSecondaryPhase,
       z,
     };
   });
@@ -224,6 +293,15 @@ export default function Stars({
   );
   const bucketCountsRef = useRef(
     new Uint32Array(MAX_VOLUMETRIC_STAR_BUCKET_COUNT),
+  );
+  /* One brightness value per instance, per bucket mesh. Filled with 1 so a
+     slot drawn before its first update is a steady star, not a black one. */
+  const twinkleArrays = useMemo(
+    () =>
+      tuning.emissiveIntensity.buckets.map(() =>
+        new Float32Array(MAX_VOLUMETRIC_STAR_COUNT).fill(1),
+      ),
+    [tuning],
   );
   const colorObjects = useMemo(
     () => tuning.colors.map((value) => new Color(value)),
@@ -297,6 +375,17 @@ export default function Stars({
       matrix[matrixOffset + 14] = star.z;
       matrix[matrixOffset + 15] = 1;
 
+      mesh.geometry.attributes[TWINKLE_ATTRIBUTE].array[instanceIndex] =
+        star.twinkleFrequency > 0
+          ? getTwinkleMultiplier(
+              elapsedSeconds,
+              star.twinkleFrequency,
+              star.twinklePhase,
+              star.twinkleSecondaryPhase,
+              star.twinkleAmplitude,
+            )
+          : 1;
+
       if (!mesh.instanceColor) {
         // setColorAt() lazily allocates the attribute (and the shader variant).
         mesh.setColorAt(instanceIndex, colorObjects[star.colorIndex]);
@@ -323,6 +412,14 @@ export default function Stars({
       if (visibleCount > 0) {
         mesh.instanceMatrix.addUpdateRange(0, visibleCount * 16);
         mesh.instanceMatrix.needsUpdate = true;
+      }
+      const twinkleAttribute = mesh.geometry.attributes[TWINKLE_ATTRIBUTE];
+      if ("clearUpdateRanges" in twinkleAttribute) {
+        twinkleAttribute.clearUpdateRanges();
+        if (visibleCount > 0) {
+          twinkleAttribute.addUpdateRange(0, visibleCount);
+          twinkleAttribute.needsUpdate = true;
+        }
       }
       if (mesh.instanceColor) {
         if (mesh.instanceColor.usage !== DynamicDrawUsage) {
@@ -351,8 +448,15 @@ export default function Stars({
             frustumCulled={false}
             renderOrder={0}
           >
-            <boxGeometry args={[1, 1, 1]} />
+            <boxGeometry args={[1, 1, 1]}>
+              <instancedBufferAttribute
+                args={[twinkleArrays[bucketIndex], 1]}
+                attach={`attributes-${TWINKLE_ATTRIBUTE}`}
+                usage={DynamicDrawUsage}
+              />
+            </boxGeometry>
             <meshStandardMaterial
+              onBeforeCompile={addTwinkleToStarShader}
               color={tuning.colors[0]}
               emissive={tuning.colors[0]}
               emissiveIntensity={emissiveIntensity}

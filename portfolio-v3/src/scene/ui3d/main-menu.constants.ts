@@ -179,6 +179,10 @@ export const UI_HALO = {
   // Compile-time shader loop cap. Keep this >= every mode's radiusPx multiplied
   // by resolutionScale.
   maxSampleRadiusPx: 8,
+  /* The halo is only searched for inside the masked objects' screen
+     rectangle, grown by the halo radius plus this many mask pixels. The extra
+     margin absorbs multisample and filtering spill at the mask's edge. */
+  boundsPaddingPx: 6,
   // Beginning of the expanded halo edge shared by all render modes.
   expandedMaskStart: 0.01,
   outputAlpha: 1,

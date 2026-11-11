@@ -150,6 +150,29 @@ export function getCinematicOrbitalAngularSpeed({
   return angularSpeed * direction;
 }
 
+/* Kepler's equation, M = E - e·sin(E), relates the mean anomaly M (an angle
+   that advances uniformly with time) to the eccentric anomaly E (where the
+   body actually is on its ellipse). It has no closed-form solution for E, so
+   it is refined with Newton's method. Five steps from M + e·sin(M) converge
+   far below a pixel for every eccentricity the starfield uses (e < 0.8). */
+export function solveKeplerEquation(meanAnomaly: number, eccentricity: number) {
+  const fullTurn = Math.PI * 2;
+  const wrappedMeanAnomaly =
+    ((((meanAnomaly + Math.PI) % fullTurn) + fullTurn) % fullTurn) - Math.PI;
+  let eccentricAnomaly =
+    wrappedMeanAnomaly + eccentricity * Math.sin(wrappedMeanAnomaly);
+
+  for (let iteration = 0; iteration < 5; iteration++) {
+    eccentricAnomaly -=
+      (eccentricAnomaly -
+        eccentricity * Math.sin(eccentricAnomaly) -
+        wrappedMeanAnomaly) /
+      (1 - eccentricity * Math.cos(eccentricAnomaly));
+  }
+
+  return eccentricAnomaly;
+}
+
 export function getVisibleBoundsAtZ(
   camera: Camera,
   canvasSize: { width: number; height: number },
@@ -320,5 +343,35 @@ export function isInsideBounds(
     position.x <= bounds.right + radius &&
     position.y >= bounds.bottom - radius &&
     position.y <= bounds.top + radius
+  );
+}
+
+const TWINKLE_FULL_TURN = Math.PI * 2;
+/* Two sine waves whose frequencies are in the golden ratio never fall back
+   into step, so their sum wanders without a visible loop. */
+const TWINKLE_GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2;
+
+/* Brightness multiplier of a twinkling star, centred on 1.
+
+   The slower wave carries most of the swing and the quicker one roughens it,
+   which reads as shimmer instead of a pulse. Both are continuous in time, so
+   the value can never jump from one frame to the next. */
+export function getTwinkleMultiplier(
+  elapsedSeconds: number,
+  frequency: number,
+  phase: number,
+  secondaryPhase: number,
+  amplitude: number,
+) {
+  const turns = elapsedSeconds * frequency;
+
+  return (
+    1 +
+    amplitude *
+      (0.62 * Math.sin(TWINKLE_FULL_TURN * (turns + phase)) +
+        0.38 *
+          Math.sin(
+            TWINKLE_FULL_TURN * (turns * TWINKLE_GOLDEN_RATIO + secondaryPhase),
+          ))
   );
 }
