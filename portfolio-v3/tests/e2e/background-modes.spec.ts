@@ -17,6 +17,7 @@ import {
   getCinematicOrbitalAngularSpeed,
   getFieldVolume,
   getPopulationCount,
+  getSmallScreenDensityMultiplier,
   sampleBiasedDistance,
 } from "../../src/scene/starfield/starfield.math";
 import {
@@ -800,6 +801,7 @@ test("ASCII is DEEP re-framed: independent objects that differ only by the re-fr
       planetScale: 1,
       planetDepthOffset: 0,
       planetDensityScale: 1,
+      planetSmallScreenBoostScale: 1,
       planetTint: "#ffffff",
       planetMaxOpacity: 1,
       planetFarTint: "#7480ad",
@@ -810,6 +812,7 @@ test("ASCII is DEEP re-framed: independent objects that differ only by the re-fr
       planetScale: 2.35,
       planetDepthOffset: -4.1,
       planetDensityScale: 0.7,
+      planetSmallScreenBoostScale: 0.4,
       planetTint: "#a5afbf",
       planetMaxOpacity: 0.78,
       planetFarTint: "#ffffff",
@@ -834,6 +837,10 @@ test("ASCII is DEEP re-framed: independent objects that differ only by the re-fr
       population: {
         ...tuning.planets.population,
         densityPer1000CubicUnits: null,
+        smallScreenBoost: {
+          ...tuning.planets.population.smallScreenBoost,
+          boost: null,
+        },
       },
       orbitShape: {
         ...tuning.planets.orbitShape,
@@ -874,12 +881,16 @@ test("ASCII is DEEP re-framed: independent objects that differ only by the re-fr
   ).toBeCloseTo(offset);
 });
 
-test("population follows screen shape at a fixed density, up to its ceiling", () => {
+test("population follows screen shape at one base density, up to its ceiling", () => {
   const tuning = VOLUMETRIC_STARFIELD_TUNING["3d"];
   const { population, depthBand } = tuning.planets;
   const countAt = (width: number, height: number) =>
     getPopulationCount(
-      population.densityPer1000CubicUnits,
+      population.densityPer1000CubicUnits *
+        getSmallScreenDensityMultiplier(
+          width * height,
+          population.smallScreenBoost,
+        ),
       getFieldVolume({
         aspect: width / height,
         buffer: tuning.planets.visibilityBuffer,
@@ -894,14 +905,64 @@ test("population follows screen shape at a fixed density, up to its ceiling", ()
   const phone = countAt(390, 844);
   const laptop = countAt(1440, 900);
 
-  // The same aspect ratio means the same scene, whatever the resolution.
+  // Past the small-screen ramp, the same aspect ratio means the same scene,
+  // whatever the resolution.
   expect(countAt(2880, 1800)).toBe(laptop);
-  // A narrow screen shows less space, so it draws fewer planets.
-  expect(phone).toBeLessThan(laptop * 0.5);
+  // A narrow screen shows less space, so it draws fewer planets even with
+  // its small-screen boost.
+  expect(phone).toBeLessThan(laptop * 0.75);
   expect(phone).toBeGreaterThan(0);
   expect(countAt(1920, 1080)).toBeGreaterThan(laptop);
   // An absurdly wide window stops at the ceiling.
   expect(countAt(20000, 1000)).toBe(population.maximumCount);
+});
+
+test("small screens get a density boost that tapers off smoothly with window area", () => {
+  for (const mode of ["3d", "ascii"] as const) {
+    const tuning = VOLUMETRIC_STARFIELD_TUNING[mode];
+
+    for (const ramp of [
+      tuning.stars.population.smallScreenBoost,
+      tuning.planets.population.smallScreenBoost,
+    ]) {
+      const multiplierAt = (width: number, height: number) =>
+        getSmallScreenDensityMultiplier(width * height, ramp);
+
+      expect(ramp.boost).toBeGreaterThan(0);
+      // The smallest phones get the whole boost; laptops and up get none.
+      expect(multiplierAt(320, 568)).toBeCloseTo(1 + ramp.boost);
+      expect(multiplierAt(375, 667)).toBeCloseTo(1 + ramp.boost);
+      expect(multiplierAt(1440, 900)).toBe(1);
+      expect(multiplierAt(3840, 2160)).toBe(1);
+
+      // In between it only ever falls, and never by a visible jump.
+      let previous = getSmallScreenDensityMultiplier(250_000, ramp);
+
+      for (let area = 250_000; area <= 1_300_000; area += 5_000) {
+        const multiplier = getSmallScreenDensityMultiplier(area, ramp);
+
+        expect(multiplier).toBeLessThanOrEqual(previous);
+        expect(previous - multiplier).toBeLessThan(ramp.boost * 0.02);
+        previous = multiplier;
+      }
+    }
+  }
+
+  // A zero boost switches the ramp off, and a ramp with no width is a step.
+  expect(
+    getSmallScreenDensityMultiplier(100_000, {
+      boost: 0,
+      fullBoostAreaPx: 250_000,
+      noBoostAreaPx: 1_200_000,
+    }),
+  ).toBe(1);
+  expect(
+    getSmallScreenDensityMultiplier(100_000, {
+      boost: 0.5,
+      fullBoostAreaPx: 500_000,
+      noBoostAreaPx: 500_000,
+    }),
+  ).toBe(1.5);
 });
 
 test("camera bias moves a population toward or away from the camera", () => {

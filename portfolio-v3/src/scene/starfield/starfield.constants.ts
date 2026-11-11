@@ -29,6 +29,9 @@ export interface VolumetricReframe {
   /* Multiplies the planet density. Pushing the depth range back enlarges
      the space the planets fill, which would otherwise add planets. */
   planetDensityScale: number;
+  /* Multiplies the planets' small-screen density boost. A mode that draws
+     larger sprites fills a phone screen sooner, so it takes less of it. */
+  planetSmallScreenBoostScale: number;
   // Colour multiplied into every planet. White leaves the art untouched.
   planetTint: string;
   planetMaxOpacity: number;
@@ -44,6 +47,7 @@ export const VOLUMETRIC_REFRAMES = {
     planetScale: 1,
     planetDepthOffset: 0,
     planetDensityScale: 1,
+    planetSmallScreenBoostScale: 1,
     planetTint: "#ffffff",
     planetMaxOpacity: 1,
     planetFarTint: "#7480ad",
@@ -56,9 +60,12 @@ export const VOLUMETRIC_REFRAMES = {
     starScale: 2.5,
     planetScale: 2.35,
     planetDepthOffset: -4.1,
-    // Cancels the extra space the offset adds, so ASCII draws as many planets
-    // as DEEP does on the same screen.
+    // Cancels most of the extra space the offset adds: ASCII draws about 6%
+    // fewer planets than DEEP on the same screen (0.74 would match exactly).
     planetDensityScale: 0.7,
+    // The enlarged sprites already crowd a phone; the full boost turns the
+    // glyph field into one unbroken texture.
+    planetSmallScreenBoostScale: 0.4,
     // Dimmed so planets sit behind the menu's glyphs instead of fighting them.
     planetTint: "#a5afbf",
     planetMaxOpacity: 0.78,
@@ -73,6 +80,14 @@ export const VOLUMETRIC_REFRAMES = {
 
    The true 2D renderer has its own pixel-space controls in
    starfield2d/starfield2d.constants.ts and does not use these profiles. */
+/* Where the small-screen density boost starts and stops, as window area in
+   CSS pixels (width x height). Stars and planets share these two points by
+   default; each population's `smallScreenBoost` may override them. */
+const SMALL_SCREEN_RAMP = {
+  fullBoostAreaPx: 250_000,
+  noBoostAreaPx: 1_200_000,
+} as const;
+
 function createVolumetricTuning(reframe: VolumetricReframe) {
   return {
     /* False generates one fresh entropy seed per page load, then keeps that
@@ -167,6 +182,20 @@ function createVolumetricTuning(reframe: VolumetricReframe) {
          Positive values pull the population toward the camera (2 spreads
          it evenly by distance); negative values push it deeper. */
         cameraBias: 0.5,
+        /* Extra density on small screens, where the same density reads as
+         sparse because so little of the sky fits in the window. */
+        smallScreenBoost: {
+          /* How much denser the smallest screens are: 0.44 draws 44% more
+           stars than `densityPer1000CubicUnits` asks for. 0 turns it off. */
+          boost: 0.44,
+          /* Window area (CSS width x height) at or below which the full
+           boost applies. 250,000 is a 375 x 667 phone. */
+          fullBoostAreaPx: SMALL_SCREEN_RAMP.fullBoostAreaPx,
+          /* Window area at or above which there is no boost. In between the
+           boost eases off smoothly. Keep it under 1,296,000 (1440 x 900) to
+           leave laptops and desktops at the plain density. */
+          noBoostAreaPx: SMALL_SCREEN_RAMP.noBoostAreaPx,
+        },
       },
       // Final multiplier applied after the sampled world-space star size.
       visualScale: reframe.starScale,
@@ -258,15 +287,23 @@ function createVolumetricTuning(reframe: VolumetricReframe) {
       population: {
         /* Average planets per 1000 cubic world units of the planet field.
          Raise it for a busier scene. */
-        densityPer1000CubicUnits: 31.2 * reframe.planetDensityScale,
-        /* Ceiling for very wide displays. A 16:10 window uses about 400 in
-         DEEP; this is only reached beyond roughly a 2.8:1 window. */
+        densityPer1000CubicUnits: 24 * reframe.planetDensityScale,
+        /* Ceiling for very wide displays. A 16:10 window uses about 640 in
+         DEEP and 16:9 about 730; the ceiling is reached from roughly a
+         2.2:1 window, which includes 21:9 ultrawides. */
         maximumCount: 1000,
         /* Where along the depth band planets gather. 0 fills space evenly,
          which leaves almost nothing nearby; 2 spreads planets evenly by
          distance. Raise it for more large near planets, lower it for a
          deeper field of small far ones. */
-        cameraBias: 1.85,
+        cameraBias: 2.5,
+        /* Extra density on small screens; see the star population above for
+         what each value does. */
+        smallScreenBoost: {
+          boost: 0.22 * reframe.planetSmallScreenBoostScale,
+          fullBoostAreaPx: SMALL_SCREEN_RAMP.fullBoostAreaPx,
+          noBoostAreaPx: SMALL_SCREEN_RAMP.noBoostAreaPx,
+        },
       },
       // Final multiplier applied to sampled planet sprite dimensions.
       visualScale: reframe.planetScale,
@@ -292,7 +329,7 @@ function createVolumetricTuning(reframe: VolumetricReframe) {
        pushing it farther away makes them smaller through perspective. */
       depthBand: {
         nearestZ: 2.75 + reframe.planetDepthOffset,
-        farthestZ: -18.75 + reframe.planetDepthOffset,
+        farthestZ: -26.75 + reframe.planetDepthOffset,
       },
       // Orbital angular velocity distribution in radians per second.
       angularSpeedRadiansPerSecond: {
@@ -354,7 +391,7 @@ function createVolumetricTuning(reframe: VolumetricReframe) {
        recede into the background they are drifting through. */
       depthShading: {
         startZ: -2 + reframe.planetDepthOffset,
-        endZ: -24 + reframe.planetDepthOffset,
+        endZ: -23 + reframe.planetDepthOffset,
         // White switches the haze off.
         farTint: reframe.planetFarTint,
       },

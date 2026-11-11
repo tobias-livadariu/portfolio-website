@@ -22,6 +22,7 @@ import {
   getFieldVolume,
   getOrbitCenter,
   getPopulationCount,
+  getSmallScreenDensityMultiplier,
   getTwinkleMultiplier,
   getVisibleBoundsAtZForPosition,
   lerp,
@@ -313,11 +314,16 @@ export default function Stars({
     [camera, fieldTuning, size, stars],
   );
   /* How many of the sampled stars this screen draws: the configured density
-     times the volume of space the star field fills at this aspect ratio. */
+     times the volume of space the star field fills at this aspect ratio,
+     raised on small screens by the population's `smallScreenBoost`. */
   const activeCount = useMemo(
     () =>
       getPopulationCount(
-        tuning.population.densityPer1000CubicUnits,
+        tuning.population.densityPer1000CubicUnits *
+          getSmallScreenDensityMultiplier(
+            size.width * size.height,
+            tuning.population.smallScreenBoost,
+          ),
         getFieldVolume({
           aspect: size.width / Math.max(1, size.height),
           buffer: fieldTuning.bounds.edgeBuffer,

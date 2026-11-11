@@ -417,6 +417,34 @@ export function getFieldVolume({
   );
 }
 
+export interface SmallScreenDensityBoost {
+  // Fraction of extra density at full strength (0.5 is 50% more bodies).
+  boost: number;
+  // Window area in CSS pixels at or below which the full boost applies.
+  fullBoostAreaPx: number;
+  // Window area in CSS pixels at or above which no boost applies.
+  noBoostAreaPx: number;
+}
+
+/* Density multiplier for a window of the given area. Small windows get
+   `1 + boost`; the extra eases off (smoothstep, so there is no kink at either
+   end while a window is resized) and is gone by `noBoostAreaPx`. */
+export function getSmallScreenDensityMultiplier(
+  screenAreaPx: number,
+  { boost, fullBoostAreaPx, noBoostAreaPx }: SmallScreenDensityBoost,
+) {
+  const span = noBoostAreaPx - fullBoostAreaPx;
+  const progress =
+    span > 0
+      ? clamp((screenAreaPx - fullBoostAreaPx) / span, 0, 1)
+      : screenAreaPx < noBoostAreaPx
+        ? 0
+        : 1;
+  const eased = progress * progress * (3 - 2 * progress);
+
+  return 1 + Math.max(0, boost) * (1 - eased);
+}
+
 /* How many bodies a density asks for in a given field volume, held to the
    population's ceiling. */
 export function getPopulationCount(
