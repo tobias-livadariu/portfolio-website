@@ -86,9 +86,9 @@ Built on branch `fable/planet-motion` (uncommitted):
   extra density at or below a 375×667 window (22% for planets, 44% for
   stars) that eases off with window area and is gone by 1,200,000 px². A
   phone draws about 320 planets and 5,000 stars. ASCII takes 40% of the
-  planet boost, because its larger sprites fill a phone sooner. The planet
-  ceiling of 1,000 is reached from about a 2.2:1 window, so 21:9 ultrawides
-  are capped; the star ceiling of 24,000 from about 2.8:1.
+  planet boost, because its larger sprites fill a phone sooner. The
+  ceilings (1,450 planets, 24,000 stars) are only reached beyond about a
+  2.8:1 window, so a 21:9 ultrawide is not capped.
 - **Draw order follows apparent size.** A planet that looks larger is always
   painted over one that looks smaller, using each sprite's measured body size
   (`PLANET_VISUAL_RADIUS`) at its orbit's resting depth. Sprites differ a lot

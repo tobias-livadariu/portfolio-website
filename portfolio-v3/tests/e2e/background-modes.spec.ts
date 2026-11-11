@@ -811,7 +811,7 @@ test("ASCII is DEEP re-framed: independent objects that differ only by the re-fr
       starScale: 2.5,
       planetScale: 2.35,
       planetDepthOffset: -4.1,
-      planetDensityScale: 0.7,
+      planetDensityScale: 0.68,
       planetSmallScreenBoostScale: 0.4,
       planetTint: "#a5afbf",
       planetMaxOpacity: 0.78,

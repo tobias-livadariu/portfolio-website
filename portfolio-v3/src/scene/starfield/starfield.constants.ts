@@ -60,9 +60,10 @@ export const VOLUMETRIC_REFRAMES = {
     starScale: 2.5,
     planetScale: 2.35,
     planetDepthOffset: -4.1,
-    // Cancels most of the extra space the offset adds: ASCII draws about 6%
-    // fewer planets than DEEP on the same screen (0.74 would match exactly).
-    planetDensityScale: 0.7,
+    // Cancels the extra space the offset adds, so ASCII draws as many planets
+    // as DEEP does on the same screen (within about 1% on laptops and
+    // desktops). Re-derive it if the planet depth band or offset changes.
+    planetDensityScale: 0.68,
     // The enlarged sprites already crowd a phone; the full boost turns the
     // glyph field into one unbroken texture.
     planetSmallScreenBoostScale: 0.4,
@@ -288,10 +289,11 @@ function createVolumetricTuning(reframe: VolumetricReframe) {
         /* Average planets per 1000 cubic world units of the planet field.
          Raise it for a busier scene. */
         densityPer1000CubicUnits: 24 * reframe.planetDensityScale,
-        /* Ceiling for very wide displays. A 16:10 window uses about 640 in
-         DEEP and 16:9 about 730; the ceiling is reached from roughly a
-         2.2:1 window, which includes 21:9 ultrawides. */
-        maximumCount: 1000,
+        /* Ceiling for very wide displays. A 16:10 window uses about 640, 16:9
+         about 730 and a 21:9 ultrawide about 1,100; this is only reached
+         beyond roughly a 2.8:1 window, the same point as the star ceiling.
+         Re-derive it if the density or depth band changes. */
+        maximumCount: 1450,
         /* Where along the depth band planets gather. 0 fills space evenly,
          which leaves almost nothing nearby; 2 spreads planets evenly by
          distance. Raise it for more large near planets, lower it for a
