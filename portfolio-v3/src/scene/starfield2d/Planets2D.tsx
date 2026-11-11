@@ -1,3 +1,4 @@
+import { getSceneElapsedSeconds, getSceneTimeScale } from "../scene-time";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Mesh, MeshBasicMaterial } from "three";
@@ -224,7 +225,7 @@ function PlanetSprite2DInner({
     bodyRef.current = createBody(planet, planetSize, viewportHeight);
   }
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     const mesh = meshRef.current;
     const material = materialRef.current;
     const body = bodyRef.current;
@@ -235,8 +236,11 @@ function PlanetSprite2DInner({
 
     const deltaSeconds = Math.min(delta, 1 / 30);
 
+    /* Orbital motion follows the scene clock, so it slows to rest and resumes
+       with the rest of the scene; the fade-in below stays on real time. */
     body.angle =
-      (body.angle + body.angularSpeed * deltaSeconds) % (Math.PI * 2);
+      (body.angle + body.angularSpeed * deltaSeconds * getSceneTimeScale()) %
+      (Math.PI * 2);
     body.rotation =
       body.angle +
       (PLANETS_2D.lightFacingRotationOffsetDegrees * Math.PI) / 180;
@@ -262,7 +266,7 @@ function PlanetSprite2DInner({
 
     const frameIndex =
       Math.floor(
-        (clock.getElapsedTime() + planet.frameTimeOffset) * planet.frameRate,
+        (getSceneElapsedSeconds() + planet.frameTimeOffset) * planet.frameRate,
       ) % atlas.frames.length;
     if (frameIndex !== lastFrameIndexRef.current) {
       const frame = atlas.frames[frameIndex];

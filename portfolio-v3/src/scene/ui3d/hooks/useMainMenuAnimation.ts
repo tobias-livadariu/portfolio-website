@@ -1,3 +1,4 @@
+import { getSceneElapsedSeconds } from "../../scene-time";
 import { useFrame } from "@react-three/fiber";
 import type { RefObject } from "react";
 import type { Object3D } from "three";
@@ -154,7 +155,7 @@ export function useAnimatedMenuPosition(
   baseOffset: ReadonlyVec3,
   elementIndex: number,
 ) {
-  useFrame(({ clock }) => {
+  useFrame(() => {
     const object = objectRef.current;
 
     if (!object) {
@@ -163,7 +164,7 @@ export function useAnimatedMenuPosition(
 
     object.position.y =
       baseOffset[1] +
-      getAnimatedMenuYOffset(elementIndex, clock.getElapsedTime());
+      getAnimatedMenuYOffset(elementIndex, getSceneElapsedSeconds());
   });
 }
 
@@ -173,7 +174,7 @@ export function useAnimatedMainMenuRotation(
   peakRotation: ReadonlyVec3,
   enabled = true,
 ) {
-  useFrame(({ clock }) => {
+  useFrame(() => {
     const object = objectRef.current;
 
     if (!object) {
@@ -182,7 +183,7 @@ export function useAnimatedMainMenuRotation(
 
     const animatedRotation = enabled
       ? getAnimatedMainMenuRotation(
-          clock.getElapsedTime(),
+          getSceneElapsedSeconds(),
           troughRotation,
           peakRotation,
         )

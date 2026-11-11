@@ -7,12 +7,17 @@ import { COLOR_PALETTE_STR } from "../theme/colors";
  * the renderer control, reaches the top-left goal, and then a goal-originating
  * wave closes any faces that the search did not already visit. Glyph colors
  * are assigned once and never change during a transition.
+ *
+ * Nothing is hidden behind a blank cover. While the graph grows, the outgoing
+ * scene glides to rest underneath and each enclosed face only dims it. The
+ * resting scene is then held as a still, and the same wave dissolves that
+ * still, one character-sized cell at a time, into the live ASCII scene.
  */
 export const ASCII_GRAPH_TRANSITION = {
-  // Covering duration before the renderer is swapped to ASCII.
-  coverDurationMs: 1_180,
-  // Clearing duration used to reveal the fully initialized ASCII scene.
-  clearDurationMs: 980,
+  // How long the graph takes to grow across the outgoing scene.
+  coverDurationMs: 900,
+  // How long the outgoing scene takes to dissolve into the ASCII scene.
+  clearDurationMs: 1_050,
   // Typical distance between graph nodes at the reference viewport width.
   nodeSpacingPx: 92,
   // Viewport width at which nodeSpacingPx and glyphFontPx apply exactly.
@@ -60,8 +65,23 @@ export const ASCII_GRAPH_TRANSITION = {
   glyphScalePulseAmplitude: 0.12,
   // Width of the colored glyph frontier during the clearing phase.
   clearFrontierProgressWidth: 0.13,
-  // Quantized monotonic clear steps create a choppy reveal without flashing.
-  clearStepCount: 12,
+  /* The dissolve erases the outgoing scene in cells shaped like the ASCII
+     scene's characters (the same 3:5 proportion, enlarged so each cell is
+     visible), so the last of the old picture breaks up into the texture of
+     the new one. Sizes are CSS pixels at the reference viewport width. */
+  dissolveCellWidthPx: 9,
+  dissolveCellHeightPx: 15,
+  /* Share of the clear timeline over which the cells of one face scatter
+     away. 0 would pop whole faces at once; higher is a grainier dissolve. */
+  dissolveProgressSpan: 0.2,
+  /* A freshly dissolved cell leaves a glyph that thins from "@" to "." and
+     fades. This is how long it lasts, as a share of the clear timeline. */
+  dissolveGlyphLifeProgress: 0.11,
+  // Share of dissolved cells that leave such a glyph. 1 is every cell.
+  dissolveGlyphDensity: 0.5,
+  /* Opacity of the dark disc drawn behind each graph glyph while the graph
+     grows, so glyphs stay legible over a bright planet. */
+  glyphBackingAlpha: 0.62,
   // Subtle graph rails behind glyphs; raise alpha/width for stronger geometry.
   edgeLineAlpha: 0.2,
   edgeLineWidthPx: 0.75,
@@ -151,10 +171,6 @@ interface HeapEntry {
 
 function clamp(value: number, minimum = 0, maximum = 1) {
   return Math.min(maximum, Math.max(minimum, value));
-}
-
-function easeOutCubic(value: number) {
-  return 1 - (1 - value) ** 3;
 }
 
 function getResponsiveScale(width: number) {
@@ -484,31 +500,6 @@ export function buildAsciiTransitionField(
   };
 }
 
-function traceFace(
-  ctx: CanvasRenderingContext2D,
-  field: AsciiTransitionField,
-  face: AsciiTransitionFace,
-  scale: number,
-) {
-  const a = field.nodes[face.a];
-  const b = field.nodes[face.b];
-  const c = field.nodes[face.c];
-  const centerX = (a.x + b.x + c.x) / 3;
-  const centerY = (a.y + b.y + c.y) / 3;
-  const point = (node: AsciiTransitionNode) => ({
-    x: centerX + (node.x - centerX) * scale,
-    y: centerY + (node.y - centerY) * scale,
-  });
-  const pa = point(a);
-  const pb = point(b);
-  const pc = point(c);
-
-  ctx.moveTo(pa.x, pa.y);
-  ctx.lineTo(pb.x, pb.y);
-  ctx.lineTo(pc.x, pc.y);
-  ctx.closePath();
-}
-
 function getGlyphPresentation(
   startProgress: number,
   progress: number,
@@ -738,12 +729,15 @@ export function getAsciiTransitionGlyphPlacements(
   return [...edgePlacements, ...nodePlacements];
 }
 
-function drawGeneratedGraph(
+/** Draws the graph's rails and glyphs for one frame. `backingAlpha` above 0
+ *  puts a dark disc behind every glyph, for drawing over a live scene. */
+export function drawAsciiTransitionGraph(
   ctx: CanvasRenderingContext2D,
   field: AsciiTransitionField,
   progress: number,
   elapsedMs: number,
   clearing: boolean,
+  backingAlpha = 0,
 ) {
   const frontierWidth = ASCII_GRAPH_TRANSITION.clearFrontierProgressWidth;
   const fontSize = ASCII_GRAPH_TRANSITION.glyphFontPx * field.responsiveScale;
@@ -801,83 +795,27 @@ function drawGeneratedGraph(
     }
   }
 
-  for (const placement of getAsciiTransitionGlyphPlacements(
+  const placements = getAsciiTransitionGlyphPlacements(
     field,
     progress,
     elapsedMs,
     clearing,
-  )) {
+  );
+
+  if (backingAlpha > 0) {
+    ctx.beginPath();
+    for (const placement of placements) {
+      const radius = fontSize * 0.6 * placement.scale;
+      ctx.moveTo(placement.x + radius, placement.y);
+      ctx.arc(placement.x, placement.y, radius, 0, Math.PI * 2);
+    }
+    ctx.globalAlpha = backingAlpha;
+    ctx.fillStyle = COLOR_PALETTE_STR.background;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  for (const placement of placements) {
     drawGlyph(ctx, placement, glyphOffsets);
   }
-}
-
-export type AsciiTransitionRenderStage = "covering" | "covered" | "clearing";
-
-/** Draw a single frame. Coverage and clearing are monotonic by construction. */
-export function renderAsciiTransitionFrame(
-  ctx: CanvasRenderingContext2D,
-  field: AsciiTransitionField,
-  stage: AsciiTransitionRenderStage,
-  progress: number,
-  elapsedMs: number,
-) {
-  const safeProgress = clamp(progress);
-  ctx.clearRect(0, 0, field.width, field.height);
-
-  if (stage === "clearing") {
-    const steppedProgress =
-      Math.floor(safeProgress * ASCII_GRAPH_TRANSITION.clearStepCount) /
-      ASCII_GRAPH_TRANSITION.clearStepCount;
-    ctx.fillStyle = COLOR_PALETTE_STR.background;
-    ctx.fillRect(0, 0, field.width, field.height);
-    ctx.save();
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = "#000000";
-
-    for (const face of field.faces) {
-      const localProgress = clamp(
-        (steppedProgress - face.coverProgress) /
-          ASCII_GRAPH_TRANSITION.facePopProgressSpan,
-      );
-      if (localProgress <= 0) {
-        continue;
-      }
-      ctx.beginPath();
-      traceFace(
-        ctx,
-        field,
-        face,
-        easeOutCubic(localProgress) * ASCII_GRAPH_TRANSITION.faceOverdrawScale,
-      );
-      ctx.fill();
-    }
-    ctx.restore();
-    drawGeneratedGraph(ctx, field, steppedProgress, elapsedMs, true);
-    return;
-  }
-
-  ctx.fillStyle = COLOR_PALETTE_STR.background;
-  if (stage === "covered") {
-    ctx.fillRect(0, 0, field.width, field.height);
-  } else {
-    for (const face of field.faces) {
-      const localProgress = clamp(
-        (safeProgress - face.coverProgress) /
-          ASCII_GRAPH_TRANSITION.facePopProgressSpan,
-      );
-      if (localProgress <= 0) {
-        continue;
-      }
-      ctx.beginPath();
-      traceFace(
-        ctx,
-        field,
-        face,
-        easeOutCubic(localProgress) * ASCII_GRAPH_TRANSITION.faceOverdrawScale,
-      );
-      ctx.fill();
-    }
-  }
-
-  drawGeneratedGraph(ctx, field, safeProgress, elapsedMs, false);
 }

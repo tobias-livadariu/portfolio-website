@@ -1,3 +1,4 @@
+import { getSceneElapsedSeconds } from "../scene-time";
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
@@ -84,8 +85,8 @@ export default function HorizontalDottedLine(props: Props) {
     [endOffset, lastIndex, startOffset],
   );
 
-  useFrame(({ clock }) => {
-    const elapsedSeconds = clock.getElapsedTime();
+  useFrame(() => {
+    const elapsedSeconds = getSceneElapsedSeconds();
     const lineYOffset = getAnimatedMenuYOffset(animationIndex, elapsedSeconds);
 
     segmentRefs.current.forEach((segment, index) => {

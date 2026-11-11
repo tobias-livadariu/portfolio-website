@@ -11,6 +11,7 @@ import { COLOR_PALETTE_STR } from "../theme/colors";
 import { CAMERA_PROPS, CANVAS_DPR } from "./canvas.constants";
 import PointerCameraShift from "./camera/PointerCameraShift";
 import SceneCamera from "./camera/SceneCamera";
+import SceneTransitionBridge from "./SceneTransitionBridge";
 import Starfield from "./starfield/Starfield";
 import UiHaloPass from "./ui3d/UiHaloPass";
 import MainMenu from "./ui3d/MainMenu";
@@ -76,6 +77,7 @@ export default function PortfolioCanvas() {
       }}
     >
       <color attach="background" args={[COLOR_PALETTE_STR.background]} />
+      <SceneTransitionBridge />
       <SceneCamera />
       <PointerCameraShift />
       <PrimaryLighting />

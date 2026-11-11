@@ -60,9 +60,9 @@ export const VOLUMETRIC_REFRAMES = {
     starScale: 2.5,
     planetScale: 2.35,
     planetDepthOffset: -4.1,
-    // Cancels the extra space the offset adds, so ASCII draws as many planets
-    // as DEEP does on the same screen (within about 1% on laptops and
-    // desktops). Re-derive it if the planet depth band or offset changes.
+    // Cancels the extra space the offset adds and then thins a little more:
+    // ASCII draws about 8% fewer planets than DEEP on the same screen. 0.74
+    // would match DEEP exactly at the current depth band and offset.
     planetDensityScale: 0.68,
     // The enlarged sprites already crowd a phone; the full boost turns the
     // glyph field into one unbroken texture.

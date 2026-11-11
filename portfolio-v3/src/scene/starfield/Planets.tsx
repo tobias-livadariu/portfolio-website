@@ -1,3 +1,4 @@
+import { getSceneElapsedSeconds } from "../scene-time";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Mesh, MeshBasicMaterial } from "three";
@@ -574,7 +575,7 @@ function PlanetSpriteInner({
     (CAMERA_PROPS.position[2] - orbitingBody.z);
   const renderOrder = 1 + apparentSize / (1 + apparentSize);
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     const mesh = meshRef.current;
     const material = materialRef.current;
 
@@ -582,7 +583,7 @@ function PlanetSpriteInner({
       return;
     }
 
-    const elapsedSeconds = clock.getElapsedTime();
+    const elapsedSeconds = getSceneElapsedSeconds();
     setOrbitPosition(orbitingBody, frameLayout, elapsedSeconds, position);
 
     if (satellite && satelliteOrbit) {

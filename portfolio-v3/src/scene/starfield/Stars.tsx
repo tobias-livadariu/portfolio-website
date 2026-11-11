@@ -1,3 +1,4 @@
+import { getSceneElapsedSeconds } from "../scene-time";
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -338,8 +339,8 @@ export default function Stars({
     [fieldTuning, size.height, size.width, stars.length, tuning],
   );
 
-  useFrame(({ clock }) => {
-    const elapsedSeconds = clock.getElapsedTime();
+  useFrame(() => {
+    const elapsedSeconds = getSceneElapsedSeconds();
     const bucketCounts = bucketCountsRef.current;
     bucketCounts.fill(0);
 

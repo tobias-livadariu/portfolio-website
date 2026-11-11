@@ -1,3 +1,4 @@
+import { getSceneElapsedSeconds, getSceneTimeScale } from "../scene-time";
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import type { Group, InstancedBufferAttribute, InstancedMesh } from "three";
@@ -135,11 +136,14 @@ export default function Stars2D() {
     }
   }, [stars]);
 
-  useFrame(({ clock }, delta) => {
+  useFrame((_, delta) => {
     const group = groupRef.current;
 
     if (group) {
-      group.rotation.z += STARS_2D.orbitRadiansPerSecond * Math.min(delta, 0.1);
+      group.rotation.z +=
+        STARS_2D.orbitRadiansPerSecond *
+        Math.min(delta, 0.1) *
+        getSceneTimeScale();
     }
 
     const colors = meshRef.current?.instanceColor;
@@ -152,7 +156,7 @@ export default function Stars2D() {
       return;
     }
 
-    const elapsedSeconds = clock.getElapsedTime();
+    const elapsedSeconds = getSceneElapsedSeconds();
 
     for (let index = 0; index < twinkling.indices.length; index++) {
       const star = stars[twinkling.indices[index]];

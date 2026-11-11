@@ -12,6 +12,9 @@ export const DIAMOND_TRANSITION = {
   tileHalfDiagonalPx: 30,
   // Time from the first tile starting to the last tile starting its pop.
   growMs: 950,
+  /* The cover pass only dims the outgoing scene while it comes to rest, so
+     it runs faster than the reveal: its growth takes this share of growMs. */
+  coverGrowScale: 0.62,
   // Duration of a single tile's pop-in/pop-out.
   popMs: 160,
   // Tiles draw 6% oversized so anti-aliased edges never show seam cracks.

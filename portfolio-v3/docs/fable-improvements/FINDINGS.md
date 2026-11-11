@@ -104,9 +104,23 @@ Built on branch `fable/planet-motion` (uncommitted):
   rose from 146 to about 450 fps at 1920×1080 and from 82 to about 272 at
   2560×1440, both at 2x pixel density.
 
-Further ideas raised after the review, all open: a direct wipe between render
-modes with no blank frame, a scroll-linked camera so the starfield responds as
-the documents rise, and throttling the starfield while a document covers it.
+- **Render-mode transitions with no blank screen.** Each transition used to
+  cover the old scene, hold about half a second on an empty background, then
+  uncover the new one. Now the outgoing scene glides to rest (480 ms) while
+  the front spreads over it and only dims it; the resting scene is held as a
+  still while the new scene starts underneath; and the same front then erases
+  the still to uncover the new scene, which is already moving. The hand-over
+  to the still is pixel-identical at 1x and 2x. Each destination keeps its
+  own look: CHAR dissolves the old picture in character-shaped cells that
+  leave glyphs thinning from `@` to `.`; FLAT shrinks each diamond of the old
+  picture away; DEEP opens a stepped, ragged aperture ringed with stars, and
+  the startup reveal uses the same aperture. Everything that moves now reads
+  one shared scene clock (`src/scene/scene-time.ts`), which is what lets the
+  scene slow and resume as a whole.
+
+Further ideas raised after the review, still open: a scroll-linked camera so
+the starfield responds as the documents rise, and throttling the starfield
+while a document covers it.
 
 ## How this was checked
 
