@@ -5,6 +5,7 @@ import { Color, PlaneGeometry, Quaternion, Vector3 } from "three";
 import { CAMERA_PROPS } from "../canvas.constants";
 import getCameraFacingRotation from "../ui3d/utils/getCameraFacingRotation";
 import {
+  PLANET_VISUAL_RADIUS,
   type PlanetType,
   type VolumetricPlanetTuning,
   type VolumetricStarfieldMode,
@@ -16,12 +17,15 @@ import {
   createVisibleBounds,
   getCinematicOrbitalAngularSpeed,
   getFieldRadius,
+  getFieldVolume,
   getOrbitCenter,
   getOrbitWellFieldDirection,
+  getPopulationCount,
   getVisibleBoundsAtZForPosition,
   lerp,
   mulberry32,
   pickWeightedIndex,
+  sampleBiasedDistance,
   sampleNormal,
   solveKeplerEquation,
   type Vec3Tuple,
@@ -128,7 +132,12 @@ interface VirtualPlanet {
 }
 
 /* Hands a few small bodies to a larger host. Systems are coplanar and share
-   one direction, as real moon systems do. */
+   one direction, as real moon systems do.
+
+   A host's moons are the next eligible planets after it in the population.
+   Only the first part of the population is drawn on a given screen, so
+   keeping a system's members adjacent means it is drawn whole or not at
+   all, and how often systems appear does not depend on screen shape. */
 function assignSatellites(
   planets: VirtualPlanet[],
   tuning: VolumetricPlanetTuning,
@@ -138,9 +147,6 @@ function assignSatellites(
   const hostBodyRadii: Partial<Record<PlanetType, number>> =
     systems.hostBodyRadius;
   const satelliteTypes: readonly PlanetType[] = systems.satelliteTypes;
-  const candidates = planets.filter((planet) =>
-    satelliteTypes.includes(planet.planetType),
-  );
 
   for (const host of planets) {
     const hostBodyRadius = hostBodyRadii[host.planetType];
@@ -166,21 +172,27 @@ function assignSatellites(
       continue;
     }
 
-    const satelliteCount = Math.min(
-      candidates.length,
-      1 + Math.floor(countRoll * systems.maximumSatellitesPerHost),
-    );
+    const satelliteCount =
+      1 + Math.floor(countRoll * systems.maximumSatellitesPerHost);
     let clearanceInHostRadii = lerp(
       systems.innerClearanceInHostRadii.min,
       systems.innerClearanceInHostRadii.max,
       random(),
     );
+    let assigned = 0;
 
-    for (let index = 0; index < satelliteCount; index++) {
-      const [satellite] = candidates.splice(
-        Math.floor(random() * candidates.length),
-        1,
-      );
+    for (
+      let index = host.id + 1;
+      index < planets.length && assigned < satelliteCount;
+      index++
+    ) {
+      const satellite = planets[index];
+      if (
+        satellite.satellite ||
+        !satelliteTypes.includes(satellite.planetType)
+      ) {
+        continue;
+      }
 
       satellite.sizeScale *= systems.sizeMultiplier;
       satellite.satellite = {
@@ -198,38 +210,9 @@ function assignSatellites(
         systems.orbitSpacingInHostRadii.max,
         random(),
       );
+      assigned++;
     }
   }
-}
-
-/* Picks a planet's resting depth.
-
-   A profile either states a normal curve across its depth band, or a density
-   exponent: the chance of a planet sitting at camera distance d is then
-   proportional to d^exponent, sampled by inverting that power law. */
-function sampleDepth(random: () => number, tuning: VolumetricPlanetTuning) {
-  const { depthBand, depthDistribution } = tuning;
-
-  if (!("densityExponent" in depthDistribution)) {
-    return lerp(
-      depthBand.nearestZ,
-      depthBand.farthestZ,
-      sampleNormal(
-        random,
-        depthDistribution.mean,
-        depthDistribution.stdDev,
-        depthDistribution.min,
-        depthDistribution.max,
-      ),
-    );
-  }
-
-  const cameraZ = CAMERA_PROPS.position[2];
-  const power = depthDistribution.densityExponent + 1;
-  const nearest = Math.pow(cameraZ - depthBand.nearestZ, power);
-  const farthest = Math.pow(cameraZ - depthBand.farthestZ, power);
-
-  return cameraZ - Math.pow(lerp(nearest, farthest, random()), 1 / power);
 }
 
 function createVirtualPlanets(
@@ -246,106 +229,119 @@ function createVirtualPlanets(
   const cometTypes: readonly PlanetType[] = shape.cometTypes;
   const atlasKeys = getPlanetAtlasKeys();
 
-  const planets = Array.from({ length: tuning.virtualCount }, (_, index) => {
-    const z = sampleDepth(random, tuning);
-    const baseAngularSpeed = sampleNormal(
-      random,
-      tuning.angularSpeedRadiansPerSecond.mean,
-      tuning.angularSpeedRadiansPerSecond.stdDev,
-      tuning.angularSpeedRadiansPerSecond.min,
-      tuning.angularSpeedRadiansPerSecond.max,
-    );
-    const directionRandom = random();
-    const angle = random() * Math.PI * 2;
-    const assetKey = atlasKeys[Math.floor(random() * atlasKeys.length)];
-    const frameRate = sampleNormal(
-      random,
-      tuning.frameRate.mean,
-      tuning.frameRate.stdDev,
-      tuning.frameRate.min,
-      tuning.frameRate.max,
-    );
-    const frameTimeOffset = random() * 100;
-    const orbitRadiusRatio =
-      tuning.minOrbitRadiusRatio +
-      Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio);
-    const orbitWellIndex = pickWeightedIndex(random, fieldTuning.orbitWells);
-    const sizeScale = sampleNormal(
-      random,
-      tuning.sizeScale.mean,
-      tuning.sizeScale.stdDev,
-      tuning.sizeScale.min,
-      tuning.sizeScale.max,
-    );
-    const planetType = assetKey.slice(
-      0,
-      assetKey.lastIndexOf("-"),
-    ) as PlanetType;
-    /* Every draw below happens for every planet, whichever branch uses it,
+  /* The whole ceiling is sampled once. A screen draws the first N of it, so
+     resizing only adds or removes planets at the end of the list and never
+     reshuffles the ones already on screen. */
+  const planets = Array.from(
+    { length: tuning.population.maximumCount },
+    (_, index) => {
+      const z =
+        CAMERA_PROPS.position[2] -
+        sampleBiasedDistance(
+          random(),
+          CAMERA_PROPS.position[2] - tuning.depthBand.nearestZ,
+          CAMERA_PROPS.position[2] - tuning.depthBand.farthestZ,
+          tuning.population.cameraBias,
+        );
+      const baseAngularSpeed = sampleNormal(
+        random,
+        tuning.angularSpeedRadiansPerSecond.mean,
+        tuning.angularSpeedRadiansPerSecond.stdDev,
+        tuning.angularSpeedRadiansPerSecond.min,
+        tuning.angularSpeedRadiansPerSecond.max,
+      );
+      const directionRandom = random();
+      const angle = random() * Math.PI * 2;
+      const assetKey = atlasKeys[Math.floor(random() * atlasKeys.length)];
+      const frameRate = sampleNormal(
+        random,
+        tuning.frameRate.mean,
+        tuning.frameRate.stdDev,
+        tuning.frameRate.min,
+        tuning.frameRate.max,
+      );
+      const frameTimeOffset = random() * 100;
+      const orbitRadiusRatio =
+        tuning.minOrbitRadiusRatio +
+        Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio);
+      const orbitWellIndex = pickWeightedIndex(random, fieldTuning.orbitWells);
+      const sizeScale = sampleNormal(
+        random,
+        tuning.sizeScale.mean,
+        tuning.sizeScale.stdDev,
+        tuning.sizeScale.min,
+        tuning.sizeScale.max,
+      );
+      const planetType = assetKey.slice(
+        0,
+        assetKey.lastIndexOf("-"),
+      ) as PlanetType;
+      /* Every draw below happens for every planet, whichever branch uses it,
        so one planet's type never shifts the values of the planets after it. */
-    const planetEccentricity = Math.abs(
-      sampleNormal(
+      const planetEccentricity = Math.abs(
+        sampleNormal(
+          shapeRandom,
+          0,
+          shape.eccentricityStdDev,
+          -shape.maximumEccentricity,
+          shape.maximumEccentricity,
+        ),
+      );
+      const cometEccentricity = lerp(
+        shape.cometEccentricity.min,
+        shape.cometEccentricity.max,
+        shapeRandom(),
+      );
+      const inclination = sampleNormal(
         shapeRandom,
         0,
-        shape.eccentricityStdDev,
-        -shape.maximumEccentricity,
-        shape.maximumEccentricity,
-      ),
-    );
-    const cometEccentricity = lerp(
-      shape.cometEccentricity.min,
-      shape.cometEccentricity.max,
-      shapeRandom(),
-    );
-    const inclination = sampleNormal(
-      shapeRandom,
-      0,
-      shape.inclinationStdDevDegrees * DEGREES_TO_RADIANS,
-      -shape.maximumInclinationDegrees * DEGREES_TO_RADIANS,
-      shape.maximumInclinationDegrees * DEGREES_TO_RADIANS,
-    );
-    const nodeOffset =
-      (shapeRandom() * 2 - 1) * Math.PI * (1 - shape.nodeAlignment);
-    const periapsis = shapeRandom() * FULL_TURN_RADIANS;
-    const precessionPerOrbit = lerp(
-      shape.apsidalPrecessionPerOrbit.min,
-      shape.apsidalPrecessionPerOrbit.max,
-      shapeRandom(),
-    );
-    const planet: VirtualPlanet = {
-      angle,
-      angularSpeed: getCinematicOrbitalAngularSpeed({
-        baseAngularSpeed,
-        cameraZ: CAMERA_PROPS.position[2],
-        directionRandom,
+        shape.inclinationStdDevDegrees * DEGREES_TO_RADIANS,
+        -shape.maximumInclinationDegrees * DEGREES_TO_RADIANS,
+        shape.maximumInclinationDegrees * DEGREES_TO_RADIANS,
+      );
+      const nodeOffset =
+        (shapeRandom() * 2 - 1) * Math.PI * (1 - shape.nodeAlignment);
+      const periapsis = shapeRandom() * FULL_TURN_RADIANS;
+      const precessionPerOrbit = lerp(
+        shape.apsidalPrecessionPerOrbit.min,
+        shape.apsidalPrecessionPerOrbit.max,
+        shapeRandom(),
+      );
+      const planet: VirtualPlanet = {
+        angle,
+        angularSpeed: getCinematicOrbitalAngularSpeed({
+          baseAngularSpeed,
+          cameraZ: CAMERA_PROPS.position[2],
+          directionRandom,
+          orbitRadiusRatio,
+          orbitWell: fieldTuning.orbitWells[orbitWellIndex],
+          tuning: tuning.orbitalMotion,
+          z,
+        }),
+        assetKey,
+        frameRate,
+        frameTimeOffset,
+        id: index,
         orbitRadiusRatio,
-        orbitWell: fieldTuning.orbitWells[orbitWellIndex],
-        tuning: tuning.orbitalMotion,
+        orbitShape: {
+          eccentricity: cometTypes.includes(planetType)
+            ? cometEccentricity
+            : planetEccentricity,
+          inclination,
+          nodeOffset,
+          periapsis,
+          precessionPerOrbit,
+        },
+        orbitWellIndex,
+        planetType,
+        satellite: null,
+        sizeScale,
         z,
-      }),
-      assetKey,
-      frameRate,
-      frameTimeOffset,
-      id: index,
-      orbitRadiusRatio,
-      orbitShape: {
-        eccentricity: cometTypes.includes(planetType)
-          ? cometEccentricity
-          : planetEccentricity,
-        inclination,
-        nodeOffset,
-        periapsis,
-        precessionPerOrbit,
-      },
-      orbitWellIndex,
-      planetType,
-      satellite: null,
-      sizeScale,
-      z,
-    };
+      };
 
-    return planet;
-  });
+      return planet;
+    },
+  );
 
   assignSatellites(planets, tuning, shapeRandom);
 
@@ -566,6 +562,16 @@ function PlanetSpriteInner({
     tuning.visualScale,
   ]);
   const viewportAspect = size.width / Math.max(1, size.height);
+  /* Draw order follows how large a body looks, not how far away it is.
+     Sprites differ a great deal in true size, so a small body that is
+     genuinely nearer than a giant would otherwise be painted over it and
+     read as a distant planet sitting in front of a close one. The size is
+     taken at the orbit's resting depth, so the order between two planets
+     never flips while they overlap. Stars use order 0 and stay behind. */
+  const apparentSize =
+    (planetWidth * PLANET_VISUAL_RADIUS[planet.planetType]) /
+    (CAMERA_PROPS.position[2] - orbitingBody.z);
+  const renderOrder = 1 + apparentSize / (1 + apparentSize);
 
   useFrame(({ clock }, delta) => {
     const mesh = meshRef.current;
@@ -704,7 +710,7 @@ function PlanetSpriteInner({
       ref={meshRef}
       geometry={PLANET_PLANE_GEOMETRY}
       frustumCulled={false}
-      renderOrder={1}
+      renderOrder={renderOrder}
       scale={[planetWidth, planetHeight, 1]}
     >
       <meshBasicMaterial
@@ -714,9 +720,9 @@ function PlanetSpriteInner({
         opacity={0}
         alphaTest={0.02}
         color={tuning.tint}
-        /* Planets are painted back to front over the finished star layer and
-           never tested against it: a planet that swings deeper than the
-           nearest stars would otherwise have those stars drawn on top of it. */
+        /* Planets are painted in their own order over the finished star layer
+           and never depth-tested: a star can then never be drawn on top of a
+           planet, however deep the planet sits. */
         depthTest={false}
         depthWrite={false}
         toneMapped={false}
@@ -759,7 +765,27 @@ export default function Planets({
   mode: VolumetricStarfieldMode;
 }) {
   const { isInitialRevealComplete } = useBackgroundMode();
+  const size = useThree((state) => state.size);
   const tuning = fieldTuning.planets;
+  /* How many of the sampled planets this screen draws: the configured density
+     times the volume of space the planet field fills at this aspect ratio. */
+  const activeCount = useMemo(
+    () =>
+      getPopulationCount(
+        tuning.population.densityPer1000CubicUnits,
+        getFieldVolume({
+          aspect: size.width / Math.max(1, size.height),
+          buffer: tuning.visibilityBuffer,
+          farthestDistance:
+            CAMERA_PROPS.position[2] - tuning.depthBand.farthestZ,
+          fieldRadiusMultiplier: fieldTuning.bounds.fieldRadiusMultiplier,
+          nearestDistance: CAMERA_PROPS.position[2] - tuning.depthBand.nearestZ,
+          tanHalfFov: TAN_HALF_CAMERA_FOV,
+        }),
+        tuning.population.maximumCount,
+      ),
+    [fieldTuning.bounds.fieldRadiusMultiplier, size.height, size.width, tuning],
+  );
   const planets = useMemo(
     () => getVirtualPlanets(mode, fieldTuning),
     [fieldTuning, mode],
@@ -798,7 +824,9 @@ export default function Planets({
 
   return (
     <group>
-      {planets.map((planet) => {
+      {/* A moon always follows its host in the list, so a drawn moon's host
+          is drawn too. */}
+      {planets.slice(0, activeCount).map((planet) => {
         const atlas = atlasMap.get(planet.assetKey);
 
         const hostAtlas = planet.satellite

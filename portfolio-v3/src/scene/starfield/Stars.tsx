@@ -19,12 +19,15 @@ import {
   createVisibleBounds,
   getCinematicOrbitalAngularSpeed,
   getFieldRadius,
+  getFieldVolume,
   getOrbitCenter,
+  getPopulationCount,
   getTwinkleMultiplier,
   getVisibleBoundsAtZForPosition,
   lerp,
   mulberry32,
   pickWeightedIndex,
+  sampleBiasedDistance,
   sampleNormal,
   type Vec3Tuple,
 } from "./starfield.math";
@@ -179,7 +182,9 @@ function createVirtualStars(
   const random = mulberry32(seed);
   const twinkleRandom = mulberry32((seed ^ TWINKLE_SEED_SALT) >>> 0);
 
-  return Array.from({ length: tuning.virtualCount }, () => {
+  /* The whole ceiling is sampled once. A screen draws the first N of it, so
+     resizing only adds or removes stars at the end of the list. */
+  return Array.from({ length: tuning.population.maximumCount }, () => {
     // All five are drawn for every star so the sequence never depends on
     // which stars happen to twinkle.
     const twinkles = twinkleRandom() < tuning.twinkle.starFraction;
@@ -195,13 +200,14 @@ function createVirtualStars(
       tuning.twinkle.amplitude.max,
       twinkleRandom(),
     );
-    const depthProgress = sampleNormal(
-      random,
-      tuning.depthDistribution.mean,
-      tuning.depthDistribution.stdDev,
-      tuning.depthDistribution.min,
-      tuning.depthDistribution.max,
-    );
+    const z =
+      CAMERA_PROPS.position[2] -
+      sampleBiasedDistance(
+        random(),
+        CAMERA_PROPS.position[2] - tuning.depthBand.nearestZ,
+        CAMERA_PROPS.position[2] - tuning.depthBand.farthestZ,
+        tuning.population.cameraBias,
+      );
     const emissiveIntensity = sampleNormal(
       random,
       tuning.emissiveIntensity.mean,
@@ -223,12 +229,6 @@ function createVirtualStars(
       tuning.minOrbitRadiusRatio +
       Math.sqrt(random()) * (1 - tuning.minOrbitRadiusRatio);
     const orbitWellIndex = pickWeightedIndex(random, fieldTuning.orbitWells);
-    const z = lerp(
-      tuning.depthBand.nearestZ,
-      tuning.depthBand.farthestZ,
-      depthProgress,
-    );
-
     return {
       angle,
       angularSpeed: getCinematicOrbitalAngularSpeed({
@@ -312,13 +312,32 @@ export default function Stars({
     () => createStarFrameLayout(stars, camera, size, fieldTuning),
     [camera, fieldTuning, size, stars],
   );
+  /* How many of the sampled stars this screen draws: the configured density
+     times the volume of space the star field fills at this aspect ratio. */
+  const activeCount = useMemo(
+    () =>
+      getPopulationCount(
+        tuning.population.densityPer1000CubicUnits,
+        getFieldVolume({
+          aspect: size.width / Math.max(1, size.height),
+          buffer: fieldTuning.bounds.edgeBuffer,
+          farthestDistance:
+            CAMERA_PROPS.position[2] - tuning.depthBand.farthestZ,
+          fieldRadiusMultiplier: fieldTuning.bounds.fieldRadiusMultiplier,
+          nearestDistance: CAMERA_PROPS.position[2] - tuning.depthBand.nearestZ,
+          tanHalfFov: Math.tan((CAMERA_PROPS.fov * Math.PI) / 360),
+        }),
+        Math.min(tuning.population.maximumCount, stars.length),
+      ),
+    [fieldTuning, size.height, size.width, stars.length, tuning],
+  );
 
   useFrame(({ clock }) => {
     const elapsedSeconds = clock.getElapsedTime();
     const bucketCounts = bucketCountsRef.current;
     bucketCounts.fill(0);
 
-    for (let starIndex = 0; starIndex < stars.length; starIndex++) {
+    for (let starIndex = 0; starIndex < activeCount; starIndex++) {
       const star = stars[starIndex];
       const angle = star.angle + elapsedSeconds * star.angularSpeed;
       const x =

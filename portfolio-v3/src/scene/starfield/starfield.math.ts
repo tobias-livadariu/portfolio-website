@@ -375,3 +375,90 @@ export function getTwinkleMultiplier(
           ))
   );
 }
+
+/* Volume of the space a population is laid out in.
+
+   At a distance d from the camera, orbits are sized against a disc whose
+   radius is `fieldRadiusMultiplier` times half the diagonal of the buffered
+   view (see `getFieldRadius`). Stacking those discs between the nearest and
+   farthest distance gives a cone-like slab. With half-width w(d) = t·a·d + b
+   and half-height h(d) = t·d + b, the disc area is π·m²·(w² + h²), which
+   integrates in closed form. Sizing a population from this volume keeps its
+   on-screen density the same on any screen shape. */
+export function getFieldVolume({
+  aspect,
+  buffer,
+  farthestDistance,
+  fieldRadiusMultiplier,
+  nearestDistance,
+  tanHalfFov,
+}: {
+  // Viewport width over height.
+  aspect: number;
+  // World-space padding added around the view at every depth.
+  buffer: number;
+  farthestDistance: number;
+  fieldRadiusMultiplier: number;
+  nearestDistance: number;
+  // Tangent of half the camera's vertical field of view.
+  tanHalfFov: number;
+}) {
+  const integrateSquaredHalfExtent = (slope: number) =>
+    (Math.pow(slope * farthestDistance + buffer, 3) -
+      Math.pow(slope * nearestDistance + buffer, 3)) /
+    (3 * slope);
+
+  return (
+    Math.PI *
+    fieldRadiusMultiplier *
+    fieldRadiusMultiplier *
+    (integrateSquaredHalfExtent(tanHalfFov * aspect) +
+      integrateSquaredHalfExtent(tanHalfFov))
+  );
+}
+
+/* How many bodies a density asks for in a given field volume, held to the
+   population's ceiling. */
+export function getPopulationCount(
+  densityPer1000CubicUnits: number,
+  fieldVolume: number,
+  maximumCount: number,
+) {
+  return clamp(
+    Math.round((densityPer1000CubicUnits / 1000) * fieldVolume),
+    0,
+    maximumCount,
+  );
+}
+
+/* Picks a distance from the camera for one body.
+
+   Space widens with distance, so bodies scattered evenly through it land at
+   distance d with probability proportional to d². `cameraBias` lowers that
+   exponent: the density used is d^(2 - cameraBias), sampled by inverting its
+   integral. 0 is the even scatter, 2 is even by distance, larger values crowd
+   the camera, and negative values push the population deeper. */
+export function sampleBiasedDistance(
+  uniform: number,
+  nearestDistance: number,
+  farthestDistance: number,
+  cameraBias: number,
+) {
+  const power = 3 - cameraBias;
+
+  // The integral of 1/d is a logarithm, not a power.
+  if (Math.abs(power) < 1e-6) {
+    return (
+      nearestDistance * Math.pow(farthestDistance / nearestDistance, uniform)
+    );
+  }
+
+  return Math.pow(
+    lerp(
+      Math.pow(nearestDistance, power),
+      Math.pow(farthestDistance, power),
+      uniform,
+    ),
+    1 / power,
+  );
+}

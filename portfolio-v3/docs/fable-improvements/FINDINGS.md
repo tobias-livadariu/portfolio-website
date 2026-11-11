@@ -67,14 +67,27 @@ Built on branch `fable/planet-motion` (uncommitted):
   steepen `tiltDegrees` without re-checking both. A true eight-well simulation was tested and
   rejected: over ten minutes the visible population fell from about 50 to 32
   and kept falling, and peak on-screen speeds doubled.
-- **Deep field, 3D mode only.** Planets are spread from 4.5 to 26 units from
-  the camera (previously almost all between 7 and 10), so sizes run from
-  looming foreground bodies down to small far ones, with 400 planets in
-  place of 300 so the near field is not thinned. The star band moved from
-  16–23 units away to 40–95, behind every planet, and far bodies drift
-  slower than near ones. Planets always paint over stars regardless of depth,
-  so a star can never appear in front of a planet. ASCII mode keeps its
-  curated composition, which `tests/e2e/background-modes.spec.ts` pins.
+- **Deep field, in DEEP and ASCII.** Planets are spread from 4.5 to 26
+  units from the camera (previously almost all between 7 and 10), so sizes
+  run from looming foreground bodies down to small far ones. The star band
+  moved from 16–23 units away to 40–95, behind every planet, and far bodies
+  drift slower than near ones. Planets always paint over stars regardless of
+  depth, so a star can never appear in front of a planet.
+- **ASCII is DEEP re-framed.** The starfield tuning is now one shared
+  definition plus a short per-mode list, `VOLUMETRIC_REFRAMES` (sprite
+  scales, a planet depth offset and density scale, tint, opacity, haze, and
+  whether the layout is seeded). A test asserts nothing else differs, so the
+  two modes cannot drift apart.
+- **Counts follow density, not a fixed number.** Each population has a
+  density per 1000 cubic units of the space it fills, a ceiling, and a
+  `cameraBias` that moves it toward or away from the camera. A 16:10 window
+  draws about 400 planets and 10,000 stars as before; a phone draws about
+  170 and 3,500, so phones are no longer three times as crowded.
+- **Draw order follows apparent size.** A planet that looks larger is always
+  painted over one that looks smaller, using each sprite's measured body size
+  (`PLANET_VISUAL_RADIUS`) at its orbit's resting depth. Sprites differ a lot
+  in true size, and strict depth order let small near bodies sit on top of
+  giants, which read as far planets in front of close ones.
 - **Star twinkle** in all three modes: half the stars drift in brightness on
   two slow sine waves whose periods never line up. It is deliberately
   continuous. A stepped dip-and-flare version was built first and replaced at

@@ -88,9 +88,11 @@ Read the "Status" section of `FINDINGS.md` first. In short:
   all three modes, and the halo bounds optimisation. Two rules came out of
   Tobias's review of it: a planet must never disappear while on screen, and
   star brightness must never step between frames. Build on that branch. Their tuning lives
-  in `src/scene/starfield/starfield.constants.ts` (`orbitShape`,
-  `depthShading`, `satellites`, `twinkle`), `starfield2d.constants.ts`, and
-  `UI_HALO.boundsPaddingPx`.
+  in `src/scene/starfield/starfield.constants.ts`: one shared definition
+  (`population`, `orbitShape`, `depthShading`, `satellites`, `twinkle`) plus
+  `VOLUMETRIC_REFRAMES`, the only values ASCII may change from DEEP. A test
+  enforces that, so add a mode difference there deliberately or not at all.
+  The rest is in `starfield2d.constants.ts` and `UI_HALO.boundsPaddingPx`.
 - **Declined, do not do these:** resizing the section titles (A1), changing
   the ASCII menu to clear the render rail (A2), keeping planets away from the
   title (A3), changing the About portrait or its copy (A4), reordering the
