@@ -106,11 +106,13 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         COLOR_PALETTE_STR.fadedBlue,
       ],
       // World-space glyph size distribution before `visualScale` is applied.
+      /* The star band sits several times farther away than it once did, so
+         sizes are scaled up by the same factor to stay the same on screen. */
       size: {
-        mean: 0.014 * 1.315,
-        stdDev: 0.005 * 1.315,
-        min: 0.005 * 1.315,
-        max: 0.03 * 1.315,
+        mean: 0.014 * 4.7,
+        stdDev: 0.005 * 4.7,
+        min: 0.005 * 4.7,
+        max: 0.03 * 4.7,
       },
       // Brightness distribution and material buckets used to approximate it.
       emissiveIntensity: {
@@ -121,10 +123,13 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         buckets: [0.26, 0.38, 0.5, 0.62, 0.72],
       },
       /* Camera-relative z volume. More-negative bands are farther away and
-         therefore render smaller under the perspective camera. */
+         therefore render smaller under the perspective camera. The whole
+         band lies beyond the deepest planet: stars are the backdrop, so they
+         drift slowest and shift least when the camera moves. Its far edge
+         must stay inside the camera's far plane. */
       depthBand: {
-        nearestZ: -8.8,
-        farthestZ: -16,
+        nearestZ: -33,
+        farthestZ: -88,
       },
       // Distribution from the near (0) to far (1) edge of the depth band.
       depthDistribution: {
@@ -182,8 +187,10 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
     planets: {
       // Deterministic planet seed; used only when the profile flag above is true.
       seed: 73091,
-      // Candidate population; raising it increases visible planet density.
-      virtualCount: 300,
+      /* Candidate population; raising it increases visible planet density.
+         Sized so the deep field adds small far planets without thinning out
+         the large near ones. */
+      virtualCount: 400,
       // Final multiplier applied to sampled planet sprite dimensions.
       visualScale: 1,
       // World units represented by one source-atlas pixel.
@@ -208,14 +215,15 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
          pushing it farther away makes them smaller through perspective. */
       depthBand: {
         nearestZ: 2.75,
-        farthestZ: -5.4,
+        farthestZ: -18.75,
       },
-      // Distribution from the near (0) to far (1) edge of the depth band.
+      /* How planets fill the depth band. The view widens with distance, so a
+         field that reads as deep holds a few large near bodies and many
+         small far ones. 0 spreads planets evenly by distance from the
+         camera; 2 would fill the viewing volume evenly, which leaves almost
+         nothing nearby. */
       depthDistribution: {
-        mean: 0.5,
-        stdDev: 0.2,
-        min: 0,
-        max: 1,
+        densityExponent: 0.15,
       },
       // Orbital angular velocity distribution in radians per second.
       angularSpeedRadiansPerSecond: {
@@ -225,12 +233,13 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         max: 0.026,
       },
       orbitalMotion: {
-        // Planets use a gentler Kepler blend so their established motion remains lively.
-        keplerianFalloffInfluence: 0.62,
+        /* Near planets sweep past and far ones drift: the difference in pace
+           is one of the strongest cues that the field has depth. */
+        keplerianFalloffInfluence: 0.68,
         referenceDepthZ: -3.5,
         referenceOrbitRadiusRatio: 0.7,
-        minimumSpeedMultiplier: 0.38,
-        maximumSpeedMultiplier: 1.4,
+        minimumSpeedMultiplier: 0.3,
+        maximumSpeedMultiplier: 1.5,
         minimumAngularSpeedRadiansPerSecond: 0.0015,
         maximumAngularSpeedRadiansPerSecond: 0.024,
         wellMassInfluence: 1,
@@ -262,15 +271,22 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         /* A tilted orbit is flattened until it stays inside these depths.
            `nearestZ` matches the depth band, so the largest planet on screen
            is no larger than it was with constant-depth orbits. */
-        depthLimits: { nearestZ: 2.75, farthestZ: -13 },
+        depthLimits: {
+          nearestZ: 2.75,
+          farthestZ: -32,
+          /* Largest swing toward the camera, as a share of the planet's own
+             distance. Keeps a far planet's swing in proportion instead of
+             letting it cross the whole field. */
+          maximumSwingRatio: 0.38,
+        },
       },
       /* Distance haze. Between these depths a planet blends from its source
          colours toward `farTint`, so near bodies stay vivid and far ones
          recede into the background they are drifting through. */
       depthShading: {
-        startZ: -1,
-        endZ: -11,
-        farTint: "#8791b8",
+        startZ: -2,
+        endZ: -24,
+        farTint: "#7480ad",
       },
       /* Small bodies captured by a large one: moons around a ringed giant,
          planets around a star, debris around a black hole. Kept rare: every
@@ -533,7 +549,12 @@ export const VOLUMETRIC_STARFIELD_TUNING = {
         /* A tilted orbit is flattened until it stays inside these depths.
            `nearestZ` matches the depth band, so the largest planet on screen
            is no larger than it was with constant-depth orbits. */
-        depthLimits: { nearestZ: -1.35, farthestZ: -14 },
+        depthLimits: {
+          nearestZ: -1.35,
+          farthestZ: -14,
+          // 1 leaves the swing limited only by the two depths above.
+          maximumSwingRatio: 1,
+        },
       },
       /* Distance haze. Between these depths a planet blends from its source
          colours toward `farTint`, so near bodies stay vivid and far ones

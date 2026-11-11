@@ -797,7 +797,9 @@ test("volumetric modes own independent tuning and preserve ASCII appearance", ()
       Object.entries(ascii.stars).filter(([key]) => key !== "orbitalMotion"),
     ),
     planets: Object.fromEntries(
-      Object.entries(ascii.planets).filter(([key]) => key !== "orbitalMotion"),
+      Object.entries(ascii.planets).filter(
+        ([key]) => !["orbitalMotion", "orbitShape", "satellites"].includes(key),
+      ),
     ),
   };
 
@@ -858,6 +860,11 @@ test("volumetric modes own independent tuning and preserve ASCII appearance", ()
         max: 0.044,
       },
       minOrbitRadiusRatio: 0.34,
+      twinkle: {
+        starFraction: 0.5,
+        periodSeconds: { min: 3, max: 7 },
+        amplitude: { min: 0.15, max: 0.38 },
+      },
     },
     planets: {
       seed: 73091,
@@ -900,6 +907,12 @@ test("volumetric modes own independent tuning and preserve ASCII appearance", ()
       rotation: {
         illuminatedDirectionRadians: (Math.PI * 3) / 4,
         damping: 4.5,
+      },
+      // White leaves ASCII planet colours exactly as they were.
+      depthShading: {
+        startZ: -3,
+        endZ: -12,
+        farTint: "#ffffff",
       },
     },
   });

@@ -202,6 +202,36 @@ function assignSatellites(
   }
 }
 
+/* Picks a planet's resting depth.
+
+   A profile either states a normal curve across its depth band, or a density
+   exponent: the chance of a planet sitting at camera distance d is then
+   proportional to d^exponent, sampled by inverting that power law. */
+function sampleDepth(random: () => number, tuning: VolumetricPlanetTuning) {
+  const { depthBand, depthDistribution } = tuning;
+
+  if (!("densityExponent" in depthDistribution)) {
+    return lerp(
+      depthBand.nearestZ,
+      depthBand.farthestZ,
+      sampleNormal(
+        random,
+        depthDistribution.mean,
+        depthDistribution.stdDev,
+        depthDistribution.min,
+        depthDistribution.max,
+      ),
+    );
+  }
+
+  const cameraZ = CAMERA_PROPS.position[2];
+  const power = depthDistribution.densityExponent + 1;
+  const nearest = Math.pow(cameraZ - depthBand.nearestZ, power);
+  const farthest = Math.pow(cameraZ - depthBand.farthestZ, power);
+
+  return cameraZ - Math.pow(lerp(nearest, farthest, random()), 1 / power);
+}
+
 function createVirtualPlanets(
   mode: VolumetricStarfieldMode,
   fieldTuning: VolumetricStarfieldTuning,
@@ -217,13 +247,7 @@ function createVirtualPlanets(
   const atlasKeys = getPlanetAtlasKeys();
 
   const planets = Array.from({ length: tuning.virtualCount }, (_, index) => {
-    const depthProgress = sampleNormal(
-      random,
-      tuning.depthDistribution.mean,
-      tuning.depthDistribution.stdDev,
-      tuning.depthDistribution.min,
-      tuning.depthDistribution.max,
-    );
+    const z = sampleDepth(random, tuning);
     const baseAngularSpeed = sampleNormal(
       random,
       tuning.angularSpeedRadiansPerSecond.mean,
@@ -252,11 +276,6 @@ function createVirtualPlanets(
       tuning.sizeScale.stdDev,
       tuning.sizeScale.min,
       tuning.sizeScale.max,
-    );
-    const z = lerp(
-      tuning.depthBand.nearestZ,
-      tuning.depthBand.farthestZ,
-      depthProgress,
     );
     const planetType = assetKey.slice(
       0,
@@ -381,12 +400,15 @@ function createPlanetFrameLayout(
   const { eccentricity } = planet.orbitShape;
   const semiMajorAxis = planet.orbitRadiusRatio * fieldRadius;
   /* Flatten the requested tilt until the far end of the orbit, a(1 + e) from
-     the focus, still sits inside the depth limits on both sides. */
+     the focus, still sits inside the depth limits on both sides and swings
+     no more than its allowed share of the planet's distance. */
   const depthRoom = Math.max(
     0,
     Math.min(
       shape.depthLimits.nearestZ - planet.z,
       planet.z - shape.depthLimits.farthestZ,
+      (CAMERA_PROPS.position[2] - planet.z) *
+        shape.depthLimits.maximumSwingRatio,
     ),
   );
   const maximumInclination = Math.asin(
