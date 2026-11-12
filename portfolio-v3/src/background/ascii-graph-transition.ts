@@ -61,16 +61,19 @@ export const ASCII_GRAPH_TRANSITION = {
      scale raised to this power: 0 leaves it alone, higher narrows the band
      more on phones. */
   clearFacePopNarrowScreenExponent: 2.4,
-  /* A breaking shard darkens toward the incoming scene's sky as it shrinks,
-     up to this opacity of that colour. Without it the shards stay lighter
-     than the dark gaps opening between them, and on a small screen those
-     gaps read as heavy black bars instead of cracks. */
+  /* A breaking shard darkens a little toward the incoming scene's sky as it
+     shrinks, up to this opacity of that colour, which softens the contrast
+     between a shard and the dark gap opening round it. Kept low: a shard
+     that goes black before it leaves stops reading as glass. */
   shardFadeColor: "#03050c",
-  shardFadeAlpha: 0.85,
+  shardFadeAlpha: 0.4,
   /* A breaking triangle's shard is dropped once it has shrunk to this share
      of the triangle's size. Dropping it early keeps the gap around it from
      growing into a wide dark bar before the shard is gone. */
   smallestShardScale: 0.5,
+  /* The same on the narrowest screens, where a gap of the same width covers
+     far more of the picture. Screens in between use a value in between. */
+  smallestShardScaleNarrow: 0.72,
   // Slight face overdraw prevents antialiased cracks between adjacent faces.
   faceOverdrawScale: 1.035,
   // Minimum CSS-pixel distance between glyph centers at the reference width.

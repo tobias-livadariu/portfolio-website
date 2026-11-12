@@ -120,15 +120,39 @@ Built on branch `fable/planet-motion` (uncommitted):
   the background colour, so it does not change at all; only planets, stars
   and the menu recede. A cool blue tint was tried and rejected: it clashed
   with the ASCII scene and was too large a change to throw at the viewer.
-- **One visual language, three geometries.** Every transition has a single
-  clean leading edge and thin warm line-work over the stopped scene, and none
-  scatters loose blocks or dither along its edge (tried and rejected: large
-  blocks hid what was happening). CHAR grows its glyph graph, then dissolves
-  the old picture face by face in fine character-shaped cells. FLAT
-  subdivides the plane into a diamond lattice, and the old picture shrinks
-  away inside each diamond. DEEP opens a clean round aperture with rings
-  rippling ahead of its edge. The startup reveal is separate: a plain round
-  aperture with no rings.
+- **One visual language, three geometries.** The transitions are built from
+  the site's own pieces: stair-stepped edges like the planet sprites and the
+  menu lettering, square dots like the stars and the dotted rules, and
+  monospace glyphs. Each has one clean leading edge that starts at the
+  RENDER.MODE control.
+  - **CHAR** grows its glyph graph across the stopped scene, with a square
+    spark on each node as the graph reaches it. Each triangle of the graph
+    fills with characters that climb from sparse and dim to dense and bright,
+    over the menu as well. In the reveal the triangles crack apart and each
+    shard of old picture shrinks away. On narrow screens the shards are
+    dropped earlier, so the cracks never widen into dark bars.
+  - **FLAT** subdivides the plane into a diamond lattice. A diamond in motion
+    has stair-stepped edges, a stepped outline and square dots on its lattice
+    corners, and the old picture shrinks away inside each diamond.
+  - **DEEP** opens like a gravity well: a heavy twelve-row ring, shaded dark
+    to orange to ash and back with checkered rows for a cross-hatched
+    texture, thin ripples on both sides, and four layers of pixel planets on
+    dotted orbits, two outside the ring and two inside, neighbouring layers
+    turning opposite ways.
+  - The startup reveal is separate: a plain round aperture.
+- **Tried and rejected along the way:** large pixel blocks and scattered
+  block noise on the edges, a smooth circular ring, a blue tint for the
+  stopped scene, keeping the menu clear of CHAR's characters (it left a blank
+  rectangle), and a thin single ring for DEEP.
+- **How the transitions were reviewed.** Three independent design critics
+  (motion design, fit with the site's identity, first-time viewer
+  experience) reviewed frame captures of every transition at 1440×900 and
+  390×844, and the designs were revised until all three passed all three
+  transitions in the same round. That took eleven rounds. One real defect
+  outside the transition code came out of it: planets in a newly revealed
+  DEEP scene were still partway through their own fade-in and looked
+  see-through, so planets that mount under a transition now start at full
+  strength.
 
 Further ideas raised after the review, still open: a scroll-linked camera so
 the starfield responds as the documents rise, and throttling the starfield

@@ -473,10 +473,16 @@ function createAsciiFront(
   /* How much of a breaking triangle is still there, as a scale about its
      centre. It holds near full size while cracks open around it, then
      shrinks away. A piece too small to read as a shard is dropped. */
+  const narrowness = clamp01(
+    (1 - field.responsiveScale) / (1 - tuning.minimumResponsiveScale),
+  );
+  const smallestShardScale =
+    tuning.smallestShardScale +
+    (tuning.smallestShardScaleNarrow - tuning.smallestShardScale) * narrowness;
   const getShardScale = (pop: number) => {
     const scale = 1 - easeInCubic(pop);
 
-    return scale > tuning.smallestShardScale ? scale : 0;
+    return scale > smallestShardScale ? scale : 0;
   };
   /* Adds to the current path everything a breaking triangle has lost: the
      whole triangle with the surviving shard left as a hole. */
