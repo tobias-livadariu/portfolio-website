@@ -6,6 +6,7 @@ import {
   type StartupSurface,
 } from "../background/background-mode-core";
 import SceneErrorBoundary from "./SceneErrorBoundary";
+import { markLandingMenuFailed } from "../landing/landing-menu-store";
 import { PrimaryLighting } from "./lighting/PrimaryLighting";
 import { COLOR_PALETTE_STR } from "../theme/colors";
 import { CAMERA_PROPS, CANVAS_DPR } from "./canvas.constants";
@@ -28,10 +29,12 @@ const Starfield2D = lazy(preloadStarfield2D);
 function StartupRegion({
   children,
   label,
+  onFailure,
   surface,
 }: {
   children: ReactNode;
   label: string;
+  onFailure?: () => void;
   surface: StartupSurface;
 }) {
   const { notifyStartupSurfaceReady } = useBackgroundMode();
@@ -39,7 +42,10 @@ function StartupRegion({
   return (
     <SceneErrorBoundary
       label={label}
-      onFailure={() => notifyStartupSurfaceReady(surface)}
+      onFailure={() => {
+        notifyStartupSurfaceReady(surface);
+        onFailure?.();
+      }}
     >
       {children}
     </SceneErrorBoundary>
@@ -96,7 +102,11 @@ export default function PortfolioCanvas() {
           the first background-only frame. The startup cover waits for both
           halves, so a menu that is still suspended holds the reveal rather
           than popping in over an already-exposed starfield. */}
-      <StartupRegion label="3D UI" surface="ui">
+      <StartupRegion
+        label="3D UI"
+        onFailure={markLandingMenuFailed}
+        surface="ui"
+      >
         <Suspense fallback={null}>
           <MainMenu />
           <UiHaloPass />

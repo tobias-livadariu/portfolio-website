@@ -10,6 +10,7 @@ import {
 import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { createPortal, flushSync } from "react-dom";
 import BackgroundModeSwitch from "../background/BackgroundModeSwitch";
+import LandingMenu from "../landing/LandingMenu";
 import ModalRenderModeMenu from "../background/ModalRenderModeMenu";
 import { useBackgroundMode } from "../background/background-mode-core";
 import AboutModal from "./about/AboutModal";
@@ -599,6 +600,17 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
       currentSectionRef.current = navigationRequest.section;
       setActiveSection(navigationRequest.section);
 
+      if (navigationRequest.moveFocus) {
+        /* Opened from the keyboard: put focus on this section's own tab in
+           its toolbar, so the next Tab moves through the document that is
+           opening. `preventScroll` leaves the smooth scroll below alone. */
+        sectionRefs.current[navigationRequest.section]
+          ?.querySelector<HTMLElement>(
+            '.modal-section-tabs [aria-current="page"]',
+          )
+          ?.focus({ preventScroll: true });
+      }
+
       const isLastSection =
         navigationRequest.section ===
         MODAL_SECTION_KEYS[MODAL_SECTION_KEYS.length - 1];
@@ -788,6 +800,7 @@ export default function ModalLayer({ background }: { background: ReactNode }) {
               events can then remain browser-native for the entire gesture,
               even while their hit target changes as the modal opens. */}
           <div className="portfolio-canvas-layer">{background}</div>
+          <LandingMenu />
           <div
             aria-hidden="true"
             className="modal-backdrop"

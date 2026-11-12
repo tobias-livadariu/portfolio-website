@@ -2,14 +2,22 @@ import { createContext, useContext } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { ModalSectionKey } from "./modal.types";
 
+export interface OpenSectionOptions {
+  /* Also move keyboard focus into the section's toolbar. Used when the
+     section is opened from the keyboard, so the next Tab continues inside
+     the document that just opened. */
+  moveFocus?: boolean;
+}
+
 export interface ModalContextValue {
   close: () => void;
   isOpen: boolean;
   navigationRequest: {
     id: number;
+    moveFocus?: boolean;
     section: ModalSectionKey | null;
   } | null;
-  openSection: (section: ModalSectionKey) => void;
+  openSection: (section: ModalSectionKey, options?: OpenSectionOptions) => void;
   setIsOpen: Dispatch<SetStateAction<boolean>>;
 }
 

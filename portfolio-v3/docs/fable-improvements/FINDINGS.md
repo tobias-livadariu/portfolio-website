@@ -44,8 +44,11 @@ sections themselves are left as originally written.
 | A5 résumé white page        | Open. A dark render using pdf.js `pageColors` is the leading option.                                                          |
 | A6 Portfolio content        | Open.                                                                                                                         |
 | A7 phone type size          | Open for body text. The unreadable résumé preview is accepted, since the buttons below it open the file.                      |
-| B1 to B8                    | Open.                                                                                                                         |
-| C1 to C5                    | Open.                                                                                                                         |
+| B1 to B3, B5 to B8          | Open.                                                                                                                         |
+| B4 link preview             | Done on 2026-11-12. See below.                                                                                                |
+| C1, C2, C4                  | Open.                                                                                                                         |
+| C3 menu only in WebGL       | Done on 2026-11-12. See below.                                                                                                |
+| C5 one large main chunk     | Partly done on 2026-11-12. See below.                                                                                         |
 | Taste calls                 | All four declined. Leave them as they are.                                                                                    |
 
 Built on branch `fable/planet-motion` (uncommitted):
@@ -157,6 +160,38 @@ Built on branch `fable/planet-motion` (uncommitted):
   DEEP scene were still partway through their own fade-in and looked
   see-through, so planets that mount under a transition now start at full
   strength.
+
+Built on 2026-11-12:
+
+- **Link preview (B4).** `index.html` now carries a description, a canonical
+  address and Open Graph tags. The picture is a 1200×630 capture of the real
+  landing view in 3D, made by `npm run link-preview`. The description text
+  ("Software Engineering student at the University of Waterloo…") was written
+  from the About document and is Tobias's to reword.
+- **Landing menu in HTML (C3).** `src/landing/` adds an invisible HTML copy of
+  the menu: an `<h1>` and one button per section. Tab moves through the
+  buttons, the matching 3D entry lights up as it does under the mouse, and
+  Enter or Space opens the section. Focus follows into the opened document and
+  returns to the menu entry when the documents close. When the 3D menu cannot
+  be drawn (no WebGL, or its typeface failed to load) the HTML menu is shown
+  in its place, styled with the site's palette and dotted rules.
+- **Load size (C5).**
+  - three.js and the React libraries now build into their own files. A deploy
+    that changes only the site's code leaves those files' names unchanged, so
+    a returning visitor downloads about 57 KB again instead of 386 KB.
+  - This does not shorten a first visit. Measured on throttled connections,
+    the startup reveal begins at the same moment as before (about 1.5 s on
+    fast 4G, 3.5 s on slow 4G): the same bytes arrive, in three files.
+  - The résumé viewer is about 86 KB lighter (gzipped). It imported pdf.js's
+    whole viewer bundle for one small class and pdf.js's whole stylesheet for
+    two layers. It now has its own link service and a generated copy of just
+    those rules (`npm run pdf-layer-styles`). The résumé renders identically:
+    the computed style of every element, the links and a screenshot were
+    compared between the old and new builds.
+  - Still open, and the only things that would shorten a first visit:
+    Brotli on the server (the main scripts go from 386 KB to 305 KB; nginx
+    serves gzip only today) and tree-shaking three.js, which needs React
+    Three Fiber's `<Canvas>` replaced with a hand-built one.
 
 Further ideas raised after the review, still open: a scroll-linked camera so
 the starfield responds as the documents rise, and throttling the starfield

@@ -14,6 +14,7 @@ import {
 } from "./main-menu.constants";
 import { useAnimatedMenuPosition } from "./hooks/useMainMenuAnimation";
 import MenuText, { type TextBounds } from "./text/MenuText";
+import { useLandingMenuFocus } from "../../landing/landing-menu-store";
 
 interface Props {
   navKey: ModalSectionKey;
@@ -27,6 +28,11 @@ export default function NavItem(props: Props) {
   const groupRef = useRef<Group>(null);
   const { openSection } = useModalController();
   const [isHovered, setIsHovered] = useState(false);
+  /* The page's HTML menu takes keyboard focus on this entry's behalf. While
+     its button for this section has focus, the entry lights up exactly as it
+     does under the mouse. */
+  const hasKeyboardFocus = useLandingMenuFocus() === navKey;
+  const isHighlighted = isHovered || hasKeyboardFocus;
   const [textBounds, setTextBounds] = useState<TextBounds | null>(null);
   const arrowWidth = ARROW_GEOMETRY.columnCount * ARROW_GEOMETRY.blockSize;
   const arrowHeight = ARROW_GEOMETRY.rowCount * ARROW_GEOMETRY.blockSize;
@@ -98,18 +104,20 @@ export default function NavItem(props: Props) {
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       )}
-      {isHovered && textBounds && (
+      {isHighlighted && textBounds && (
         <BlockyArrow offset={[leftArrowX, 0, 0]} flipped />
       )}
       <MenuText
         offset={[LAYOUT.navTextCenterX, textCenterY, 0]}
         size={TEXT_GEOMETRY.navItemSize}
-        isHovered={isHovered}
+        isHovered={isHighlighted}
         onBoundsChange={handleBoundsChange}
       >
         {label}
       </MenuText>
-      {isHovered && textBounds && <BlockyArrow offset={[rightArrowX, 0, 0]} />}
+      {isHighlighted && textBounds && (
+        <BlockyArrow offset={[rightArrowX, 0, 0]} />
+      )}
     </group>
   );
 }
