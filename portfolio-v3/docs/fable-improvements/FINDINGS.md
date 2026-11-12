@@ -106,17 +106,29 @@ Built on branch `fable/planet-motion` (uncommitted):
 
 - **Render-mode transitions with no blank screen.** Each transition used to
   cover the old scene, hold about half a second on an empty background, then
-  uncover the new one. Now the outgoing scene glides to rest (480 ms) while
-  the front spreads over it and only dims it; the resting scene is held as a
-  still while the new scene starts underneath; and the same front then erases
-  the still to uncover the new scene, which is already moving. The hand-over
-  to the still is pixel-identical at 1x and 2x. Each destination keeps its
-  own look: CHAR dissolves the old picture in character-shaped cells that
-  leave glyphs thinning from `@` to `.`; FLAT shrinks each diamond of the old
-  picture away; DEEP opens a stepped, ragged aperture ringed with stars, and
-  the startup reveal uses the same aperture. Everything that moves now reads
+  uncover the new one. Now the outgoing scene brakes to rest (260 ms, most of
+  the speed shed early) while the front spreads over it; the resting scene is
+  held as a still while the new scene starts underneath; and the same front
+  then erases the still to uncover the new scene, which is already moving.
+  The hand-over to the still is pixel-identical. Everything that moves reads
   one shared scene clock (`src/scene/scene-time.ts`), which is what lets the
   scene slow and resume as a whole.
+- **A stopped scene is a quieter version of itself.** Behind the front the
+  scene loses about half its colour (a near-neutral grey replaces 55% of each
+  pixel's hue and saturation while its brightness is kept) and is then pulled
+  50% toward the background colour (`TRANSITION_GRADE`). The sky already is
+  the background colour, so it does not change at all; only planets, stars
+  and the menu recede. A cool blue tint was tried and rejected: it clashed
+  with the ASCII scene and was too large a change to throw at the viewer.
+- **One visual language, three geometries.** Every transition has a single
+  clean leading edge and thin warm line-work over the stopped scene, and none
+  scatters loose blocks or dither along its edge (tried and rejected: large
+  blocks hid what was happening). CHAR grows its glyph graph, then dissolves
+  the old picture face by face in fine character-shaped cells. FLAT
+  subdivides the plane into a diamond lattice, and the old picture shrinks
+  away inside each diamond. DEEP opens a clean round aperture with rings
+  rippling ahead of its edge. The startup reveal is separate: a plain round
+  aperture with no rings.
 
 Further ideas raised after the review, still open: a scroll-linked camera so
 the starfield responds as the documents rise, and throttling the starfield

@@ -1224,7 +1224,12 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
     .poll(countColoredTransitionPixels, { timeout: 15_000 })
     .toBeGreaterThan(50);
   await expect
-    .poll(() => transition.getAttribute("data-phase"), { timeout: 15_000 })
+    /* The clearing phase lasts well under a second, so it is sampled often
+       enough that a poll cannot step over it. */
+    .poll(() => transition.getAttribute("data-phase"), {
+      intervals: [50],
+      timeout: 15_000,
+    })
     .toBe("clearing");
   await expect(transition).toHaveCount(0, { timeout: 10_000 });
   await expect(currentModeLabel(page)).toContainText("[ASCII]");

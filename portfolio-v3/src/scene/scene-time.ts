@@ -9,9 +9,11 @@
 
 export const SCENE_TIME_TUNING = {
   /* How long the outgoing scene takes to glide to rest once a render mode is
-     chosen. Must be shorter than the shortest cover animation, so the scene
-     is still by the time it is handed over. */
-  settleMs: 480,
+     chosen. Most of the speed is shed early, so orbits, sprite spin and
+     twinkle are all but stopped before the transition's front reaches them.
+     Must be shorter than the shortest cover animation, so the scene is
+     completely still by the time it is handed over. */
+  settleMs: 260,
   /* How long the incoming scene takes to reach full speed. It starts the
      moment the new scene is mounted, before any of it is visible, so the
      first sliver uncovered is already moving. */
@@ -31,6 +33,11 @@ function smoothstep(progress: number) {
   return progress * progress * (3 - 2 * progress);
 }
 
+/* Braking curve: the change is fastest at the start and lands softly. */
+function easeOutQuad(progress: number) {
+  return 1 - (1 - progress) * (1 - progress);
+}
+
 /* Advances the clock by one rendered frame. Called once per frame by
    `SceneTransitionBridge`, before anything reads the time. */
 export function advanceSceneTime(realDeltaSeconds: number) {
@@ -39,10 +46,16 @@ export function advanceSceneTime(realDeltaSeconds: number) {
       state.easeDurationMs,
       state.easeElapsedMs + realDeltaSeconds * 1000,
     );
+    const progress = state.easeElapsedMs / state.easeDurationMs;
+
+    /* Slowing down brakes hard and lands softly; speeding up eases in and
+       out. */
     state.scale =
       state.easeFrom +
       (state.easeTo - state.easeFrom) *
-        smoothstep(state.easeElapsedMs / state.easeDurationMs);
+        (state.easeTo < state.easeFrom
+          ? easeOutQuad(progress)
+          : smoothstep(progress));
   } else {
     state.scale = state.easeTo;
   }

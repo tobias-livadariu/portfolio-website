@@ -7,8 +7,10 @@ import {
   type SceneStill,
 } from "./scene-snapshot";
 import {
+  createStartupFront,
   createTransitionFront,
-  TRANSITION_SHADE,
+  SUPPORTS_TRANSITION_TINT,
+  TRANSITION_GRADE,
   type TransitionFront,
 } from "./transition-fronts";
 import type { BackgroundMode } from "./background-mode-core";
@@ -54,10 +56,11 @@ function fitCanvas(
 }
 
 /* Builds the picture the overlay holds while the scenes are swapped: the
-   resting outgoing scene, dimmed exactly as the cover beat left it. Without
-   a capture (startup, or a scene that could not be copied) it is the plain
-   background colour, which is the old solid cover. The returned context
-   draws in CSS pixels, so a front can erase from it directly. */
+   resting outgoing scene, graded exactly as the cover beat left it (tinted,
+   then veiled). Without a capture (startup, or a scene that could not be
+   copied) it is the plain background colour, which is the old solid cover.
+   The returned context draws in CSS pixels, so a front can erase from it
+   directly. */
 function createStill(
   canvas: HTMLCanvasElement,
   pixelRatio: number,
@@ -74,21 +77,35 @@ function createStill(
     return null;
   }
 
+  const width = stillCanvas.width / pixelRatio;
+  const height = stillCanvas.height / pixelRatio;
+
   still.fillStyle = COLOR_PALETTE_STR.background;
   still.fillRect(0, 0, stillCanvas.width, stillCanvas.height);
   still.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
   if (capture) {
-    const { left, top, width, height } = capture.placement;
+    const { placement } = capture;
 
-    still.drawImage(capture.image, left, top, width, height);
-    still.globalAlpha = TRANSITION_SHADE.alpha;
-    still.fillRect(
-      0,
-      0,
-      stillCanvas.width / pixelRatio,
-      stillCanvas.height / pixelRatio,
+    still.drawImage(
+      capture.image,
+      placement.left,
+      placement.top,
+      placement.width,
+      placement.height,
     );
+
+    if (SUPPORTS_TRANSITION_TINT) {
+      still.globalCompositeOperation = "color";
+      still.globalAlpha = TRANSITION_GRADE.tintAlpha;
+      still.fillStyle = TRANSITION_GRADE.tintColor;
+      still.fillRect(0, 0, width, height);
+      still.globalCompositeOperation = "source-over";
+    }
+
+    still.globalAlpha = TRANSITION_GRADE.veilAlpha;
+    still.fillStyle = TRANSITION_GRADE.veilColor;
+    still.fillRect(0, 0, width, height);
     still.globalAlpha = 1;
   }
 
@@ -99,7 +116,7 @@ function createStill(
    down and rebuilt on every phase change, so this lives in a ref. */
 interface TransitionRuntime {
   front: TransitionFront | null;
-  frontMode: BackgroundMode | null;
+  frontMode: BackgroundMode | "startup" | null;
   startedAt: number | null;
   still: CanvasRenderingContext2D | null;
 }
@@ -116,6 +133,7 @@ export default function DiamondTransitionOverlay() {
     targetMode,
   } = useBackgroundMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tintCanvasRef = useRef<HTMLCanvasElement>(null);
   const runtimeRef = useRef<TransitionRuntime>({
     front: null,
     frontMode: null,
@@ -170,6 +188,24 @@ export default function DiamondTransitionOverlay() {
     }
 
     let fit = fitCanvas(canvas, ctx);
+    /* The tint layer sits under this canvas and blends with the live scene.
+       It is only painted during the cover beat; the still carries the same
+       grade baked in, so the layer is emptied for the hold and the clear. */
+    const tintCanvas = tintCanvasRef.current;
+    const tint = SUPPORTS_TRANSITION_TINT
+      ? (tintCanvas?.getContext("2d") ?? null)
+      : null;
+    const fitTint = () => {
+      if (!tintCanvas || !tint) {
+        return;
+      }
+
+      tintCanvas.width = canvas.width;
+      tintCanvas.height = canvas.height;
+      tint.setTransform(fit.pixelRatio, 0, 0, fit.pixelRatio, 0, 0);
+    };
+
+    fitTint();
     let animationFrame: number | null = null;
     let cancelCapture: (() => void) | null = null;
     let done = false;
@@ -183,13 +219,17 @@ export default function DiamondTransitionOverlay() {
        continuous across the three phases. */
     const getElapsed = (now: number) => now - (runtime.startedAt ?? phaseStart);
 
+    /* The first reveal after load opens the startup cover; every later
+       transition uses the front that belongs to its destination. */
+    const frontMode = isInitialRevealComplete ? targetMode : "startup";
+
     const getFront = (rebuild = false) => {
       const existing = runtime.front;
 
       if (
         !rebuild &&
         existing &&
-        runtime.frontMode === targetMode &&
+        runtime.frontMode === frontMode &&
         existing.width === fit.width &&
         existing.height === fit.height
       ) {
@@ -197,15 +237,13 @@ export default function DiamondTransitionOverlay() {
       }
 
       const seed = seedPoint ?? { x: fit.width, y: fit.height };
-      const front = createTransitionFront(
-        targetMode,
-        fit.width,
-        fit.height,
-        seed,
-      );
+      const front =
+        frontMode === "startup"
+          ? createStartupFront(fit.width, fit.height, seed)
+          : createTransitionFront(frontMode, fit.width, fit.height, seed);
 
       runtime.front = front;
-      runtime.frontMode = targetMode;
+      runtime.frontMode = frontMode;
       return front;
     };
 
@@ -257,6 +295,7 @@ export default function DiamondTransitionOverlay() {
 
     const handleResize = () => {
       fit = fitCanvas(canvas, ctx);
+      fitTint();
       /* A resize invalidates both the front's geometry and the still. The
          rest of the transition runs over the plain background colour. */
       front = getFront(true);
@@ -299,8 +338,20 @@ export default function DiamondTransitionOverlay() {
           Math.max(0, (now - phaseStart) / front.coverDurationMs),
         );
 
+        if (tint) {
+          tint.clearRect(0, 0, fit.width, fit.height);
+          tint.fillStyle = TRANSITION_GRADE.tintColor;
+          tint.globalAlpha = TRANSITION_GRADE.tintAlpha;
+          front.fillCovered(tint, progress);
+          tint.globalAlpha = 1;
+        }
+
         clearCanvas();
-        front.renderCover(ctx, progress, getElapsed(now));
+        ctx.fillStyle = TRANSITION_GRADE.veilColor;
+        ctx.globalAlpha = TRANSITION_GRADE.veilAlpha;
+        front.fillCovered(ctx, progress);
+        ctx.globalAlpha = 1;
+        front.renderCoverDetail(ctx, progress, getElapsed(now));
 
         if (progress >= 1 && !done) {
           done = true;
@@ -311,6 +362,7 @@ export default function DiamondTransitionOverlay() {
             cancelCapture = null;
             runtime.still = createStill(canvas, fit.pixelRatio, capture);
             renderHold(front, performance.now());
+            tint?.clearRect(0, 0, fit.width, fit.height);
             notifyCovered();
           });
         }
@@ -349,20 +401,34 @@ export default function DiamondTransitionOverlay() {
 
     animationFrame = requestAnimationFrame(renderClearing);
     return stop;
-  }, [notifyCleared, notifyCovered, phase, seedPoint, targetMode]);
+  }, [
+    isInitialRevealComplete,
+    notifyCleared,
+    notifyCovered,
+    phase,
+    seedPoint,
+    targetMode,
+  ]);
 
   if (phase === "idle") {
     return null;
   }
 
   return (
-    <canvas
-      aria-hidden="true"
-      className="bg-transition-overlay"
-      data-phase={phase}
-      data-startup={!isInitialRevealComplete ? "true" : undefined}
-      data-target-mode={targetMode}
-      ref={canvasRef}
-    />
+    <>
+      <canvas
+        aria-hidden="true"
+        className="bg-transition-tint"
+        ref={tintCanvasRef}
+      />
+      <canvas
+        aria-hidden="true"
+        className="bg-transition-overlay"
+        data-phase={phase}
+        data-startup={!isInitialRevealComplete ? "true" : undefined}
+        data-target-mode={targetMode}
+        ref={canvasRef}
+      />
+    </>
   );
 }

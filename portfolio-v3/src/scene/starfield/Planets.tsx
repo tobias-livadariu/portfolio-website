@@ -360,6 +360,8 @@ interface PlanetSpriteProps {
   // Colour of a planet nearer than the start of the distance haze.
   nearColor: Color;
   planet: VirtualPlanet;
+  // True when the sprite should skip its fade-in and appear at full strength.
+  startsVisible: boolean;
   tuning: VolumetricPlanetTuning;
 }
 
@@ -485,10 +487,18 @@ function PlanetSpriteInner({
   hostAtlas,
   nearColor,
   planet,
+  startsVisible,
   tuning,
 }: PlanetSpriteProps) {
   const meshRef = useRef<Mesh>(null);
   const materialRef = useRef<MeshBasicMaterial>(null);
+  /* Decided once, when the sprite mounts. A planet that appears while a
+     render-mode transition has the scene covered is shown at full strength
+     straight away: its fade-in would otherwise still be running when the
+     transition uncovers it, leaving large planets see-through. */
+  const [initialOpacity] = useState(() =>
+    startsVisible ? tuning.maxOpacity : 0,
+  );
   const lastFrameIndexRef = useRef(-1);
   const spriteRotationRef = useRef<number | null>(null);
   const inverseFacingQuaternion = useMemo(() => new Quaternion(), []);
@@ -719,7 +729,7 @@ function PlanetSpriteInner({
         ref={materialRef}
         map={texture}
         transparent
-        opacity={0}
+        opacity={initialOpacity}
         alphaTest={0.02}
         color={tuning.tint}
         /* Planets are painted in their own order over the finished star layer
@@ -766,7 +776,10 @@ export default function Planets({
   fieldTuning: VolumetricStarfieldTuning;
   mode: VolumetricStarfieldMode;
 }) {
-  const { isInitialRevealComplete } = useBackgroundMode();
+  const { isInitialRevealComplete, phase } = useBackgroundMode();
+  /* True while a render-mode transition has the scene covered. The first
+     load is not one: there the planets fade in as their art arrives. */
+  const isCoveredByTransition = isInitialRevealComplete && phase !== "idle";
   const size = useThree((state) => state.size);
   const tuning = fieldTuning.planets;
   /* How many of the sampled planets this screen draws: the configured density
@@ -855,6 +868,7 @@ export default function Planets({
             hostAtlas={hostAtlas}
             nearColor={nearColor}
             planet={planet}
+            startsVisible={isCoveredByTransition}
             tuning={tuning}
           />
         );
