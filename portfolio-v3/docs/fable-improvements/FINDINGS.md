@@ -138,7 +138,11 @@ Built on branch `fable/planet-motion` (uncommitted):
     to orange to ash and back with checkered rows for a cross-hatched
     texture, thin ripples on both sides, and four layers of pixel planets on
     dotted orbits, two outside the ring and two inside, neighbouring layers
-    turning opposite ways.
+    turning opposite ways. The whole front travels off the far side of the
+    screen and each beat ends only once the innermost planet layer has
+    left. Nothing fades out on the way. An earlier version faded the inner
+    layers out as the ring reached the far corner, which made them vanish
+    mid-screen; that was changed after the review.
   - The startup reveal is separate: a plain round aperture.
 - **Tried and rejected along the way:** large pixel blocks and scattered
   block noise on the edges, a smooth circular ring, a blue tint for the

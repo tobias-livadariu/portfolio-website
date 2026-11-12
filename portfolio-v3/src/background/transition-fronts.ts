@@ -177,6 +177,15 @@ export const IRIS_TRANSITION = {
      px of further growth. */
   planetSpacingInSizes: 2.5,
   layerFadeInPx: 48,
+  /* The ring, its ripples and every planet layer leave by travelling off
+     the far side of the screen; none fades out on the way. A beat ends at
+     the moment the last of them, the innermost planet layer, has left.
+
+     The aperture's growth follows an easing curve that would glide to a
+     standstill. Only this share of the curve is played, so the last layer
+     still has speed as it leaves instead of creeping off the far corner.
+     1 plays the whole curve; lower leaves faster. */
+  exitEaseShare: 0.78,
   // The one square nearest the light on every planet big enough to have one.
   planetHighlightColor: IRIS_COLORS.ash,
   // Lit-side and shadow-side colour of each kind of planet.
@@ -1037,12 +1046,26 @@ function createIrisFront(
   const ringRows = tuning.ring.rows;
   // The ring is centred on the aperture's edge.
   const ringInnerSteps = -ringRows.length / 2;
-  /* Beyond the farthest corner by more than half the ring, so the ring is
-     off screen when the beat ends. */
-  const maxRadius =
-    getFarthestCornerDistance(width, height, seed) +
-    step * (ringRows.length / 2 + 2);
-  const getRadius = (progress: number) => maxRadius * easeStandard(progress);
+  const farthestCorner = getFarthestCornerDistance(width, height, seed);
+  /* The aperture radius at which the last part of the front has left the
+     screen: the ring, every ripple and every planet layer is past the
+     farthest corner. The innermost layer trails the edge the most, so it
+     usually decides this. */
+  const maxRadius = Math.max(
+    farthestCorner + step * (ringRows.length / 2 + 2),
+    ...tuning.ripples.map(
+      (ripple) => farthestCorner + step * (2 - ripple.offsetSteps),
+    ),
+    ...tuning.planetLayers.map(
+      (layer) =>
+        (farthestCorner + step * (layer.radiusSteps + 2) - layer.leadPx) /
+        (1 + layer.leadShare),
+    ),
+  );
+  const easedExit = easeStandard(tuning.exitEaseShare);
+  const getRadius = (progress: number) =>
+    (maxRadius * easeStandard(clamp01(progress) * tuning.exitEaseShare)) /
+    easedExit;
   // Each layer's planets start from their own random angle.
   const layers = tuning.planetLayers.map((layer) => ({
     ...layer,
@@ -1136,10 +1159,10 @@ function createIrisFront(
     elapsedMs: number,
   ) => {
     const radius = getRadius(progress);
-    /* Everything fades in as the aperture leaves the control and out as its
-       edge leaves the screen, so nothing pops on or off. */
-    const presence =
-      Math.min(1, progress * 10) * Math.min(1, (1 - progress) * 6);
+    /* Everything fades in as the aperture leaves the control, so nothing
+       pops on. Nothing fades out: each part leaves by crossing the far
+       side of the screen. */
+    const presence = Math.min(1, progress * 10);
 
     if (presence <= 0) {
       return;
@@ -1165,14 +1188,8 @@ function createIrisFront(
         (layer.count * planetSize * tuning.planetSpacingInSizes) /
           (Math.PI * 2),
       );
-      /* The layers inside the ring sit over the newly uncovered scene, so
-         they bow out over the last third of the beat, before the ring
-         reaches the menu. */
-      const innerFade = layer.leadPx < 0 ? clamp01((1 - progress) * 3) : 1;
       const layerPresence =
-        presence *
-        innerFade *
-        clamp01((orbitRadius - roomyRadius) / tuning.layerFadeInPx);
+        presence * clamp01((orbitRadius - roomyRadius) / tuning.layerFadeInPx);
 
       if (layerPresence <= 0) {
         return;
