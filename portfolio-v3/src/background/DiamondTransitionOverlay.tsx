@@ -1,60 +1,128 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { COLOR_PALETTE_STR } from "../theme/colors";
-import {
-  ASCII_GRAPH_TRANSITION,
-  buildAsciiTransitionField,
-  renderAsciiTransitionFrame,
-  type AsciiTransitionField,
-} from "./ascii-graph-transition";
 import { useBackgroundMode } from "./background-mode-core";
 import {
-  buildDiamondField,
-  DIAMOND_TRANSITION,
-  type DiamondTile,
-} from "./diamond-lattice";
+  captureSceneStill,
+  getSceneCanvasPlacement,
+  type SceneStill,
+} from "./scene-snapshot";
+import {
+  createStartupFront,
+  createTransitionFront,
+  SUPPORTS_TRANSITION_TINT,
+  TRANSITION_GRADE,
+  type TransitionFront,
+} from "./transition-fronts";
+import type { BackgroundMode } from "./background-mode-core";
 import "./background-mode.css";
 
-function easeOutCubic(t: number) {
-  return 1 - (1 - t) ** 3;
+interface CanvasFit {
+  height: number;
+  pixelRatio: number;
+  width: number;
 }
 
-function easeInCubic(t: number) {
-  return t ** 3;
-}
+/* Sizes the overlay's bitmap. It uses the scene canvas's own pixel ratio, so
+   a still of the scene is drawn pixel for pixel and does not shift or soften
+   when it replaces the live scene. The ratio is chosen once per overlay and
+   kept on the element: changing it would clear the bitmap mid-transition. */
+function fitCanvas(
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+): CanvasFit {
+  let pixelRatio = Number(canvas.dataset.pixelRatio);
 
-function fitCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  if (!(pixelRatio > 0)) {
+    pixelRatio =
+      getSceneCanvasPlacement()?.pixelRatio ??
+      Math.min(window.devicePixelRatio || 1, 2);
+    canvas.dataset.pixelRatio = String(pixelRatio);
+  }
+
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const pixelWidth = Math.max(1, Math.round(width * dpr));
-  const pixelHeight = Math.max(1, Math.round(height * dpr));
+  const pixelWidth = Math.max(1, Math.round(width * pixelRatio));
+  const pixelHeight = Math.max(1, Math.round(height * pixelRatio));
 
   /* Assigning either canvas dimension clears its bitmap, even when the value
-     is unchanged. Preserve the generated field across React phase handoffs. */
+     is unchanged. Preserve the drawn frame across React phase handoffs. */
   if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
     canvas.width = pixelWidth;
     canvas.height = pixelHeight;
   }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
-  return { height, width };
+  return { height, pixelRatio, width };
 }
 
-function traceDiamond(
-  ctx: CanvasRenderingContext2D,
-  tile: DiamondTile,
-  halfDiagonal: number,
+/* Builds the picture the overlay holds while the scenes are swapped: the
+   resting outgoing scene, graded exactly as the cover beat left it (tinted,
+   then veiled). Without a capture (startup, or a scene that could not be
+   copied) it is the plain background colour, which is the old solid cover.
+   The returned context draws in CSS pixels, so a front can erase from it
+   directly. */
+function createStill(
+  canvas: HTMLCanvasElement,
+  pixelRatio: number,
+  capture: SceneStill | null,
 ) {
-  ctx.moveTo(tile.cx, tile.cy - halfDiagonal);
-  ctx.lineTo(tile.cx + halfDiagonal, tile.cy);
-  ctx.lineTo(tile.cx, tile.cy + halfDiagonal);
-  ctx.lineTo(tile.cx - halfDiagonal, tile.cy);
-  ctx.closePath();
+  const stillCanvas = document.createElement("canvas");
+
+  stillCanvas.width = canvas.width;
+  stillCanvas.height = canvas.height;
+
+  const still = stillCanvas.getContext("2d");
+
+  if (!still) {
+    return null;
+  }
+
+  const width = stillCanvas.width / pixelRatio;
+  const height = stillCanvas.height / pixelRatio;
+
+  still.fillStyle = COLOR_PALETTE_STR.background;
+  still.fillRect(0, 0, stillCanvas.width, stillCanvas.height);
+  still.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+  if (capture) {
+    const { placement } = capture;
+
+    still.drawImage(
+      capture.image,
+      placement.left,
+      placement.top,
+      placement.width,
+      placement.height,
+    );
+
+    if (SUPPORTS_TRANSITION_TINT) {
+      still.globalCompositeOperation = "color";
+      still.globalAlpha = TRANSITION_GRADE.tintAlpha;
+      still.fillStyle = TRANSITION_GRADE.tintColor;
+      still.fillRect(0, 0, width, height);
+      still.globalCompositeOperation = "source-over";
+    }
+
+    still.globalAlpha = TRANSITION_GRADE.veilAlpha;
+    still.fillStyle = TRANSITION_GRADE.veilColor;
+    still.fillRect(0, 0, width, height);
+    still.globalAlpha = 1;
+  }
+
+  return still;
 }
 
-/* Full-screen canvas that hides the background swap. Each destination keeps a
-   distinct visual language: a graph/glyph propagation for ASCII, a circular
-   aperture for 3D, and the original randomized diamond flood for 2D. */
+/* What one transition carries from phase to phase. The effect below is torn
+   down and rebuilt on every phase change, so this lives in a ref. */
+interface TransitionRuntime {
+  front: TransitionFront | null;
+  frontMode: BackgroundMode | "startup" | null;
+  startedAt: number | null;
+  still: CanvasRenderingContext2D | null;
+}
+
+/* Full-screen canvas that carries a render-mode change. See
+   `transition-fronts.ts` for the three beats and each destination's look. */
 export default function DiamondTransitionOverlay() {
   const {
     isInitialRevealComplete,
@@ -65,13 +133,18 @@ export default function DiamondTransitionOverlay() {
     targetMode,
   } = useBackgroundMode();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const asciiFieldRef = useRef<AsciiTransitionField | null>(null);
-  const asciiAnimationStartRef = useRef<number | null>(null);
+  const tintCanvasRef = useRef<HTMLCanvasElement>(null);
+  const runtimeRef = useRef<TransitionRuntime>({
+    front: null,
+    frontMode: null,
+    startedAt: null,
+    still: null,
+  });
 
   /* Paint the startup cover before the browser can present the React tree.
      The CSS background is a pre-canvas fallback; this bitmap fill is what the
-     normal DEEP clearing pass cuts its circular aperture through. Repeating it
-     for the clearing commit prevents a transparent frame between phases. */
+     opening aperture cuts through. Repeating it for the clearing commit
+     prevents a transparent frame between phases. */
   useLayoutEffect(() => {
     if (isInitialRevealComplete || phase === "idle") {
       return;
@@ -92,8 +165,13 @@ export default function DiamondTransitionOverlay() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    const runtime = runtimeRef.current;
 
     if (!canvas || phase === "idle") {
+      runtime.front = null;
+      runtime.frontMode = null;
+      runtime.startedAt = null;
+      runtime.still = null;
       return;
     }
 
@@ -109,274 +187,248 @@ export default function DiamondTransitionOverlay() {
       return;
     }
 
-    let { height, width } = fitCanvas(canvas, ctx);
-    let animationFrame: number | null = null;
-    let done = false;
-    const startTime = performance.now();
+    let fit = fitCanvas(canvas, ctx);
+    /* The tint layer sits under this canvas and blends with the live scene.
+       It is only painted during the cover beat; the still carries the same
+       grade baked in, so the layer is emptied for the hold and the clear. */
+    const tintCanvas = tintCanvasRef.current;
+    const tint = SUPPORTS_TRANSITION_TINT
+      ? (tintCanvas?.getContext("2d") ?? null)
+      : null;
+    const fitTint = () => {
+      if (!tintCanvas || !tint) {
+        return;
+      }
 
-    if (targetMode === "ascii" && phase === "covering") {
-      asciiAnimationStartRef.current = startTime;
-    }
-
-    const getAsciiElapsed = (now: number) =>
-      now - (asciiAnimationStartRef.current ?? startTime);
-
-    ctx.fillStyle = COLOR_PALETTE_STR.background;
-
-    const fillFullScreen = () => {
-      ctx.fillStyle = COLOR_PALETTE_STR.background;
-      ctx.fillRect(0, 0, width, height);
+      tintCanvas.width = canvas.width;
+      tintCanvas.height = canvas.height;
+      tint.setTransform(fit.pixelRatio, 0, 0, fit.pixelRatio, 0, 0);
     };
 
-    const getAsciiField = (force = false) => {
-      const existing = asciiFieldRef.current;
+    fitTint();
+    let animationFrame: number | null = null;
+    let cancelCapture: (() => void) | null = null;
+    let done = false;
+    const phaseStart = performance.now();
+
+    if (phase === "covering" || runtime.startedAt === null) {
+      runtime.startedAt = phaseStart;
+    }
+
+    /* Milliseconds since the transition began; keeps slow glyph pulses
+       continuous across the three phases. */
+    const getElapsed = (now: number) => now - (runtime.startedAt ?? phaseStart);
+
+    /* The first reveal after load opens the startup cover; every later
+       transition uses the front that belongs to its destination. */
+    const frontMode = isInitialRevealComplete ? targetMode : "startup";
+
+    const getFront = (rebuild = false) => {
+      const existing = runtime.front;
 
       if (
-        !force &&
+        !rebuild &&
         existing &&
-        existing.width === width &&
-        existing.height === height
+        runtime.frontMode === frontMode &&
+        existing.width === fit.width &&
+        existing.height === fit.height
       ) {
         return existing;
       }
 
-      const seed = seedPoint ?? { x: width, y: height };
-      const field = buildAsciiTransitionField(width, height, seed.x, seed.y);
-      asciiFieldRef.current = field;
-      return field;
+      const seed = seedPoint ?? { x: fit.width, y: fit.height };
+      const front =
+        frontMode === "startup"
+          ? createStartupFront(fit.width, fit.height, seed)
+          : createTransitionFront(frontMode, fit.width, fit.height, seed);
+
+      runtime.front = front;
+      runtime.frontMode = frontMode;
+      return front;
     };
 
-    let asciiField =
-      targetMode === "ascii" ? getAsciiField(phase === "covering") : null;
+    const getStill = () => {
+      const existing = runtime.still;
 
-    const handleResize = () => {
-      ({ height, width } = fitCanvas(canvas, ctx));
-
-      if (targetMode === "ascii") {
-        asciiField = getAsciiField(true);
+      if (
+        existing &&
+        existing.canvas.width === canvas.width &&
+        existing.canvas.height === canvas.height
+      ) {
+        return existing;
       }
 
+      runtime.still = createStill(canvas, fit.pixelRatio, null);
+      return runtime.still;
+    };
+
+    const clearCanvas = () => {
+      ctx.clearRect(0, 0, fit.width, fit.height);
+    };
+
+    const drawStill = () => {
+      const still = getStill();
+
+      if (!still) {
+        ctx.fillStyle = COLOR_PALETTE_STR.background;
+        ctx.fillRect(0, 0, fit.width, fit.height);
+        return;
+      }
+
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(still.canvas, 0, 0);
+      ctx.restore();
+    };
+
+    const renderHold = (front: TransitionFront, now: number) => {
+      clearCanvas();
+      drawStill();
+      front.renderHold(ctx, getElapsed(now));
+    };
+
+    let front = getFront(phase === "covering");
+
+    if (phase === "covering") {
+      runtime.still = null;
+    }
+
+    const handleResize = () => {
+      fit = fitCanvas(canvas, ctx);
+      fitTint();
+      /* A resize invalidates both the front's geometry and the still. The
+         rest of the transition runs over the plain background colour. */
+      front = getFront(true);
+      runtime.still = null;
+
       if (phase === "covered") {
-        if (targetMode === "ascii" && asciiField) {
-          renderAsciiTransitionFrame(
-            ctx,
-            asciiField,
-            "covered",
-            1,
-            getAsciiElapsed(performance.now()),
-          );
-        } else {
-          fillFullScreen();
-        }
+        renderHold(front, performance.now());
       }
     };
 
     window.addEventListener("resize", handleResize);
 
-    if (phase === "covered") {
-      if (targetMode === "ascii" && asciiField) {
-        const renderCoveredField = (now: number) => {
-          if (!asciiField) {
-            return;
-          }
-          renderAsciiTransitionFrame(
-            ctx,
-            asciiField,
-            "covered",
-            1,
-            getAsciiElapsed(now),
-          );
-          animationFrame = requestAnimationFrame(renderCoveredField);
-        };
-        animationFrame = requestAnimationFrame(renderCoveredField);
-      } else {
-        fillFullScreen();
-      }
-
-      return () => {
-        window.removeEventListener("resize", handleResize);
-        if (animationFrame !== null) {
-          cancelAnimationFrame(animationFrame);
-        }
-      };
-    }
-
-    const isCovering = phase === "covering";
-    const finish = () => {
-      if (done) {
-        return;
-      }
-
-      done = true;
-
-      if (isCovering) {
-        /* ASCII retains its generated glyph field across the React phase
-           handoff. Other modes keep the solid coverage guarantee. */
-        if (targetMode === "ascii" && asciiField) {
-          renderAsciiTransitionFrame(
-            ctx,
-            asciiField,
-            "covered",
-            1,
-            getAsciiElapsed(performance.now()),
-          );
-        } else {
-          fillFullScreen();
-        }
-        notifyCovered();
-      } else {
-        ctx.clearRect(0, 0, width, height);
-        notifyCleared();
-      }
-    };
-
-    if (targetMode === "ascii" && asciiField) {
-      const durationMs = isCovering
-        ? ASCII_GRAPH_TRANSITION.coverDurationMs
-        : ASCII_GRAPH_TRANSITION.clearDurationMs;
-
-      const renderAsciiGraphTransition = (now: number) => {
-        const progress = Math.min(
-          1,
-          Math.max(0, (now - startTime) / durationMs),
-        );
-
-        if (!asciiField) {
-          finish();
-          return;
-        }
-
-        renderAsciiTransitionFrame(
-          ctx,
-          asciiField,
-          isCovering ? "covering" : "clearing",
-          progress,
-          getAsciiElapsed(now),
-        );
-
-        if (progress >= 1) {
-          finish();
-          return;
-        }
-
-        animationFrame = requestAnimationFrame(renderAsciiGraphTransition);
-      };
-
-      animationFrame = requestAnimationFrame(renderAsciiGraphTransition);
-    } else if (targetMode === "3d") {
-      const seed = seedPoint ?? { x: width, y: height };
-      const durationMs = 720;
-
-      const renderDestinationTransition = (now: number) => {
-        const progress = Math.min(
-          1,
-          Math.max(0, (now - startTime) / durationMs),
-        );
-        const revealProgress = easeOutCubic(progress);
-
-        ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = COLOR_PALETTE_STR.background;
-
-        const maxRadius = Math.max(
-          Math.hypot(seed.x, seed.y),
-          Math.hypot(width - seed.x, seed.y),
-          Math.hypot(seed.x, height - seed.y),
-          Math.hypot(width - seed.x, height - seed.y),
-        );
-        const radius = maxRadius * revealProgress;
-
-        if (isCovering) {
-          ctx.beginPath();
-          ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          fillFullScreen();
-          ctx.save();
-          ctx.globalCompositeOperation = "destination-out";
-          ctx.beginPath();
-          ctx.arc(seed.x, seed.y, radius, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        }
-
-        if (progress >= 1) {
-          finish();
-          return;
-        }
-
-        animationFrame = requestAnimationFrame(renderDestinationTransition);
-      };
-
-      animationFrame = requestAnimationFrame(renderDestinationTransition);
-    } else {
-      const seed = seedPoint ?? { x: width, y: height };
-      const tiles = buildDiamondField(width, height, seed.x, seed.y);
-      const { overdraw, popMs, tileHalfDiagonalPx } = DIAMOND_TRANSITION;
-      const totalMs =
-        DIAMOND_TRANSITION.growMs +
-        popMs +
-        (isCovering
-          ? DIAMOND_TRANSITION.swapBufferMs
-          : DIAMOND_TRANSITION.clearDoneBufferMs);
-
-      const renderTiles = (now: number) => {
-        const elapsed = now - startTime;
-
-        if (elapsed >= totalMs) {
-          finish();
-          return;
-        }
-
-        ctx.clearRect(0, 0, width, height);
-        ctx.fillStyle = COLOR_PALETTE_STR.background;
-        ctx.beginPath();
-
-        for (const tile of tiles) {
-          const popProgress = Math.min(
-            1,
-            Math.max(0, (elapsed - tile.startMs) / popMs),
-          );
-          /* Cover pops tiles in; clear starts from full cover and pops them
-             back out, so untouched tiles still draw at full size. */
-          const scale = isCovering
-            ? easeOutCubic(popProgress)
-            : 1 - easeInCubic(popProgress);
-
-          if (scale <= 0) {
-            continue;
-          }
-
-          traceDiamond(ctx, tile, tileHalfDiagonalPx * overdraw * scale);
-        }
-
-        ctx.fill();
-        animationFrame = requestAnimationFrame(renderTiles);
-      };
-
-      animationFrame = requestAnimationFrame(renderTiles);
-    }
-
-    return () => {
+    const stop = () => {
       window.removeEventListener("resize", handleResize);
+      cancelCapture?.();
 
       if (animationFrame !== null) {
         cancelAnimationFrame(animationFrame);
       }
     };
-  }, [notifyCleared, notifyCovered, phase, seedPoint, targetMode]);
+
+    if (phase === "covered") {
+      const renderCovered = (now: number) => {
+        renderHold(front, now);
+
+        /* A still with nothing moving on it is drawn once. */
+        if (front.animatesHold) {
+          animationFrame = requestAnimationFrame(renderCovered);
+        }
+      };
+
+      animationFrame = requestAnimationFrame(renderCovered);
+      return stop;
+    }
+
+    if (phase === "covering") {
+      const renderCovering = (now: number) => {
+        const progress = Math.min(
+          1,
+          Math.max(0, (now - phaseStart) / front.coverDurationMs),
+        );
+
+        if (tint) {
+          tint.clearRect(0, 0, fit.width, fit.height);
+          tint.fillStyle = TRANSITION_GRADE.tintColor;
+          tint.globalAlpha = TRANSITION_GRADE.tintAlpha;
+          front.fillCovered(tint, progress);
+          tint.globalAlpha = 1;
+        }
+
+        clearCanvas();
+        ctx.fillStyle = TRANSITION_GRADE.veilColor;
+        ctx.globalAlpha = TRANSITION_GRADE.veilAlpha;
+        front.fillCovered(ctx, progress);
+        ctx.globalAlpha = 1;
+        front.renderCoverDetail(ctx, progress, getElapsed(now));
+
+        if (progress >= 1 && !done) {
+          done = true;
+          /* The scene is at rest and fully dimmed. Copy it, show the copy,
+             and only then let the scenes be swapped underneath. The loop
+             keeps drawing the finished cover until the copy arrives. */
+          cancelCapture = captureSceneStill((capture) => {
+            cancelCapture = null;
+            runtime.still = createStill(canvas, fit.pixelRatio, capture);
+            renderHold(front, performance.now());
+            tint?.clearRect(0, 0, fit.width, fit.height);
+            notifyCovered();
+          });
+        }
+
+        animationFrame = requestAnimationFrame(renderCovering);
+      };
+
+      animationFrame = requestAnimationFrame(renderCovering);
+      return stop;
+    }
+
+    const renderClearing = (now: number) => {
+      const progress = Math.min(
+        1,
+        Math.max(0, (now - phaseStart) / front.clearDurationMs),
+      );
+      const still = getStill();
+
+      if (still) {
+        front.erase(still, progress);
+      }
+
+      clearCanvas();
+      drawStill();
+      front.renderClear(ctx, progress, getElapsed(now));
+
+      if (progress >= 1 || !still) {
+        done = true;
+        clearCanvas();
+        notifyCleared();
+        return;
+      }
+
+      animationFrame = requestAnimationFrame(renderClearing);
+    };
+
+    animationFrame = requestAnimationFrame(renderClearing);
+    return stop;
+  }, [
+    isInitialRevealComplete,
+    notifyCleared,
+    notifyCovered,
+    phase,
+    seedPoint,
+    targetMode,
+  ]);
 
   if (phase === "idle") {
     return null;
   }
 
   return (
-    <canvas
-      aria-hidden="true"
-      className="bg-transition-overlay"
-      data-phase={phase}
-      data-startup={!isInitialRevealComplete ? "true" : undefined}
-      data-target-mode={targetMode}
-      ref={canvasRef}
-    />
+    <>
+      <canvas
+        aria-hidden="true"
+        className="bg-transition-tint"
+        ref={tintCanvasRef}
+      />
+      <canvas
+        aria-hidden="true"
+        className="bg-transition-overlay"
+        data-phase={phase}
+        data-startup={!isInitialRevealComplete ? "true" : undefined}
+        data-target-mode={targetMode}
+        ref={canvasRef}
+      />
+    </>
   );
 }

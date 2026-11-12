@@ -9,13 +9,21 @@ import {
   getTwoDimensionalVisibleHeight,
   getTwoDimensionalWorldPerPixel,
 } from "../../src/scene/canvas.constants";
-import { VOLUMETRIC_STARFIELD_TUNING } from "../../src/scene/starfield/starfield.constants";
-import { getCinematicOrbitalAngularSpeed } from "../../src/scene/starfield/starfield.math";
+import {
+  VOLUMETRIC_REFRAMES,
+  VOLUMETRIC_STARFIELD_TUNING,
+} from "../../src/scene/starfield/starfield.constants";
+import {
+  getCinematicOrbitalAngularSpeed,
+  getFieldVolume,
+  getPopulationCount,
+  getSmallScreenDensityMultiplier,
+  sampleBiasedDistance,
+} from "../../src/scene/starfield/starfield.math";
 import {
   PLANETS_2D,
   STARS_2D,
 } from "../../src/scene/starfield2d/starfield2d.constants";
-import { COLOR_PALETTE_STR } from "../../src/theme/colors";
 
 type RenderMode = "2d" | "3d" | "ascii";
 
@@ -766,10 +774,11 @@ test("ASCII transition assigns at most one glyph to each visual cell", () => {
   ).toBeGreaterThan(0);
 });
 
-test("volumetric modes own independent tuning and preserve ASCII appearance", () => {
+test("ASCII is DEEP re-framed: independent objects that differ only by the re-framing list", () => {
   const threeDimensional = VOLUMETRIC_STARFIELD_TUNING["3d"];
   const ascii = VOLUMETRIC_STARFIELD_TUNING.ascii;
 
+  // Each mode owns its objects, so inspecting one can never alias the other.
   expect(threeDimensional).not.toBe(ascii);
   expect(threeDimensional.bounds).not.toBe(ascii.bounds);
   expect(threeDimensional.orbitWells).not.toBe(ascii.orbitWells);
@@ -782,127 +791,200 @@ test("volumetric modes own independent tuning and preserve ASCII appearance", ()
     ascii.planets.orbitalMotion,
   );
   expect(STARS_2D.colors).not.toBe(ascii.stars.colors);
-  expect(threeDimensional.useDeterministicLayout).toBe(false);
 
-  /* The physical-motion properties are intentionally excluded: they may evolve
-     without changing the curated ASCII population's composition or styling. */
-  const appearanceOnlyAscii = {
-    ...ascii,
-    orbitWells: ascii.orbitWells.map((well) =>
-      Object.fromEntries(
-        Object.entries(well).filter(([key]) => key !== "rotationDirection"),
-      ),
-    ),
-    stars: Object.fromEntries(
-      Object.entries(ascii.stars).filter(([key]) => key !== "orbitalMotion"),
-    ),
-    planets: Object.fromEntries(
-      Object.entries(ascii.planets).filter(([key]) => key !== "orbitalMotion"),
-    ),
-  };
+  /* The complete list of what ASCII changes. A new difference between the
+     modes has to be added here on purpose; it cannot appear by accident. */
+  expect(VOLUMETRIC_REFRAMES).toEqual({
+    "3d": {
+      useDeterministicLayout: false,
+      starScale: 1.315,
+      planetScale: 1,
+      planetDepthOffset: 0,
+      planetDensityScale: 1,
+      planetSmallScreenBoostScale: 1,
+      planetTint: "#ffffff",
+      planetMaxOpacity: 1,
+      planetFarTint: "#7480ad",
+    },
+    ascii: {
+      useDeterministicLayout: true,
+      starScale: 2.5,
+      planetScale: 2.35,
+      planetDepthOffset: -4.1,
+      planetDensityScale: 0.68,
+      planetSmallScreenBoostScale: 0.4,
+      planetTint: "#a5afbf",
+      planetMaxOpacity: 0.78,
+      planetFarTint: "#ffffff",
+    },
+  });
 
-  expect(appearanceOnlyAscii).toEqual({
-    useDeterministicLayout: true,
-    bounds: {
-      edgeBuffer: 0.75,
-      fieldRadiusMultiplier: 1.25,
-    },
-    orbitWells: [
-      { side: "left", position: 0.18, distance: 0.28, weight: 1 },
-      { side: "left", position: 0.72, distance: 0.28, weight: 1 },
-      { side: "right", position: 0.28, distance: 0.28, weight: 1 },
-      { side: "right", position: 0.78, distance: 0.28, weight: 1 },
-      { side: "top", position: 0.32, distance: 0.24, weight: 1 },
-      { side: "top", position: 0.82, distance: 0.24, weight: 1 },
-      { side: "bottom", position: 0.24, distance: 0.24, weight: 1 },
-      { side: "bottom", position: 0.68, distance: 0.24, weight: 1 },
-    ],
-    stars: {
-      seed: 48017,
-      virtualCount: 10000,
-      visualScale: 2.5,
-      colors: [
-        COLOR_PALETTE_STR.white,
-        COLOR_PALETTE_STR.mutedWhite,
-        COLOR_PALETTE_STR.softGray,
-        COLOR_PALETTE_STR.dimBlueGray,
-        COLOR_PALETTE_STR.fadedBlue,
-      ],
-      size: {
-        mean: 0.014,
-        stdDev: 0.005,
-        min: 0.005,
-        max: 0.03,
-      },
-      emissiveIntensity: {
-        mean: 0.46,
-        stdDev: 0.11,
-        min: 0.22,
-        max: 0.72,
-        buckets: [0.26, 0.38, 0.5, 0.62, 0.72],
-      },
-      depthBand: {
-        nearestZ: -8.8,
-        farthestZ: -16,
-      },
-      depthDistribution: {
-        mean: 0.58,
-        stdDev: 0.22,
-        min: 0,
-        max: 1,
-      },
-      angularSpeedRadiansPerSecond: {
-        mean: 0.022,
-        stdDev: 0.008,
-        min: 0.006,
-        max: 0.044,
-      },
-      minOrbitRadiusRatio: 0.34,
-    },
+  /* With every re-framed value blanked, the two modes must be identical:
+     same population rules, same depth spread, same motion, same twinkle. */
+  const withoutReframedValues = (
+    tuning: (typeof VOLUMETRIC_STARFIELD_TUNING)["3d" | "ascii"],
+  ) => ({
+    ...tuning,
+    useDeterministicLayout: null,
+    stars: { ...tuning.stars, visualScale: null },
     planets: {
-      seed: 73091,
-      virtualCount: 300,
-      visualScale: 2.35,
-      pixelsToWorldUnit: 0.0048,
-      tint: "#a5afbf",
-      maxOpacity: 0.78,
-      fadeInSeconds: 1.15,
-      visibilityBuffer: 1.4,
-      minOrbitRadiusRatio: 0.42,
-      sizeScale: {
-        mean: 0.9,
-        stdDev: 0.18,
-        min: 0.58,
-        max: 1.28,
+      ...tuning.planets,
+      visualScale: null,
+      tint: null,
+      maxOpacity: null,
+      depthBand: null,
+      depthShading: null,
+      population: {
+        ...tuning.planets.population,
+        densityPer1000CubicUnits: null,
+        smallScreenBoost: {
+          ...tuning.planets.population.smallScreenBoost,
+          boost: null,
+        },
       },
-      depthBand: {
-        nearestZ: -1.35,
-        farthestZ: -7.8,
-      },
-      depthDistribution: {
-        mean: 0.5,
-        stdDev: 0.2,
-        min: 0,
-        max: 1,
-      },
-      angularSpeedRadiansPerSecond: {
-        mean: 0.012,
-        stdDev: 0.005,
-        min: 0.003,
-        max: 0.026,
-      },
-      frameRate: {
-        mean: 5,
-        stdDev: 1.6,
-        min: 2,
-        max: 9,
-      },
-      rotation: {
-        illuminatedDirectionRadians: (Math.PI * 3) / 4,
-        damping: 4.5,
+      orbitShape: {
+        ...tuning.planets.orbitShape,
+        depthLimits: {
+          ...tuning.planets.orbitShape.depthLimits,
+          nearestZ: null,
+          farthestZ: null,
+        },
       },
     },
   });
+
+  expect(withoutReframedValues(ascii)).toEqual(
+    withoutReframedValues(threeDimensional),
+  );
+
+  // The depth offset moves the whole planet range as one piece.
+  const offset = VOLUMETRIC_REFRAMES.ascii.planetDepthOffset;
+  const depthPairs = [
+    [ascii.planets.depthBand, threeDimensional.planets.depthBand],
+    [
+      ascii.planets.orbitShape.depthLimits,
+      threeDimensional.planets.orbitShape.depthLimits,
+    ],
+  ] as const;
+
+  for (const [asciiDepths, deepDepths] of depthPairs) {
+    expect(asciiDepths.nearestZ - deepDepths.nearestZ).toBeCloseTo(offset);
+    expect(asciiDepths.farthestZ - deepDepths.farthestZ).toBeCloseTo(offset);
+  }
+  expect(
+    ascii.planets.depthShading.startZ -
+      threeDimensional.planets.depthShading.startZ,
+  ).toBeCloseTo(offset);
+  expect(
+    ascii.planets.depthShading.endZ -
+      threeDimensional.planets.depthShading.endZ,
+  ).toBeCloseTo(offset);
+});
+
+test("population follows screen shape at one base density, up to its ceiling", () => {
+  const tuning = VOLUMETRIC_STARFIELD_TUNING["3d"];
+  const { population, depthBand } = tuning.planets;
+  const countAt = (width: number, height: number) =>
+    getPopulationCount(
+      population.densityPer1000CubicUnits *
+        getSmallScreenDensityMultiplier(
+          width * height,
+          population.smallScreenBoost,
+        ),
+      getFieldVolume({
+        aspect: width / height,
+        buffer: tuning.planets.visibilityBuffer,
+        farthestDistance: 7.25 - depthBand.farthestZ,
+        fieldRadiusMultiplier: tuning.bounds.fieldRadiusMultiplier,
+        nearestDistance: 7.25 - depthBand.nearestZ,
+        tanHalfFov: Math.tan((33 * Math.PI) / 360),
+      }),
+      population.maximumCount,
+    );
+
+  const phone = countAt(390, 844);
+  const laptop = countAt(1440, 900);
+
+  // Past the small-screen ramp, the same aspect ratio means the same scene,
+  // whatever the resolution.
+  expect(countAt(2880, 1800)).toBe(laptop);
+  // A narrow screen shows less space, so it draws fewer planets even with
+  // its small-screen boost.
+  expect(phone).toBeLessThan(laptop * 0.75);
+  expect(phone).toBeGreaterThan(0);
+  expect(countAt(1920, 1080)).toBeGreaterThan(laptop);
+  // An absurdly wide window stops at the ceiling.
+  expect(countAt(20000, 1000)).toBe(population.maximumCount);
+});
+
+test("small screens get a density boost that tapers off smoothly with window area", () => {
+  for (const mode of ["3d", "ascii"] as const) {
+    const tuning = VOLUMETRIC_STARFIELD_TUNING[mode];
+
+    for (const ramp of [
+      tuning.stars.population.smallScreenBoost,
+      tuning.planets.population.smallScreenBoost,
+    ]) {
+      const multiplierAt = (width: number, height: number) =>
+        getSmallScreenDensityMultiplier(width * height, ramp);
+
+      expect(ramp.boost).toBeGreaterThan(0);
+      // The smallest phones get the whole boost; laptops and up get none.
+      expect(multiplierAt(320, 568)).toBeCloseTo(1 + ramp.boost);
+      expect(multiplierAt(375, 667)).toBeCloseTo(1 + ramp.boost);
+      expect(multiplierAt(1440, 900)).toBe(1);
+      expect(multiplierAt(3840, 2160)).toBe(1);
+
+      // In between it only ever falls, and never by a visible jump.
+      let previous = getSmallScreenDensityMultiplier(250_000, ramp);
+
+      for (let area = 250_000; area <= 1_300_000; area += 5_000) {
+        const multiplier = getSmallScreenDensityMultiplier(area, ramp);
+
+        expect(multiplier).toBeLessThanOrEqual(previous);
+        expect(previous - multiplier).toBeLessThan(ramp.boost * 0.02);
+        previous = multiplier;
+      }
+    }
+  }
+
+  // A zero boost switches the ramp off, and a ramp with no width is a step.
+  expect(
+    getSmallScreenDensityMultiplier(100_000, {
+      boost: 0,
+      fullBoostAreaPx: 250_000,
+      noBoostAreaPx: 1_200_000,
+    }),
+  ).toBe(1);
+  expect(
+    getSmallScreenDensityMultiplier(100_000, {
+      boost: 0.5,
+      fullBoostAreaPx: 500_000,
+      noBoostAreaPx: 500_000,
+    }),
+  ).toBe(1.5);
+});
+
+test("camera bias moves a population toward or away from the camera", () => {
+  const meanDistance = (cameraBias: number) => {
+    let total = 0;
+    const samples = 2000;
+
+    for (let index = 0; index < samples; index++) {
+      total += sampleBiasedDistance((index + 0.5) / samples, 5, 25, cameraBias);
+    }
+
+    return total / samples;
+  };
+
+  // Even by distance: the mean sits at the middle of the range.
+  expect(meanDistance(2)).toBeCloseTo(15, 1);
+  // Even through space puts most bodies far away.
+  expect(meanDistance(0)).toBeGreaterThan(meanDistance(2));
+  expect(meanDistance(4)).toBeLessThan(meanDistance(2));
+  // The logarithmic case between the two power laws stays in range.
+  expect(sampleBiasedDistance(0, 5, 25, 3)).toBeCloseTo(5);
+  expect(sampleBiasedDistance(1, 5, 25, 3)).toBeCloseTo(25);
 });
 
 test("volumetric orbital motion slows large distant orbits without freezing them", () => {
@@ -919,14 +1001,14 @@ test("volumetric orbital motion slows large distant orbits without freezing them
     getCinematicOrbitalAngularSpeed({
       ...common,
       orbitRadiusRatio: 0.45,
-      z: -8.8,
+      z: VOLUMETRIC_STARFIELD_TUNING["3d"].stars.depthBand.nearestZ,
     }),
   );
   const farSpeed = Math.abs(
     getCinematicOrbitalAngularSpeed({
       ...common,
       orbitRadiusRatio: 0.95,
-      z: -16,
+      z: VOLUMETRIC_STARFIELD_TUNING["3d"].stars.depthBand.farthestZ,
     }),
   );
 
@@ -1142,7 +1224,12 @@ test("OS reduced-motion preference does not replace the ASCII transition", async
     .poll(countColoredTransitionPixels, { timeout: 15_000 })
     .toBeGreaterThan(50);
   await expect
-    .poll(() => transition.getAttribute("data-phase"), { timeout: 15_000 })
+    /* The clearing phase lasts well under a second, so it is sampled often
+       enough that a poll cannot step over it. */
+    .poll(() => transition.getAttribute("data-phase"), {
+      intervals: [50],
+      timeout: 15_000,
+    })
     .toBe("clearing");
   await expect(transition).toHaveCount(0, { timeout: 10_000 });
   await expect(currentModeLabel(page)).toContainText("[ASCII]");

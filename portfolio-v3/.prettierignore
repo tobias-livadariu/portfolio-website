@@ -4,3 +4,4 @@ package-lock.json
 assets/font-sources/**/*.typeface.json
 public/fonts/**/*.typeface.json
 public/rotating-planet-spritesheets/**/*.json
+src/modals/resume/pdf-layers.css

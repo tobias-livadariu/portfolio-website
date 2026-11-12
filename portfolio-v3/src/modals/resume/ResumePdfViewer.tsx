@@ -10,9 +10,11 @@ import type {
   PDFDocumentProxy,
   RenderTask,
 } from "pdfjs-dist/types/src/display/api";
-import { LinkTarget, SimpleLinkService } from "pdfjs-dist/web/pdf_viewer.mjs";
 import PdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import "pdfjs-dist/web/pdf_viewer.css";
+import ResumeLinkService from "./resume-link-service";
+/* The text-layer and link-layer rules from pdf.js's stylesheet; see
+   scripts/extract-pdf-layer-styles.mjs. */
+import "./pdf-layers.css";
 
 GlobalWorkerOptions.workerSrc = PdfWorkerUrl;
 
@@ -41,9 +43,11 @@ function ResumePdfViewer({ onReady, src }: Props) {
     let isRendering = false;
     let pendingRender = false;
 
-    const linkService = new SimpleLinkService();
-    linkService.externalLinkTarget = LinkTarget.BLANK;
-    linkService.externalLinkRel = "noopener noreferrer";
+    /* pdf.js types this as its full viewer link service; the link layer only
+       calls the handful of methods ResumeLinkService provides. */
+    const linkService = new ResumeLinkService() as unknown as Parameters<
+      AnnotationLayer["render"]
+    >[0]["linkService"];
 
     const renderAll = async () => {
       if (isRendering) {

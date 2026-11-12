@@ -150,6 +150,29 @@ export function getCinematicOrbitalAngularSpeed({
   return angularSpeed * direction;
 }
 
+/* Kepler's equation, M = E - e·sin(E), relates the mean anomaly M (an angle
+   that advances uniformly with time) to the eccentric anomaly E (where the
+   body actually is on its ellipse). It has no closed-form solution for E, so
+   it is refined with Newton's method. Five steps from M + e·sin(M) converge
+   far below a pixel for every eccentricity the starfield uses (e < 0.8). */
+export function solveKeplerEquation(meanAnomaly: number, eccentricity: number) {
+  const fullTurn = Math.PI * 2;
+  const wrappedMeanAnomaly =
+    ((((meanAnomaly + Math.PI) % fullTurn) + fullTurn) % fullTurn) - Math.PI;
+  let eccentricAnomaly =
+    wrappedMeanAnomaly + eccentricity * Math.sin(wrappedMeanAnomaly);
+
+  for (let iteration = 0; iteration < 5; iteration++) {
+    eccentricAnomaly -=
+      (eccentricAnomaly -
+        eccentricity * Math.sin(eccentricAnomaly) -
+        wrappedMeanAnomaly) /
+      (1 - eccentricity * Math.cos(eccentricAnomaly));
+  }
+
+  return eccentricAnomaly;
+}
+
 export function getVisibleBoundsAtZ(
   camera: Camera,
   canvasSize: { width: number; height: number },
@@ -320,5 +343,150 @@ export function isInsideBounds(
     position.x <= bounds.right + radius &&
     position.y >= bounds.bottom - radius &&
     position.y <= bounds.top + radius
+  );
+}
+
+const TWINKLE_FULL_TURN = Math.PI * 2;
+/* Two sine waves whose frequencies are in the golden ratio never fall back
+   into step, so their sum wanders without a visible loop. */
+const TWINKLE_GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2;
+
+/* Brightness multiplier of a twinkling star, centred on 1.
+
+   The slower wave carries most of the swing and the quicker one roughens it,
+   which reads as shimmer instead of a pulse. Both are continuous in time, so
+   the value can never jump from one frame to the next. */
+export function getTwinkleMultiplier(
+  elapsedSeconds: number,
+  frequency: number,
+  phase: number,
+  secondaryPhase: number,
+  amplitude: number,
+) {
+  const turns = elapsedSeconds * frequency;
+
+  return (
+    1 +
+    amplitude *
+      (0.62 * Math.sin(TWINKLE_FULL_TURN * (turns + phase)) +
+        0.38 *
+          Math.sin(
+            TWINKLE_FULL_TURN * (turns * TWINKLE_GOLDEN_RATIO + secondaryPhase),
+          ))
+  );
+}
+
+/* Volume of the space a population is laid out in.
+
+   At a distance d from the camera, orbits are sized against a disc whose
+   radius is `fieldRadiusMultiplier` times half the diagonal of the buffered
+   view (see `getFieldRadius`). Stacking those discs between the nearest and
+   farthest distance gives a cone-like slab. With half-width w(d) = t·a·d + b
+   and half-height h(d) = t·d + b, the disc area is π·m²·(w² + h²), which
+   integrates in closed form. Sizing a population from this volume keeps its
+   on-screen density the same on any screen shape. */
+export function getFieldVolume({
+  aspect,
+  buffer,
+  farthestDistance,
+  fieldRadiusMultiplier,
+  nearestDistance,
+  tanHalfFov,
+}: {
+  // Viewport width over height.
+  aspect: number;
+  // World-space padding added around the view at every depth.
+  buffer: number;
+  farthestDistance: number;
+  fieldRadiusMultiplier: number;
+  nearestDistance: number;
+  // Tangent of half the camera's vertical field of view.
+  tanHalfFov: number;
+}) {
+  const integrateSquaredHalfExtent = (slope: number) =>
+    (Math.pow(slope * farthestDistance + buffer, 3) -
+      Math.pow(slope * nearestDistance + buffer, 3)) /
+    (3 * slope);
+
+  return (
+    Math.PI *
+    fieldRadiusMultiplier *
+    fieldRadiusMultiplier *
+    (integrateSquaredHalfExtent(tanHalfFov * aspect) +
+      integrateSquaredHalfExtent(tanHalfFov))
+  );
+}
+
+export interface SmallScreenDensityBoost {
+  // Fraction of extra density at full strength (0.5 is 50% more bodies).
+  boost: number;
+  // Window area in CSS pixels at or below which the full boost applies.
+  fullBoostAreaPx: number;
+  // Window area in CSS pixels at or above which no boost applies.
+  noBoostAreaPx: number;
+}
+
+/* Density multiplier for a window of the given area. Small windows get
+   `1 + boost`; the extra eases off (smoothstep, so there is no kink at either
+   end while a window is resized) and is gone by `noBoostAreaPx`. */
+export function getSmallScreenDensityMultiplier(
+  screenAreaPx: number,
+  { boost, fullBoostAreaPx, noBoostAreaPx }: SmallScreenDensityBoost,
+) {
+  const span = noBoostAreaPx - fullBoostAreaPx;
+  const progress =
+    span > 0
+      ? clamp((screenAreaPx - fullBoostAreaPx) / span, 0, 1)
+      : screenAreaPx < noBoostAreaPx
+        ? 0
+        : 1;
+  const eased = progress * progress * (3 - 2 * progress);
+
+  return 1 + Math.max(0, boost) * (1 - eased);
+}
+
+/* How many bodies a density asks for in a given field volume, held to the
+   population's ceiling. */
+export function getPopulationCount(
+  densityPer1000CubicUnits: number,
+  fieldVolume: number,
+  maximumCount: number,
+) {
+  return clamp(
+    Math.round((densityPer1000CubicUnits / 1000) * fieldVolume),
+    0,
+    maximumCount,
+  );
+}
+
+/* Picks a distance from the camera for one body.
+
+   Space widens with distance, so bodies scattered evenly through it land at
+   distance d with probability proportional to d². `cameraBias` lowers that
+   exponent: the density used is d^(2 - cameraBias), sampled by inverting its
+   integral. 0 is the even scatter, 2 is even by distance, larger values crowd
+   the camera, and negative values push the population deeper. */
+export function sampleBiasedDistance(
+  uniform: number,
+  nearestDistance: number,
+  farthestDistance: number,
+  cameraBias: number,
+) {
+  const power = 3 - cameraBias;
+
+  // The integral of 1/d is a logarithm, not a power.
+  if (Math.abs(power) < 1e-6) {
+    return (
+      nearestDistance * Math.pow(farthestDistance / nearestDistance, uniform)
+    );
+  }
+
+  return Math.pow(
+    lerp(
+      Math.pow(nearestDistance, power),
+      Math.pow(farthestDistance, power),
+      uniform,
+    ),
+    1 / power,
   );
 }

@@ -262,7 +262,8 @@ button.rm-mode-option:focus-visible .rm-art {
   }
 }
 
-.bg-transition-overlay {
+.bg-transition-overlay,
+.bg-transition-tint {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -270,7 +271,18 @@ button.rm-mode-option:focus-visible .rm-art {
   height: 100vh;
   width: 100dvw;
   height: 100dvh;
+}
+
+.bg-transition-overlay {
   pointer-events: auto;
+}
+
+/* Sits under the overlay and recolours the live scene beneath it: wherever
+   this canvas is painted, the scene keeps its brightness and takes this
+   canvas's hue. */
+.bg-transition-tint {
+  pointer-events: none;
+  mix-blend-mode: color;
 }
 
 /* The canvas bitmap is filled in a layout effect, but this authored background

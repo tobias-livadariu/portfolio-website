@@ -1,0 +1,113 @@
+/* The HTML copy of the landing menu. It is normally invisible: it exists so
+   the keyboard and screen readers can reach the menu, whose visible form is
+   3D lettering inside the WebGL canvas.
+
+   It is fixed to the viewport so that giving one of its buttons focus never
+   scrolls the document stack, and clipped to a single pixel instead of being
+   hidden with `display: none` or `visibility: hidden`, either of which would
+   also remove it from the tab order and from screen readers. */
+.landing-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  /* Under the backdrop (z-index 1) that dims the scene behind a document. */
+  z-index: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.landing-menu ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Shown in place of the 3D menu when that cannot be drawn: the browser has
+   no WebGL, or the menu's typeface failed to load. It sits where the 3D
+   menu would and borrows its palette, its dotted rules and the hard offset
+   edge of its extruded lettering. */
+.landing-menu[data-shown="true"] {
+  top: clamp(1.25rem, 4vh, 3rem);
+  left: clamp(1.25rem, 3vw, 3rem);
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+  pointer-events: auto;
+  color: var(--color-campfire);
+  font-family: var(--font-pix-antiqua);
+  font-size: clamp(1rem, 0.8rem + 1.1vw, 1.75rem);
+  line-height: 1.15;
+  text-align: center;
+  text-shadow: 0.09em 0.09em 0 var(--color-campfire-dark);
+  animation: landing-menu-arrive 320ms ease-out both;
+}
+
+@keyframes landing-menu-arrive {
+  from {
+    opacity: 0;
+  }
+}
+
+.landing-menu[data-shown="true"] .landing-menu-title {
+  margin: 0;
+  padding-bottom: 0.7em;
+  font-size: 1.5em;
+  font-weight: 400;
+  /* 0.14em of the menu's own type size, the same weight as the rule below
+     the buttons. */
+  border-bottom: 0.0933em dotted var(--color-campfire-dark);
+}
+
+.landing-menu[data-shown="true"] .landing-menu-intro,
+.landing-menu[data-shown="true"] .landing-menu-name {
+  display: block;
+}
+
+.landing-menu[data-shown="true"] .landing-menu-intro {
+  font-size: 0.72em;
+}
+
+.landing-menu[data-shown="true"] .landing-menu-nav {
+  padding: 0.7em 0;
+  border-bottom: 0.14em dotted var(--color-campfire-dark);
+}
+
+.landing-menu[data-shown="true"] button {
+  position: relative;
+  padding: 0.18em 1.4em;
+  color: inherit;
+  font: inherit;
+  text-shadow: inherit;
+  text-transform: uppercase;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* The same cue the 3D menu gives: the entry brightens and an arrow appears
+   on each side of it. */
+.landing-menu[data-shown="true"] button:hover,
+.landing-menu[data-shown="true"] button:focus-visible {
+  color: var(--color-campfire-ash);
+  outline: none;
+}
+
+.landing-menu[data-shown="true"] button:hover::before,
+.landing-menu[data-shown="true"] button:focus-visible::before {
+  position: absolute;
+  left: 0.3em;
+  content: ">";
+}
+
+.landing-menu[data-shown="true"] button:hover::after,
+.landing-menu[data-shown="true"] button:focus-visible::after {
+  position: absolute;
+  right: 0.3em;
+  content: "<";
+}

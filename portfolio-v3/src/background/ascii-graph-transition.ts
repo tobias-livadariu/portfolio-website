@@ -7,12 +7,29 @@ import { COLOR_PALETTE_STR } from "../theme/colors";
  * the renderer control, reaches the top-left goal, and then a goal-originating
  * wave closes any faces that the search did not already visit. Glyph colors
  * are assigned once and never change during a transition.
+ *
+ * Nothing is hidden behind a blank cover. While the graph grows, the outgoing
+ * scene glides to rest underneath, and each enclosed triangle dims it and
+ * fills with characters. The resting scene is then held as a still, and the
+ * same wave breaks the triangles away like shards of glass, uncovering the
+ * live ASCII scene.
  */
 export const ASCII_GRAPH_TRANSITION = {
-  // Covering duration before the renderer is swapped to ASCII.
-  coverDurationMs: 1_180,
-  // Clearing duration used to reveal the fully initialized ASCII scene.
-  clearDurationMs: 980,
+  /* How long the graph takes to grow across the outgoing scene. Kept near
+     the other two covers so the three transitions share a tempo; the
+     triangles' characters finish climbing during the hold. */
+  coverDurationMs: 720,
+  /* Once the graph has grown, its rails and glyphs settle back to this
+     share of their strength and stay there through the hold and the clear.
+     A stopped scene is meant to be quieter than a live one, and at full
+     strength the graph is louder than the ASCII scene it gives way to. */
+  settledGraphStrength: 0.55,
+  // Share of the cover, at its end, over which the graph settles.
+  graphSettleProgressSpan: 0.3,
+  /* How long the triangles take to break away. The wave has crossed nearly
+     the whole screen by the time the graph reaches its goal, so a longer
+     clear only adds a wait with nothing left to see. */
+  clearDurationMs: 760,
   // Typical distance between graph nodes at the reference viewport width.
   nodeSpacingPx: 92,
   // Viewport width at which nodeSpacingPx and glyphFontPx apply exactly.
@@ -33,6 +50,30 @@ export const ASCII_GRAPH_TRANSITION = {
   explosionDistanceExponent: 0.82,
   // Progress span over which an enclosed triangular face grows to full size.
   facePopProgressSpan: 0.105,
+  /* The same span for a face breaking away in the clear. A little wider
+     than the closing span, so each shard is on screen long enough to be
+     seen leaving, but no wider: the cracks show the new scene's dark sky,
+     and a wide band of open cracks reads as black scaffolding instead of
+     breaking glass. */
+  clearFacePopProgressSpan: 0.14,
+  /* On a narrow screen the same band of open cracks covers far more of the
+     picture, so the span above is multiplied by the graph's responsive
+     scale raised to this power: 0 leaves it alone, higher narrows the band
+     more on phones. */
+  clearFacePopNarrowScreenExponent: 2.4,
+  /* A breaking shard darkens a little toward the incoming scene's sky as it
+     shrinks, up to this opacity of that colour, which softens the contrast
+     between a shard and the dark gap opening round it. Kept low: a shard
+     that goes black before it leaves stops reading as glass. */
+  shardFadeColor: "#03050c",
+  shardFadeAlpha: 0.4,
+  /* A breaking triangle's shard is dropped once it has shrunk to this share
+     of the triangle's size. Dropping it early keeps the gap around it from
+     growing into a wide dark bar before the shard is gone. */
+  smallestShardScale: 0.5,
+  /* The same on the narrowest screens, where a gap of the same width covers
+     far more of the picture. Screens in between use a value in between. */
+  smallestShardScaleNarrow: 0.72,
   // Slight face overdraw prevents antialiased cracks between adjacent faces.
   faceOverdrawScale: 1.035,
   // Minimum CSS-pixel distance between glyph centers at the reference width.
@@ -60,10 +101,54 @@ export const ASCII_GRAPH_TRANSITION = {
   glyphScalePulseAmplitude: 0.12,
   // Width of the colored glyph frontier during the clearing phase.
   clearFrontierProgressWidth: 0.13,
-  // Quantized monotonic clear steps create a choppy reveal without flashing.
-  clearStepCount: 12,
+  /* Each graph node flashes as a square spark, like one of the scene's
+     stars, at the moment the search reaches it, then fades. The newest
+     glyphs are the smallest and faintest, so without the sparks the front
+     of the spreading graph is the quietest thing on screen and nothing
+     shows it leaving the control. */
+  nodeSpark: {
+    color: COLOR_PALETTE_STR.campfireAsh,
+    // Side of the square at the reference viewport width.
+    sizePx: 7,
+    // How long a spark lasts, as a share of the cover timeline.
+    lifeProgress: 0.17,
+  },
+  /* Once a triangle of the graph has all three corners joined, it fills
+     with characters. Each character starts as the sparsest, dimmest glyph
+     and climbs the same density ramp the graph's own glyphs use. */
+  faceFill: {
+    // Character size at the reference viewport width.
+    fontPx: 13,
+    // Spacing of the character grid, in multiples of the font size.
+    cellWidthEm: 0.74,
+    cellHeightEm: 1.12,
+    /* Gap kept clear along each triangle's edges, so the graph's rails and
+       glyphs stay readable and every triangle reads as its own shard. */
+    insetPx: 12,
+    // How long one character takes to climb to its final glyph.
+    rampMs: 300,
+    // Characters in a triangle start at random within this window.
+    staggerMs: 140,
+    // Opacity of the sparsest and of the densest glyph.
+    minAlpha: 0.12,
+    maxAlpha: 0.36,
+    /* The fill covers most of the screen, so it stays in one quiet, warm
+       family and leaves the graph's own glyphs to carry the colour. */
+    colors: [
+      COLOR_PALETTE_STR.campfireAsh,
+      COLOR_PALETTE_STR.campfireAshDark,
+      COLOR_PALETTE_STR.mutedWhite,
+    ],
+    /* Each triangle's characters are dimmed by its own random amount, down
+       to this share of full strength, so neighbouring triangles catch the
+       light differently and read as separate shards. */
+    minShardBrightness: 0.4,
+  },
   // Subtle graph rails behind glyphs; raise alpha/width for stronger geometry.
   edgeLineAlpha: 0.2,
+  /* The rail along the path the search found. Kept soft: the glyphs on it
+     carry the path, and a strong thin line is not part of the site's look. */
+  goalPathLineAlpha: 0.42,
   edgeLineWidthPx: 0.75,
   // Keeps rails from showing through punctuation-shaped vertex glyphs.
   edgeNodeClearancePx: 6,
@@ -151,10 +236,6 @@ interface HeapEntry {
 
 function clamp(value: number, minimum = 0, maximum = 1) {
   return Math.min(maximum, Math.max(minimum, value));
-}
-
-function easeOutCubic(value: number) {
-  return 1 - (1 - value) ** 3;
 }
 
 function getResponsiveScale(width: number) {
@@ -484,31 +565,6 @@ export function buildAsciiTransitionField(
   };
 }
 
-function traceFace(
-  ctx: CanvasRenderingContext2D,
-  field: AsciiTransitionField,
-  face: AsciiTransitionFace,
-  scale: number,
-) {
-  const a = field.nodes[face.a];
-  const b = field.nodes[face.b];
-  const c = field.nodes[face.c];
-  const centerX = (a.x + b.x + c.x) / 3;
-  const centerY = (a.y + b.y + c.y) / 3;
-  const point = (node: AsciiTransitionNode) => ({
-    x: centerX + (node.x - centerX) * scale,
-    y: centerY + (node.y - centerY) * scale,
-  });
-  const pa = point(a);
-  const pb = point(b);
-  const pc = point(c);
-
-  ctx.moveTo(pa.x, pa.y);
-  ctx.lineTo(pb.x, pb.y);
-  ctx.lineTo(pc.x, pc.y);
-  ctx.closePath();
-}
-
 function getGlyphPresentation(
   startProgress: number,
   progress: number,
@@ -738,12 +794,15 @@ export function getAsciiTransitionGlyphPlacements(
   return [...edgePlacements, ...nodePlacements];
 }
 
-function drawGeneratedGraph(
+/** Draws the graph's rails and glyphs for one frame. `strength` (0 to 1)
+ *  scales the opacity of everything drawn. */
+export function drawAsciiTransitionGraph(
   ctx: CanvasRenderingContext2D,
   field: AsciiTransitionField,
   progress: number,
   elapsedMs: number,
   clearing: boolean,
+  strength = 1,
 ) {
   const frontierWidth = ASCII_GRAPH_TRANSITION.clearFrontierProgressWidth;
   const fontSize = ASCII_GRAPH_TRANSITION.glyphFontPx * field.responsiveScale;
@@ -770,7 +829,9 @@ function drawGeneratedGraph(
           (progress - edge.startProgress) /
             Math.max(edge.endProgress - edge.startProgress, 0.035),
         );
-    const alpha = edge.isGoalPath ? 0.68 : ASCII_GRAPH_TRANSITION.edgeLineAlpha;
+    const alpha = edge.isGoalPath
+      ? ASCII_GRAPH_TRANSITION.goalPathLineAlpha
+      : ASCII_GRAPH_TRANSITION.edgeLineAlpha;
     const edgeLength = Math.hypot(b.x - a.x, b.y - a.y);
     const clearanceProgress = Math.min(
       0.5,
@@ -794,90 +855,27 @@ function drawGeneratedGraph(
         ASCII_GRAPH_TRANSITION.edgeLineWidthPx *
         field.responsiveScale *
         (edge.isGoalPath ? 1.7 : 1);
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha = alpha * strength;
       ctx.strokeStyle = edge.color;
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
   }
 
-  for (const placement of getAsciiTransitionGlyphPlacements(
+  const placements = getAsciiTransitionGlyphPlacements(
     field,
     progress,
     elapsedMs,
     clearing,
-  )) {
-    drawGlyph(ctx, placement, glyphOffsets);
+  );
+
+  for (const placement of placements) {
+    drawGlyph(
+      ctx,
+      strength === 1
+        ? placement
+        : { ...placement, alpha: placement.alpha * strength },
+      glyphOffsets,
+    );
   }
-}
-
-export type AsciiTransitionRenderStage = "covering" | "covered" | "clearing";
-
-/** Draw a single frame. Coverage and clearing are monotonic by construction. */
-export function renderAsciiTransitionFrame(
-  ctx: CanvasRenderingContext2D,
-  field: AsciiTransitionField,
-  stage: AsciiTransitionRenderStage,
-  progress: number,
-  elapsedMs: number,
-) {
-  const safeProgress = clamp(progress);
-  ctx.clearRect(0, 0, field.width, field.height);
-
-  if (stage === "clearing") {
-    const steppedProgress =
-      Math.floor(safeProgress * ASCII_GRAPH_TRANSITION.clearStepCount) /
-      ASCII_GRAPH_TRANSITION.clearStepCount;
-    ctx.fillStyle = COLOR_PALETTE_STR.background;
-    ctx.fillRect(0, 0, field.width, field.height);
-    ctx.save();
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.fillStyle = "#000000";
-
-    for (const face of field.faces) {
-      const localProgress = clamp(
-        (steppedProgress - face.coverProgress) /
-          ASCII_GRAPH_TRANSITION.facePopProgressSpan,
-      );
-      if (localProgress <= 0) {
-        continue;
-      }
-      ctx.beginPath();
-      traceFace(
-        ctx,
-        field,
-        face,
-        easeOutCubic(localProgress) * ASCII_GRAPH_TRANSITION.faceOverdrawScale,
-      );
-      ctx.fill();
-    }
-    ctx.restore();
-    drawGeneratedGraph(ctx, field, steppedProgress, elapsedMs, true);
-    return;
-  }
-
-  ctx.fillStyle = COLOR_PALETTE_STR.background;
-  if (stage === "covered") {
-    ctx.fillRect(0, 0, field.width, field.height);
-  } else {
-    for (const face of field.faces) {
-      const localProgress = clamp(
-        (safeProgress - face.coverProgress) /
-          ASCII_GRAPH_TRANSITION.facePopProgressSpan,
-      );
-      if (localProgress <= 0) {
-        continue;
-      }
-      ctx.beginPath();
-      traceFace(
-        ctx,
-        field,
-        face,
-        easeOutCubic(localProgress) * ASCII_GRAPH_TRANSITION.faceOverdrawScale,
-      );
-      ctx.fill();
-    }
-  }
-
-  drawGeneratedGraph(ctx, field, safeProgress, elapsedMs, false);
 }

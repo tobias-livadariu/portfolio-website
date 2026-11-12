@@ -9,17 +9,21 @@
 
 export const DIAMOND_TRANSITION = {
   // Half-diagonal of each diamond in CSS px (point-to-point size is double).
-  tileHalfDiagonalPx: 30,
+  // Keep it a whole multiple of stepPx.
+  tileHalfDiagonalPx: 32,
+  /* A diamond that is growing or shrinking has stair-stepped edges, with
+     steps this many CSS px wide: the same pixel staircase the planets and
+     the menu lettering are drawn with. */
+  stepPx: 4,
   // Time from the first tile starting to the last tile starting its pop.
-  growMs: 950,
+  growMs: 700,
   // Duration of a single tile's pop-in/pop-out.
-  popMs: 160,
+  popMs: 150,
   // Tiles draw 6% oversized so anti-aliased edges never show seam cracks.
   overdraw: 1.06,
-  // Extra hold after the last pop completes before the mode swap.
-  swapBufferMs: 80,
-  // Extra hold after the last clear pop before the overlay unmounts.
-  clearDoneBufferMs: 50,
+  /* The cover pass only stops the outgoing scene, so it runs faster than
+     the reveal: its growth takes this share of growMs. */
+  coverGrowScale: 0.62,
   // Per-edge random weight is 1 + jitter * random(); higher jitter makes the
   // growth more chaotic and branch-like.
   edgeWeightJitter: 1.6,

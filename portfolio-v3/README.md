@@ -55,6 +55,32 @@ path:
 npm run modal-posters -- http://127.0.0.1:5173/portfolio/
 ```
 
+## Refresh the link preview picture
+
+`public/images/link-preview.jpg` is the picture that chat apps, LinkedIn and
+search results show beside a link to the site. `index.html` points at it
+through its `og:image` tag. It is a capture of the real landing view, so
+refresh it after changing how that view looks. With the development server
+running:
+
+```sh
+npm run link-preview -- http://127.0.0.1:5173/portfolio/
+```
+
+Planet positions are random on every load. Run it again if a planet lands
+behind the name.
+
+## Regenerate the résumé viewer's pdf.js styles
+
+pdf.js ships one stylesheet for its whole viewer application, about 230 KB.
+The résumé viewer uses only its text layer and link layer, so it imports
+`src/modals/resume/pdf-layers.css`, a copy of just those rules. Regenerate the
+copy after changing the `pdfjs-dist` version:
+
+```sh
+npm run pdf-layer-styles
+```
+
 ## Repack the planet sprite sheets
 
 `public/rotating-planet-spritesheets/` is built from the lossless strips in
@@ -80,6 +106,10 @@ planet type together.
   transition between modes.
 - `src/scene/` contains the React Three Fiber canvas, cameras, lighting,
   post-processing, the 3D menu, and both starfield implementations.
+- `src/landing/` contains the landing menu as ordinary HTML. It is invisible
+  while the 3D menu is on screen: it gives the page its heading, takes
+  keyboard focus on the 3D menu's behalf, and is shown in its place when the
+  3D menu cannot be drawn.
 - `src/modals/` contains the modal state and document layer. Its section
   folders hold the copy and layouts; `components/` holds the terminal, static
   image-to-ASCII renderer, and holographic portfolio scenes shared by them.
